@@ -1,0 +1,132 @@
+# https://taskfile.dev
+#
+# Tasks for the dotenv module. Run them from this directory, or from the repo
+# root as `task dotenv:<task>` — the root Taskfile includes this file.
+#
+# Every module carries the same task names on purpose: `task test` means the
+# same thing everywhere, so moving between modules costs no re-learning.
+
+version: "3"
+
+vars:
+  FUZZ_TARGETS: FuzzParseRender FuzzParseIsIdempotent FuzzSetRoundTrip FuzzSetIsIdempotent FuzzExpandTerminates
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test ./...
+
+  test:race:
+    desc: Run tests with the race detector
+    cmds:
+      - go test -race ./...
+
+  test:cover:
+    desc: Report statement coverage
+    cmds:
+      - go test -coverprofile=cover.out ./...
+      - go tool cover -func=cover.out | tail -1
+
+  test:cover:html:
+    desc: Open the coverage report in a browser
+    deps: [test:cover]
+    cmds:
+      - go tool cover -html=cover.out
+
+  test:uncovered:
+    desc: List functions below 100% coverage
+    cmds:
+      - go test -coverprofile=cover.out ./... > /dev/null
+      - 'go tool cover -func=cover.out | grep -v "100.0%" || echo "everything is covered"'
+
+  fuzz:
+    desc: 'Fuzz one property: task fuzz -- FuzzParseRender [30s]'
+    vars:
+      TARGET: '{{index (splitArgs .CLI_ARGS) 0}}'
+      DURATION: '{{if gt (len (splitArgs .CLI_ARGS)) 1}}{{index (splitArgs .CLI_ARGS) 1}}{{else}}30s{{end}}'
+    cmds:
+      # -run "^$" so only the fuzz engine runs; without it the whole unit suite
+      # executes first and the fuzz budget is spent on startup.
+      - go test -run "^$" -fuzz "^{{.TARGET}}$" -fuzztime {{.DURATION}} .
+
+  fuzz:all:
+    desc: Fuzz every property for 30s each
+    cmds:
+      - for: { var: FUZZ_TARGETS }
+        cmd: |
+          echo "── {{.ITEM}}"
+          go test -run "^$" -fuzz "^{{.ITEM}}$" -fuzztime 30s .
+
+  fuzz:list:
+    desc: List the fuzz properties in this module
+    cmds:
+      - 'grep -h "^func Fuzz" *_test.go | sed "s/func \\(Fuzz[A-Za-z]*\\).*/  \\1/"'
+
+  bench:
+    desc: Run benchmarks with allocation counts
+    cmds:
+      - go test -run "^$" -bench . -benchmem .
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  lint:
+    desc: Run golangci-lint (and staticcheck) when installed
+    cmds:
+      # Look in PATH first, then GOPATH/bin — `go install` puts binaries there
+      # but shells often omit it from PATH, which made this task silently skip
+      # a linter that was actually installed.
+      - |
+        bin=$(command -v golangci-lint || echo "$(go env GOPATH)/bin/golangci-lint")
+        [ -x "$bin" ] && "$bin" run ./... || echo "golangci-lint not installed; skipping"
+      - |
+        bin=$(command -v staticcheck || echo "$(go env GOPATH)/bin/staticcheck")
+        [ -x "$bin" ] && "$bin" ./... || echo "staticcheck not installed; skipping"
+
+  fmt:
+    desc: Format the source
+    cmds:
+      - gofmt -w .
+
+  fmt:check:
+    desc: Fail when the source is unformatted
+    cmds:
+      - |
+        out=$(gofmt -l .)
+        if [ -n "$out" ]; then echo "gofmt needed on:"; echo "$out"; exit 1; fi
+
+  tidy:
+    desc: Tidy go.mod and go.sum
+    cmds:
+      - go mod tidy
+
+  doc:
+    desc: Print the package's exported API
+    cmds:
+      - go doc -all .
+
+  deps:
+    desc: Show this module's third-party dependencies
+    cmds:
+      - 'go list -deps ./... | grep "\." | grep -v ubgo/dotenv | sort -u || echo "none — stdlib only"'
+
+  ci:
+    desc: The full gate for this module — format, vet, race tests
+    cmds:
+      - task: fmt:check
+      - task: vet
+      - task: test:race
+
+  clean:
+    desc: Remove coverage artifacts
+    cmds:
+      - rm -f cover.out cover.html
