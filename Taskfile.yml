@@ -8,6 +8,13 @@
 
 version: "3"
 
+includes:
+  # The CLI module carries its own Taskfile; `task cli:build`, `task cli:ci`,
+  # etc. proxy into it with the right working directory.
+  cli:
+    taskfile: ./cli/Taskfile.yml
+    dir: ./cli
+
 vars:
   FUZZ_TARGETS: FuzzParseRender FuzzParseIsIdempotent FuzzSetRoundTrip FuzzSetIsIdempotent FuzzExpandTerminates
 
@@ -120,11 +127,12 @@ tasks:
       - 'go list -deps ./... | grep "\." | grep -v ubgo/dotenv | sort -u || echo "none — stdlib only"'
 
   ci:
-    desc: The full gate for this module — format, vet, race tests
+    desc: The full gate — library AND cli — format, vet, race tests
     cmds:
       - task: fmt:check
       - task: vet
       - task: test:race
+      - task: cli:ci
 
   clean:
     desc: Remove coverage artifacts

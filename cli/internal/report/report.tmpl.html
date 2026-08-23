@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --line: #e5e7eb;
+    --ok: #059669; --warn: #d97706; --bad: #dc2626; --info: #2563eb; --dim: #9ca3af;
+    --banner-bg: #fef2f2; --banner-fg: #b91c1c; --chip: #f3f4f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111214; --fg: #e7e7ea; --muted: #9ca3af; --line: #2a2c30;
+      --ok: #34d399; --warn: #fbbf24; --bad: #f87171; --info: #60a5fa; --dim: #6b7280;
+      --banner-bg: #3b1113; --banner-fg: #fca5a5; --chip: #1c1e22;
+    }
+  }
+  body { background: var(--bg); color: var(--fg); font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; margin: 2rem auto; max-width: 72rem; padding: 0 1rem; }
+  h1 { font-size: 1.25rem; }
+  .meta { color: var(--muted); font-size: 0.8rem; margin-bottom: 1.5rem; }
+  .meta code { background: var(--chip); padding: 0.1rem 0.35rem; border-radius: 4px; }
+  .banner { background: var(--banner-bg); color: var(--banner-fg); border-radius: 6px; padding: 0.6rem 1rem; font-weight: 600; margin-bottom: 1.5rem; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { border-bottom: 1px solid var(--line); padding: 0.35rem 0.75rem; text-align: left; white-space: nowrap; }
+  th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  td.key { font-family: ui-monospace, monospace; font-size: 0.85rem; }
+  td.val { font-family: ui-monospace, monospace; font-size: 0.85rem; }
+  .present { color: var(--ok); } .missing { color: var(--bad); font-weight: 700; }
+  .placeholder { color: var(--warn); font-weight: 700; } .empty { color: var(--dim); }
+  .disabled { color: var(--muted); } .inherited { color: var(--info); }
+  .added { color: var(--ok); } .removed { color: var(--bad); } .changed { color: var(--warn); }
+  h2 { font-size: 0.95rem; margin-top: 2rem; }
+  .legend { color: var(--muted); font-size: 0.78rem; margin-top: 1.25rem; }
+  .contract { color: var(--bad); margin-top: 1rem; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<h1>{{.Title}}</h1>
+<div class="meta">
+  generated {{.GeneratedAt}}
+  {{if .MatrixData}}· sources: {{range .MatrixData.Sources}}<code>{{.}}</code> {{end}}{{end}}
+  · values {{if .Revealed}}revealed{{else}}masked{{end}}
+</div>
+{{if .Revealed}}<div class="banner">⚠ This report CONTAINS SECRETS — do not share, mail, or commit it.</div>{{end}}
+
+{{with .MatrixData}}
+<div class="scroll">
+<table>
+  <thead><tr><th>key</th>{{range .Envs}}<th>{{.}}</th>{{end}}</tr></thead>
+  <tbody>
+  {{$revealed := .Revealed}}
+  {{range .Rows}}
+    <tr>
+      <td class="key">{{.Key}}</td>
+      {{range .Cells}}
+        {{if and $revealed (or (eq .State "present") (eq .State "placeholder"))}}
+          <td class="val {{.State}}">{{.Value}}</td>
+        {{else}}
+          <td class="{{.State}}" title="{{.State}}">{{.Symbol}}</td>
+        {{end}}
+      {{end}}
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{range $env, $keys := .ContractMissing}}{{if $keys}}
+<p class="contract">contract: <strong>{{$env}}</strong> is missing {{len $keys}} key(s): {{range $keys}}<code>{{.}}</code> {{end}}</p>
+{{end}}{{end}}
+<p class="legend">✓ present · ∅ empty · ! placeholder · # disabled · → inherited · — missing</p>
+{{end}}
+
+{{with .DiffData}}
+{{$revealed := .Revealed}}
+{{if .Added}}<h2 class="added">Added in {{.FileB}}</h2>
+<div class="scroll"><table><thead><tr><th>key</th><th>value</th></tr></thead><tbody>
+{{range .Added}}<tr><td class="key">{{.Key}}</td><td class="val">{{mask $revealed .Value}}</td></tr>{{end}}
+</tbody></table></div>{{end}}
+{{if .Removed}}<h2 class="removed">Removed (only in {{.FileA}})</h2>
+<div class="scroll"><table><thead><tr><th>key</th><th>value</th></tr></thead><tbody>
+{{range .Removed}}<tr><td class="key">{{.Key}}</td><td class="val">{{mask $revealed .Value}}</td></tr>{{end}}
+</tbody></table></div>{{end}}
+{{if .Changed}}<h2 class="changed">Changed</h2>
+<div class="scroll"><table><thead><tr><th>key</th><th>{{.FileA}}</th><th>{{.FileB}}</th></tr></thead><tbody>
+{{range .Changed}}<tr><td class="key">{{.Key}}</td><td class="val">{{mask $revealed .From}}</td><td class="val">{{mask $revealed .To}}</td></tr>{{end}}
+</tbody></table></div>{{end}}
+{{if and (not .Added) (not .Removed) (not .Changed)}}<p>No differences — the two files are equivalent.</p>{{end}}
+{{end}}
+</body>
+</html>

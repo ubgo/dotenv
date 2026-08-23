@@ -1,0 +1,88 @@
+# https://taskfile.dev
+#
+# Tasks for the dotenvctl CLI module. Run from this directory, or from the
+# repo root as `task cli:<task>` — the root Taskfile includes this file.
+#
+# Same task names as every module on purpose: `task test` means the same
+# thing everywhere, so moving between modules costs no re-learning.
+
+version: "3"
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  build:
+    desc: Build the dotenvctl binary into bin/
+    cmds:
+      - go build -o bin/dotenvctl ./cmd/dotenvctl
+
+  install:
+    desc: Install dotenvctl into GOPATH/bin
+    cmds:
+      - go install ./cmd/dotenvctl
+
+  run:
+    desc: 'Build and run: task run -- list --json'
+    deps: [build]
+    cmds:
+      - ./bin/dotenvctl {{.CLI_ARGS}}
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test ./...
+
+  test:race:
+    desc: Run tests with the race detector
+    cmds:
+      - go test -race ./...
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  fmt:
+    desc: Format the source
+    cmds:
+      - gofmt -w .
+
+  fmt:check:
+    desc: Fail when the source is unformatted
+    cmds:
+      - |
+        out=$(gofmt -l .)
+        if [ -n "$out" ]; then echo "gofmt needed on:"; echo "$out"; exit 1; fi
+
+  lint:
+    desc: Run golangci-lint (and staticcheck) when installed
+    cmds:
+      # PATH first, then GOPATH/bin — `go install` puts binaries there but
+      # shells often omit it, which silently skips an installed linter.
+      - |
+        bin=$(command -v golangci-lint || echo "$(go env GOPATH)/bin/golangci-lint")
+        [ -x "$bin" ] && "$bin" run ./... || echo "golangci-lint not installed; skipping"
+      - |
+        bin=$(command -v staticcheck || echo "$(go env GOPATH)/bin/staticcheck")
+        [ -x "$bin" ] && "$bin" ./... || echo "staticcheck not installed; skipping"
+
+  tidy:
+    desc: Tidy go.mod and go.sum
+    cmds:
+      - go mod tidy
+
+  ci:
+    desc: The full gate for this module — format, vet, race tests
+    cmds:
+      - task: fmt:check
+      - task: vet
+      - task: test:race
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -rf bin

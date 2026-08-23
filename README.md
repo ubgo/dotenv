@@ -28,7 +28,7 @@ A parser and editor. Three things it deliberately does **not** do:
 | Set `os.Environ` | Reading a `.env` and exporting it into the process are separate decisions. Conflating them is why `godotenv.Load` means something this package must not | Apply your own precedence over `f.Map()` |
 | Merge multiple files | Merging is a precedence policy — which file wins, per key. The guarantee here is that one file maps to one set of bytes, and merged content has no single file to render back to | Layer it above |
 | Coerce values to types | A `.env` has no types — `PORT=8443` is four characters. Which Go type that becomes depends on the field it is bound to, which is the application's decision. Typed getters also fail quietly: `PORT=eighty` returning a default is a production incident | [Compose with a binder](#typed-configuration) |
-| Stream a file in chunks | Forward references, insertion, and byte-exact rendering each need the whole file. A stream could resolve *backward* references only, which would make the same bytes expand differently here and there — worse than not offering it. [Full reasoning and measurements](../docs/proposals/dotenv-streaming.md) | `ParseReader` closes the cost that was real |
+| Stream a file in chunks | Forward references, insertion, and byte-exact rendering each need the whole file. A stream could resolve *backward* references only, which would make the same bytes expand differently here and there — worse than not offering it. The full reasoning and measurements live in the package doc | `ParseReader` closes the cost that was real |
 
 The first is enforced by a test that snapshots the environment across a full parse → expand → edit → save → reopen cycle.
 
@@ -88,7 +88,7 @@ Measured on this machine, a file of many small entries:
 
 Roughly 4× the file size in memory and linear in time. `TestParse_ScalesLinearly` guards the complexity class — it caught a quadratic regression that made the 5 MB case take **23 seconds**, which no unit test noticed because they all run on a handful of lines.
 
-`Open` does not guess a location; you pass the path. Resolving *where* a file lives is [`appdir`](../appdir)'s job:
+`Open` does not guess a location; you pass the path. Resolving *where* a file lives is a path-resolution library's job, not this package's:
 
 ```go
 p, _ := dirs.ConfigFile(".env")
@@ -115,7 +115,7 @@ created, err := f.SetBefore("DB_HOST", "DB_DRIVER", "postgres")  // right before
 
 An **existing** key is updated in place and never moved — relocating it would rewrite two regions of the file for a one-value change. A missing anchor returns `ErrAnchorNotFound` and leaves the file untouched, rather than silently appending at the end while reporting success.
 
-Inserting by *section name* is [designed but deferred](../docs/proposals/dotenv-setinsection.md): section boundaries are a convention rather than syntax, so it has to guess, while `SetAfter` cannot be wrong.
+Inserting by *section name* is designed but deferred: section boundaries are a convention rather than syntax, so it has to guess, while `SetAfter` cannot be wrong.
 
 `Set` on a duplicated key updates the **last** occurrence, because that is the one a consumer actually sees.
 
@@ -483,7 +483,7 @@ A `.env` has no types. `PORT=8443` is four characters, and which Go type it beco
 
 Typed getters also fail in the worst way available. `PORT=eighty` returns the default, silently, and the service comes up on the wrong port with nothing in the logs. A binder reports it as an error alongside every other problem in the file.
 
-Inferring types from a value's *shape* — `8443` becoming a number because it looks numeric — was evaluated and [rejected](../docs/proposals/dotenv-type-inference.md): `ZIP=01234` loses its leading zero, `DESCRIPTION=Hello, world` becomes an array, and the usual escape hatches collide with backtick and glob syntax this package already supports.
+Inferring types from a value's *shape* — `8443` becoming a number because it looks numeric — was evaluated and rejected: `ZIP=01234` loses its leading zero, `DESCRIPTION=Hello, world` becomes an array, and the usual escape hatches collide with backtick and glob syntax this package already supports.
 
 > Note `${VAR:?message}` already covers *required* at the file level, so a missing value can fail during expansion rather than at bind time — useful when the variable is referenced by another value rather than bound directly.
 
@@ -693,6 +693,35 @@ A file that ended without a trailing newline still does not. Adding or removing 
 | `f.Entries` | every entry, including comments and blanks |
 | `f.Existed` / `Mode` / `Path` | file facts |
 | `Kind` (6 kinds), `Entry`, `Pair`, `RequiredError`, `ErrAnchorNotFound` | types and errors |
+
+## CLI — dotenvctl
+
+The `cli/` directory ships `dotenvctl`, a terminal front-end over this library — every edit keeps the byte-preservation guarantees, and the tool never touches its own process environment.
+
+```sh
+go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@latest
+```
+
+```sh
+dotenvctl get DATABASE_URL --expand        # print one value, references resolved
+dotenvctl set DB_HOST=db.prod --after DB_PORT
+dotenvctl unset OLD_KEY                    # comments it out — reversible
+dotenvctl restore OLD_KEY                  # …and back
+dotenvctl list --disabled --inherited     # the whole picture
+dotenvctl diff .env.staging .env.prod      # exit 1 when configs differ, like diff(1)
+dotenvctl run -- npm start                 # child gets the file's values; our env untouched
+dotenvctl envs                             # discover the directory's .env family
+dotenvctl matrix --only-drift              # keys × environments drift table
+dotenvctl matrix --contract .env.example   # CI gate: exit 1 when an env misses a contract key
+dotenvctl matrix --format html -o envs.html   # shareable report — secrets masked by default
+dotenvctl github push --prefix GITHUB_SECRET_ --strip-prefix   # sync to GitHub Actions secrets via gh
+```
+
+Every verb takes `-f <file>` (default `./.env`) and `--json` (stable `{ok,data|error}` envelope). Mutating verbs support `--dry-run`. Exit codes: `0` ok, `1` operation failed, `2` usage. The CLI is a separate Go module, so this library stays dependency-free.
+
+Full CLI documentation — every verb, the multi-env tools, and the plugins — lives in [docs/](docs/README.md).
+
+Matrix cells: `✓` present · `∅` empty · `!` placeholder (`__STAND_IN__` values, pattern configurable via `--placeholder`) · `#` disabled (commented out) · `→` inherited (name-only declaration) · `—` missing. Values are masked (`••••••`) in `--values`, JSON, and HTML output unless you pass `--reveal`.
 
 ## Testing
 

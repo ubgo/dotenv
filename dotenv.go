@@ -67,8 +67,9 @@
 // one value here and another there. Two APIs disagreeing about one file is worse
 // than one API doing less.
 //
-// See docs/proposals/dotenv-streaming.md for the measurements behind this and
-// the shape a Scan would take if the case ever arises.
+// If the streaming case ever becomes real, the shape it would take is a
+// Scan over physical lines with byte-exactness and forward references
+// dropped — a different, lesser contract, which is why it is not this one.
 //
 // # Naming
 //
