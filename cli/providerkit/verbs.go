@@ -12,11 +12,17 @@ import (
 // Shared flag names — one vocabulary across every kit-built verb, matching
 // the core CLI's constants by value (the words are the API, not the consts).
 const (
-	flagPrefix      = "prefix"
-	flagStripPrefix = "strip-prefix"
-	flagExpand      = "expand"
-	flagDryRun      = "dry-run"
-	flagYes         = "yes"
+	flagPrefix              = "prefix"
+	flagExcludePrefix       = "exclude-prefix"
+	flagStripPrefix         = "strip-prefix"
+	flagInclude             = "include"
+	flagExclude             = "exclude"
+	flagExpand              = "expand"
+	flagDryRun              = "dry-run"
+	flagYes                 = "yes"
+	flagKeep                = "keep"
+	flagIncludePlaceholders = "include-placeholders"
+	flagIncludeEmpty        = "include-empty"
 )
 
 // GateInfo is what a plugin's confirm gate learns before writes happen.
@@ -148,6 +154,12 @@ func NewListCmd(deps Deps, store SecretLister) *cobra.Command {
 				return Fail(deps.Printer, outfmt.CodeExec, "list: %v", err)
 			}
 			slices.Sort(names)
+			if len(names) == 0 {
+				// An empty store must say so — bare silence reads like a
+				// broken command, and users scoping the wrong target (repo
+				// secrets vs --environment secrets) need the nudge.
+				deps.Printer.Human("no secrets found for this scope (repo/environment/org secrets are listed separately — try --environment or --org)")
+			}
 			for _, n := range names {
 				deps.Printer.Human(n)
 			}
@@ -157,24 +169,38 @@ func NewListCmd(deps Deps, store SecretLister) *cobra.Command {
 }
 
 // NewPruneCmd builds the standard `prune` verb: delete remote names absent
-// from the local selection. Doubly gated — the plugin's Gate AND --yes are
+// from the local KEEP-SET. Doubly gated — the plugin's Gate AND --yes are
 // both required paths, because deletion is the one verb with no undo.
+//
+// The keep-set is deliberately WIDER than the pushable selection
+// (SECRETS_PORT_SPEC §7.5): guard-skipped names count as kept (a local
+// placeholder must never delete a real remote value), and --keep names cover
+// secrets managed outside the selection entirely (bundles, file secrets,
+// other tools). Every spared name is REPORTED with its reason — an invisible
+// keep decision would be as surprising as an invisible delete.
 func NewPruneCmd(deps Deps, lister SecretLister, deleter SecretDeleter, cfg VerbConfig) *cobra.Command {
 	var sel SelectOpts
+	var keepNames []string
 	var dryRun, yes bool
 
 	c := &cobra.Command{
 		Use:   "prune",
-		Short: "Delete remote secrets whose names are absent from the local selection",
+		Short: "Delete remote secrets absent from the local selection (skipped keys and --keep names are spared)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			src, err := deps.Source(sel)
 			if err != nil {
 				return err
 			}
-			keep := make(map[string]bool, len(src.Pairs()))
+			keep := make(map[string]Action, len(src.Pairs())+len(src.Skipped())+len(keepNames))
 			for _, p := range src.Pairs() {
-				keep[p.Key] = true
+				keep[p.Key] = "" // in the selection: kept silently, not reported
+			}
+			for _, s := range src.Skipped() {
+				keep[s.Name] = ActionKeptSkipped
+			}
+			for _, n := range keepNames {
+				keep[n] = ActionKeptFlag
 			}
 
 			remote, err := lister.Names(cmd.Context())
@@ -184,21 +210,28 @@ func NewPruneCmd(deps Deps, lister SecretLister, deleter SecretDeleter, cfg Verb
 			slices.Sort(remote)
 
 			var stale []string
+			var kept []Result
 			for _, n := range remote {
-				if !keep[n] {
+				action, isKept := keep[n]
+				switch {
+				case !isKept:
 					stale = append(stale, n)
+				case action != "":
+					// Spared for a non-obvious reason — report it.
+					kept = append(kept, Result{Name: n, Action: action})
 				}
 			}
 			if len(stale) == 0 {
 				deps.Printer.Human("nothing to prune")
-				return emitResults(deps, cfg, cmd.Context(), []Result{}, dryRun)
+				return emitResults(deps, cfg, cmd.Context(), kept, dryRun)
 			}
 
 			if err := runGate(cmd.Context(), deps, cfg, GateInfo{Names: stale, DryRun: dryRun, Yes: yes}); err != nil {
 				return err
 			}
 
-			results := make([]Result, 0, len(stale))
+			results := make([]Result, 0, len(stale)+len(kept))
+			results = append(results, kept...)
 			for _, n := range stale {
 				if dryRun {
 					results = append(results, Result{Name: n, Action: ActionWouldDelete})
@@ -217,19 +250,42 @@ func NewPruneCmd(deps Deps, lister SecretLister, deleter SecretDeleter, cfg Verb
 	}
 
 	addSelectionFlags(c, &sel)
+	c.Flags().StringSliceVar(&keepNames, flagKeep, nil, "never consider these remote names stale — for secrets managed outside this selection (repeat or comma-separate)")
 	c.Flags().BoolVar(&dryRun, flagDryRun, false, "print what would be deleted without deleting")
 	c.Flags().BoolVar(&yes, flagYes, false, "confirm deletion (required non-interactively)")
 	return c
 }
 
-// addSelectionFlags attaches the shared selection surface. Expand defaults
-// ON for store verbs — see SelectOpts.Expand.
-func addSelectionFlags(c *cobra.Command, sel *SelectOpts) {
+// AddSelectionFlags attaches the five pure-selection flags (which keys, which
+// names) to any verb — store verbs AND core read verbs share this registrar so
+// the flag names and help text exist exactly once. Exported because selection
+// is a CORE capability: `list --prefix` and `github push --prefix` must be the
+// same grammar or the pipeline's whole point is lost.
+func AddSelectionFlags(c *cobra.Command, sel *SelectOpts) {
 	c.Flags().StringVar(&sel.Prefix, flagPrefix, "", "select only keys with this prefix")
-	c.Flags().BoolVar(&sel.StripPrefix, flagStripPrefix, false, "remove the prefix from pushed names")
+	c.Flags().StringVar(&sel.ExcludePrefix, flagExcludePrefix, "", "drop keys with this prefix (the inverse selector)")
+	c.Flags().StringSliceVar(&sel.IncludeKeys, flagInclude, nil, "force-include a key even when prefix filters would drop it (repeatable)")
+	c.Flags().StringSliceVar(&sel.ExcludeKeys, flagExclude, nil, "drop a specific key from the selection (repeatable)")
+	c.Flags().BoolVar(&sel.StripPrefix, flagStripPrefix, false, "remove the matched prefix from the emitted names")
+}
+
+// SelectionActive reports whether any selection flag was used — read verbs
+// switch from their legacy full view to the pipeline view only when the user
+// actually selected something, keeping back-compat output for bare calls.
+func SelectionActive(sel SelectOpts) bool {
+	return sel.Prefix != "" || sel.ExcludePrefix != "" ||
+		len(sel.IncludeKeys) > 0 || len(sel.ExcludeKeys) > 0 || sel.StripPrefix
+}
+
+// addSelectionFlags is the store-verb surface: pure selection plus the
+// value-affecting flags whose DEFAULTS are store-shaped (expand on, guards
+// on). Read verbs deliberately do not get these — when reading, you want to
+// SEE placeholder values, not have them hidden.
+func addSelectionFlags(c *cobra.Command, sel *SelectOpts) {
+	AddSelectionFlags(c, sel)
 	c.Flags().BoolVar(&sel.Expand, flagExpand, true, "resolve ${references} before pushing")
-	c.Flags().BoolVar(&sel.IncludePlaceholders, "include-placeholders", false, "push __PLACEHOLDER__ values instead of skipping them")
-	c.Flags().BoolVar(&sel.IncludeEmpty, "include-empty", false, "push empty values instead of skipping them")
+	c.Flags().BoolVar(&sel.IncludePlaceholders, flagIncludePlaceholders, false, "push __PLACEHOLDER__ values instead of skipping them")
+	c.Flags().BoolVar(&sel.IncludeEmpty, flagIncludeEmpty, false, "push empty values instead of skipping them")
 }
 
 // runGate applies the plugin's gate, or the bare Confirm contract when the

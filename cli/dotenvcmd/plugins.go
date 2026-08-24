@@ -4,7 +4,10 @@ import (
 	"bufio"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
+
+	"golang.org/x/term"
 
 	"github.com/ubgo/dotenv"
 	"github.com/ubgo/dotenv/cli/internal/outfmt"
@@ -77,24 +80,57 @@ func (a *app) sourceValues(f *dotenv.File, expand bool) (map[string]string, erro
 	return m, nil
 }
 
-// sourceKeys resolves the selection to key names in file order. An explicit
-// key that does not exist fails loudly — silently skipping a key the user
-// typed would report success for work that never happened.
+// sourceKeys resolves the selection to key names in file order, applying the
+// SelectOpts resolution order (SECRETS_PORT_SPEC §1):
+//
+//	explicit Keys (as given; prefix filters do not second-guess them)
+//	→ else: all keys → Prefix keeps → ExcludePrefix drops
+//	→ IncludeKeys force-add (bypassing prefix filters)
+//	→ ExcludeKeys drop
+//
+// An explicitly NAMED key (Keys or IncludeKeys) that does not exist fails
+// loudly — silently skipping a key the user typed would report success for
+// work that never happened. Excluding an absent key is a no-op: "make sure X
+// never pushes" is valid even when X is already gone.
 func (a *app) sourceKeys(f *dotenv.File, opts providerkit.SelectOpts) ([]string, error) {
-	if len(opts.Keys) > 0 {
+	var keys []string
+	switch {
+	case len(opts.Keys) > 0:
 		for _, k := range opts.Keys {
 			if !f.Has(k) {
 				return nil, a.failf(outfmt.CodeNotFound, "key %q not found in %s", k, a.file)
 			}
 		}
-		return opts.Keys, nil
-	}
-
-	var keys []string
-	for _, k := range f.Keys() {
-		if opts.Prefix == "" || strings.HasPrefix(k, opts.Prefix) {
+		keys = opts.Keys
+	default:
+		for _, k := range f.Keys() {
+			if opts.Prefix != "" && !strings.HasPrefix(k, opts.Prefix) {
+				continue
+			}
+			if opts.ExcludePrefix != "" && strings.HasPrefix(k, opts.ExcludePrefix) {
+				continue
+			}
 			keys = append(keys, k)
 		}
+	}
+
+	for _, k := range opts.IncludeKeys {
+		if !f.Has(k) {
+			return nil, a.failf(outfmt.CodeNotFound, "--include key %q not found in %s", k, a.file)
+		}
+		if !slices.Contains(keys, k) {
+			keys = append(keys, k)
+		}
+	}
+
+	if len(opts.ExcludeKeys) > 0 {
+		kept := keys[:0]
+		for _, k := range keys {
+			if !slices.Contains(opts.ExcludeKeys, k) {
+				kept = append(kept, k)
+			}
+		}
+		keys = kept
 	}
 	return keys, nil
 }
@@ -111,15 +147,15 @@ func (s *pluginSource) Pairs() []dotenv.Pair { return s.pairs }
 // Skipped implements providerkit.Source.
 func (s *pluginSource) Skipped() []providerkit.Skip { return s.skips }
 
-// stdinIsTerminal reports whether a human can answer a prompt. Character-
-// device check rather than an x/term dependency — piped/redirected stdin is
-// what actually matters for the confirm gate.
+// stdinIsTerminal reports whether a human can answer a prompt.
+//
+// A real isatty check (x/term), NOT a char-device check: /dev/null IS a
+// character device, so the naive Stat test classifies CI's `< /dev/null`
+// stdin as interactive — the confirm gate would then prompt into the void
+// and die with "aborted" instead of the actionable "--yes required" message.
+// Caught by exactly that misbehavior in testing.
 func stdinIsTerminal() bool {
-	info, err := os.Stdin.Stat()
-	if err != nil {
-		return false
-	}
-	return info.Mode()&os.ModeCharDevice != 0
+	return term.IsTerminal(int(os.Stdin.Fd()))
 }
 
 // askOnTerminal prompts on stderr (stdout may be piped or an envelope) and

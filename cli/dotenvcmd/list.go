@@ -9,6 +9,7 @@ import (
 
 	"github.com/ubgo/dotenv"
 	"github.com/ubgo/dotenv/cli/internal/outfmt"
+	"github.com/ubgo/dotenv/cli/providerkit"
 )
 
 // pairPayload is one key/value in list's --json output.
@@ -40,14 +41,23 @@ type listPayload struct {
 const tabPadding = 2
 
 // newListCmd shows the file's effective contents.
+//
+// With any selection flag, the output switches from the legacy full view
+// (file order, duplicates included) to the shared pipeline's EFFECTIVE view —
+// selected, last-wins, optionally renamed. Guards stay OFF for reads:
+// a placeholder value is something you want to SEE when listing, and only
+// something to skip when a store verb would push it.
 func newListCmd(a *app) *cobra.Command {
 	var expand, showDisabled, showInherited bool
+	var sel providerkit.SelectOpts
 
 	c := &cobra.Command{
 		Use:   "list",
 		Short: "List active pairs (add --disabled / --inherited for the full picture)",
 		Example: "  dotenvctl list\n" +
 			"  dotenvctl list --expand\n" +
+			"  dotenvctl list --prefix GITHUB_SECRET_ --strip-prefix --json\n" +
+			"  dotenvctl list --exclude-prefix GITHUB_SECRET_   # the app-config view\n" +
 			"  dotenvctl list --disabled --inherited --json",
 		Args: cobra.NoArgs,
 		RunE: func(*cobra.Command, []string) error {
@@ -56,7 +66,7 @@ func newListCmd(a *app) *cobra.Command {
 				return err
 			}
 
-			pairs, err := a.collectPairs(f, expand)
+			pairs, err := a.collectListPairs(f, expand, sel)
 			if err != nil {
 				return err
 			}
@@ -78,7 +88,31 @@ func newListCmd(a *app) *cobra.Command {
 	c.Flags().BoolVar(&expand, flagExpand, false, "resolve ${VAR} references against the file")
 	c.Flags().BoolVar(&showDisabled, flagDisabled, false, "also show commented-out settings")
 	c.Flags().BoolVar(&showInherited, flagInherited, false, "also show inherited (name-only) declarations")
+	providerkit.AddSelectionFlags(c, &sel)
 	return c
+}
+
+// collectListPairs routes through the shared pipeline when selection is
+// active, and keeps the legacy duplicate-preserving view otherwise.
+func (a *app) collectListPairs(f *dotenv.File, expand bool, sel providerkit.SelectOpts) ([]pairPayload, error) {
+	if !providerkit.SelectionActive(sel) {
+		return a.collectPairs(f, expand)
+	}
+
+	// Reads see everything they selected: guards lifted, expansion by the
+	// verb's own --expand flag (default off for reads, unlike pushes).
+	sel.Expand = expand
+	sel.IncludePlaceholders = true
+	sel.IncludeEmpty = true
+	src, err := a.pluginSource(sel)
+	if err != nil {
+		return nil, err
+	}
+	pairs := make([]pairPayload, 0, len(src.Pairs()))
+	for _, p := range src.Pairs() {
+		pairs = append(pairs, pairPayload{Key: p.Key, Value: p.Value})
+	}
+	return pairs, nil
 }
 
 // collectPairs returns the rows to display: raw Pairs in file order, or — with

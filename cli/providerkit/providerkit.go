@@ -62,7 +62,12 @@ type Deps struct {
 	Ask func(prompt string) bool
 }
 
-// SelectOpts is the shared selection grammar (PLUGINS_SPEC §2).
+// SelectOpts is the shared selection grammar (PLUGINS_SPEC §2,
+// SECRETS_PORT_SPEC §1). Resolution order, deterministic and pinned by tests:
+// explicit Keys are the selection as given (prefix filters do not second-guess
+// them); otherwise all active keys → Prefix keeps → ExcludePrefix drops →
+// IncludeKeys force-adds (bypassing the prefix filters) → ExcludeKeys drops →
+// the placeholder/empty guards run last.
 type SelectOpts struct {
 	// Keys are explicit key names; empty means every active key. A named key
 	// that does not exist fails the selection — a push that silently skips a
@@ -70,8 +75,20 @@ type SelectOpts struct {
 	Keys []string
 	// Prefix keeps only keys with this prefix ("" keeps all).
 	Prefix string
+	// ExcludePrefix drops keys with this prefix — the inverse selector, for
+	// "everything EXCEPT the deploy-routing keys" (the bundle workflow).
+	ExcludePrefix string
+	// IncludeKeys force-include specific keys even when the prefix filters
+	// would drop them (a repo's local-testing specials). A named key that
+	// does not exist fails, same contract as Keys.
+	IncludeKeys []string
+	// ExcludeKeys drop specific keys from the selection. Excluding an absent
+	// key is a no-op — "make sure X never pushes" is valid even when X is
+	// already gone.
+	ExcludeKeys []string
 	// StripPrefix removes Prefix from the emitted names (the
-	// GITHUB_SECRET_* → * workflow).
+	// GITHUB_SECRET_* → * workflow). Keys without the prefix (explicit or
+	// force-included ones) keep their names untouched.
 	StripPrefix bool
 	// Expand resolves ${references}. Push verbs default it ON: a literal
 	// ${DB_HOST} stored in a remote secret is nearly always wrong.
@@ -119,6 +136,14 @@ const (
 	ActionDeleted Action = "deleted"
 	// ActionWouldDelete: dry-run prune.
 	ActionWouldDelete Action = "would-delete"
+	// ActionKeptSkipped: prune spared a remote name because the local key was
+	// guard-skipped (placeholder/empty). Skipped ≠ stale — "not filled in
+	// locally" must never mean "delete remotely" (SECRETS_PORT_SPEC §7.5).
+	ActionKeptSkipped Action = "kept-skipped"
+	// ActionKeptFlag: prune spared a remote name because --keep listed it —
+	// the escape hatch for secrets managed outside the selection (bundles,
+	// file secrets, other tools).
+	ActionKeptFlag Action = "kept-keep-flag"
 )
 
 // Result is one name's outcome. Values never appear here — names and actions

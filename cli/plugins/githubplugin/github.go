@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/ubgo/dotenv/cli/internal/outfmt"
 	"github.com/ubgo/dotenv/cli/providerkit"
@@ -26,10 +27,17 @@ import (
 const ghBinary = "gh"
 
 // Scope flag names — github-specific dimensions on the kit's standard verbs.
+// flagYes duplicates the kit's spelling by value for the bespoke env-create
+// verb — the WORD is the shared API; the kit's const is unexported.
 const (
+	flagYes         = "yes"
 	flagRepo        = "repo"
 	flagEnvironment = "environment"
-	flagOrg         = "org"
+	// flagEnvironmentAlias lets `--env` work too — it is what gh itself calls
+	// this flag, and muscle memory from `gh secret set --env` should not be
+	// punished. Normalized to the canonical name, so help shows one flag.
+	flagEnvironmentAlias = "env"
+	flagOrg              = "org"
 )
 
 // secretNameRe is GitHub's secret-name grammar. Env keys legal under the
@@ -77,12 +85,85 @@ func (p *Plugin) Command(deps providerkit.Deps) *cobra.Command {
 
 	for _, c := range []*cobra.Command{push, prune, list} {
 		c.Flags().StringVarP(&store.repo, flagRepo, "R", "", "target repository (owner/name); default: the cwd's git remote")
-		c.Flags().StringVar(&store.environment, flagEnvironment, "", "target a deployment environment's secrets")
+		c.Flags().StringVar(&store.environment, flagEnvironment, "", "target a deployment environment's secrets (alias: --env)")
 		c.Flags().StringVar(&store.org, flagOrg, "", "target organization secrets (mutually exclusive with --repo/--environment)")
+		c.Flags().SetNormalizeFunc(normalizeEnvAlias)
 	}
 
-	root.AddCommand(push, list, prune)
+	root.AddCommand(push, list, prune, newEnvCreateCmd(deps, store))
 	return root
+}
+
+// newEnvCreateCmd creates (or confirms) a GitHub deployment environment — the
+// bespoke verb the plugin tree allows beyond the kit's standard set
+// (SECRETS_PORT_SPEC §5). Environment-scoped secrets need the environment to
+// exist first; creating it by hand in the web UI is the step everyone forgets.
+//
+// Idempotent by transport: the underlying API call is a PUT, so an existing
+// environment is success, not an error — re-running a setup task is safe.
+func newEnvCreateCmd(deps providerkit.Deps, store *ghStore) *cobra.Command {
+	var yes bool
+
+	c := &cobra.Command{
+		Use:   "env-create NAME",
+		Short: "Create a GitHub deployment environment (idempotent)",
+		Example: "  dotenvctl github env-create prod\n" +
+			"  dotenvctl github env-create staging --repo owner/name --yes",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			name := args[0]
+
+			repo, err := store.repoSlug(cmd.Context())
+			if err != nil {
+				return providerkit.Fail(deps.Printer, outfmt.CodeExec, "resolve repository: %v (is gh installed and authenticated? https://cli.github.com)", err)
+			}
+
+			deps.Printer.Humanf("target : %s", repo)
+			deps.Printer.Humanf("environment: %s (create or confirm)", name)
+			if err := providerkit.Confirm(deps, providerkit.GateInfo{Names: []string{name}, Yes: yes}); err != nil {
+				return err
+			}
+
+			// PUT /repos/{owner}/{repo}/environments/{name} — create-or-update.
+			if _, err := deps.Runner.Run(cmd.Context(), "", ghBinary, "api", "--method", "PUT", "repos/"+repo+"/environments/"+name); err != nil {
+				return providerkit.Fail(deps.Printer, outfmt.CodeExec, "create environment %s: %v", name, err)
+			}
+			deps.Printer.Humanf("%s: environment ready", name)
+			return deps.Printer.OK(envCreatePayload{Repo: repo, Environment: name})
+		},
+	}
+
+	c.Flags().StringVarP(&store.repo, flagRepo, "R", "", "target repository (owner/name); default: the cwd's git remote")
+	c.Flags().BoolVar(&yes, flagYes, false, "skip the confirmation prompt")
+	return c
+}
+
+// envCreatePayload is env-create's --json data shape.
+type envCreatePayload struct {
+	Repo        string `json:"repo"`
+	Environment string `json:"environment"`
+}
+
+// repoSlug resolves the bare owner/name the environments API path needs —
+// the explicit --repo flag, or the cwd's repo exactly as gh resolves it.
+func (s *ghStore) repoSlug(ctx context.Context) (string, error) {
+	if s.repo != "" {
+		return s.repo, nil
+	}
+	out, err := s.deps.Runner.Run(ctx, "", ghBinary, "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// normalizeEnvAlias maps --env onto --environment at parse time. pflag has no
+// long-form alias primitive; the normalize hook is its sanctioned mechanism.
+func normalizeEnvAlias(f *pflag.FlagSet, name string) pflag.NormalizedName {
+	if name == flagEnvironmentAlias {
+		return pflag.NormalizedName(flagEnvironment)
+	}
+	return pflag.NormalizedName(name)
 }
 
 // ghStore implements the kit capabilities over gh. Flag fields are bound by

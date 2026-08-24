@@ -710,11 +710,13 @@ dotenvctl restore OLD_KEY                  # …and back
 dotenvctl list --disabled --inherited     # the whole picture
 dotenvctl diff .env.staging .env.prod      # exit 1 when configs differ, like diff(1)
 dotenvctl run -- npm start                 # child gets the file's values; our env untouched
+dotenvctl list --prefix GITHUB_SECRET_ --strip-prefix --json   # read one audience of a shared file, push nothing
 dotenvctl envs                             # discover the directory's .env family
 dotenvctl matrix --only-drift              # keys × environments drift table
 dotenvctl matrix --contract .env.example   # CI gate: exit 1 when an env misses a contract key
 dotenvctl matrix --format html -o envs.html   # shareable report — secrets masked by default
 dotenvctl github push --prefix GITHUB_SECRET_ --strip-prefix   # sync to GitHub Actions secrets via gh
+dotenvctl github env-create prod --yes                          # create the deployment environment, idempotently
 ```
 
 Every verb takes `-f <file>` (default `./.env`) and `--json` (stable `{ok,data|error}` envelope). Mutating verbs support `--dry-run`. Exit codes: `0` ok, `1` operation failed, `2` usage. The CLI is a separate Go module, so this library stays dependency-free.

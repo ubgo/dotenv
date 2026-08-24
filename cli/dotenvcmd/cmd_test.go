@@ -433,8 +433,14 @@ func TestUsageErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if code, _, _ := runCLI(t, tt.args...); code != ExitUsage {
+			code, _, stderr := runCLI(t, tt.args...)
+			if code != ExitUsage {
 				t.Errorf("exit = %d, want %d", code, ExitUsage)
+			}
+			// A usage error must never be silent — a bare exit 2 reads like
+			// "the command ran and found nothing" (the --env regression).
+			if !strings.Contains(stderr, "dotenvctl:") {
+				t.Errorf("usage error printed nothing to stderr: %q", stderr)
 			}
 		})
 	}

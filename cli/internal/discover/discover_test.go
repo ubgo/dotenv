@@ -75,3 +75,23 @@ func TestScan_PathsKeepDirSpelling(t *testing.T) {
 		t.Errorf("path = %+v, want dir spelling preserved without doubled slash", got)
 	}
 }
+
+func TestScan_DirectoriesAreNotCandidates(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	// A DIRECTORY named like an env file (".env.d" conventions) must be
+	// skipped — opening it as a file would error deep inside a verb.
+	if err := os.Mkdir(filepath.Join(dir, ".env.d"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("A=1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Scan(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Env != EnvDefault {
+		t.Errorf("got %+v, want only the real .env", got)
+	}
+}

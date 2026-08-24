@@ -14,6 +14,7 @@ dotenvctl set DB_HOST=db.prod --after DB_PORT  # comment-preserving upsert, anch
 dotenvctl unset OLD_KEY && dotenvctl restore OLD_KEY   # reversible disable — byte-exact round trip
 dotenvctl run -- npm start                     # child gets the file's values; your env untouched
 
+dotenvctl list --prefix GITHUB_SECRET_ --strip-prefix --json   # read one audience of a shared file
 dotenvctl envs                                 # discover .env / .env.staging / .env.prod / …
 dotenvctl matrix --only-drift                  # keys × environments drift table
 dotenvctl diff .env.staging .env.prod          # effective-config diff, exit 1 on difference

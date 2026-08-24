@@ -100,7 +100,7 @@ type page struct {
 
 // MatrixHTML renders a matrix report page.
 func MatrixHTML(m Matrix) ([]byte, error) {
-	return render(page{
+	return render(tmpl, page{
 		Title:       "dotenvctl matrix",
 		GeneratedAt: time.Now().Format(time.RFC3339),
 		Revealed:    m.Revealed,
@@ -110,7 +110,7 @@ func MatrixHTML(m Matrix) ([]byte, error) {
 
 // DiffHTML renders a diff report page.
 func DiffHTML(d Diff) ([]byte, error) {
-	return render(page{
+	return render(tmpl, page{
 		Title:       fmt.Sprintf("dotenvctl diff — %s vs %s", d.FileA, d.FileB),
 		GeneratedAt: time.Now().Format(time.RFC3339),
 		Revealed:    d.Revealed,
@@ -118,11 +118,13 @@ func DiffHTML(d Diff) ([]byte, error) {
 	})
 }
 
-// render executes the template into a buffer so a template error yields no
-// partial file.
-func render(p page) ([]byte, error) {
+// render executes t into a buffer so a template error yields no partial file.
+// The template is a parameter (production always passes the package tmpl) so
+// the error arm is testable with a deliberately broken template instead of
+// being dead weight nothing can reach.
+func render(t *template.Template, p page) ([]byte, error) {
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, p); err != nil {
+	if err := t.Execute(&buf, p); err != nil {
 		return nil, fmt.Errorf("report: render: %w", err)
 	}
 	return buf.Bytes(), nil

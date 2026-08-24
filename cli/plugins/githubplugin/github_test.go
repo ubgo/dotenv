@@ -243,3 +243,193 @@ func TestPush_TokenOverrideLabeledInBanner(t *testing.T) {
 		t.Errorf("auth source not labeled:\n%s", out)
 	}
 }
+
+func TestPush_JSONCarriesMetaAndResults(t *testing.T) {
+	t.Parallel()
+	runner := &fakeRunner{responses: ghResponses()}
+	src := &staticSource{
+		pairs: []dotenv.Pair{{Key: "PAT", Value: "v"}},
+		skips: []providerkit.Skip{{Name: "WHO", Action: providerkit.ActionSkippedPlaceholder}},
+	}
+
+	var out bytes.Buffer
+	deps := providerkit.Deps{
+		Printer:     &outfmt.Printer{Out: &out, JSON: true},
+		Source:      func(providerkit.SelectOpts) (providerkit.Source, error) { return src, nil },
+		Runner:      runner,
+		Interactive: func() bool { return false },
+		Ask:         func(string) bool { return false },
+	}
+	c := New().Command(deps)
+	c.SetArgs([]string{"push", "--yes"})
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`"target":"solverhood/sync_go (from cwd git remote)"`,
+		`"account":"khanakia (stored gh auth)"`,
+		`{"name":"WHO","action":"skipped-placeholder"}`,
+		`{"name":"PAT","action":"pushed"}`,
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("json missing %s:\n%s", want, out.String())
+		}
+	}
+	if strings.Contains(out.String(), `"v"`) {
+		t.Error("a value leaked into json output")
+	}
+}
+
+func TestPush_OrgScope(t *testing.T) {
+	t.Parallel()
+	runner := &fakeRunner{responses: ghResponses()}
+	src := &staticSource{pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
+
+	out, err := runGithub(t, runner, src, "push", "--yes", "--org", "acme")
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	found := false
+	for _, c := range runner.calls {
+		if c.args == "secret set K --body - --org acme" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("org scope not passed: %+v", runner.calls)
+	}
+	if !strings.Contains(out, "target : org:acme") {
+		t.Errorf("banner should name the org target:\n%s", out)
+	}
+}
+
+func TestStore_DirectEdges(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Set rejects invalid names even without the gate", func(t *testing.T) {
+		t.Parallel()
+		s := &ghStore{deps: providerkit.Deps{Runner: &fakeRunner{}}}
+		if err := s.Set(context.Background(), "bad-name", "v"); err == nil {
+			t.Error("defense-in-depth name check missing")
+		}
+	})
+
+	t.Run("Names surfaces unparseable gh output", func(t *testing.T) {
+		t.Parallel()
+		s := &ghStore{deps: providerkit.Deps{Runner: &fakeRunner{responses: map[string]string{"secret list": "not json"}}}}
+		if _, err := s.Names(context.Background()); err == nil || !strings.Contains(err.Error(), "parse gh secret list") {
+			t.Errorf("err = %v", err)
+		}
+	})
+
+	t.Run("resolveTarget covers every scope shape", func(t *testing.T) {
+		t.Parallel()
+		runner := &fakeRunner{responses: ghResponses()}
+		tests := []struct {
+			name, repo, env, org, want string
+		}{
+			{"org", "", "", "acme", "org:acme"},
+			{"repo only", "o/r", "", "", "o/r"},
+			{"repo with environment", "o/r", "prod", "", "o/r (environment prod)"},
+			{"cwd with environment", "", "prod", "", "solverhood/sync_go (from cwd git remote) (environment prod)"},
+		}
+		for _, tt := range tests {
+			s := &ghStore{deps: providerkit.Deps{Runner: runner}, repo: tt.repo, environment: tt.env, org: tt.org}
+			got, err := s.resolveTarget(context.Background())
+			if err != nil || got != tt.want {
+				t.Errorf("%s: target = %q err %v, want %q", tt.name, got, err, tt.want)
+			}
+		}
+	})
+
+	t.Run("meta propagates resolution failure so the kit omits it", func(t *testing.T) {
+		t.Parallel()
+		s := &ghStore{deps: providerkit.Deps{Runner: &fakeRunner{failOn: "repo view"}}}
+		if _, err := s.meta(context.Background()); err == nil {
+			t.Error("meta must not fabricate context on failure")
+		}
+	})
+}
+
+func TestEnvAliasFlag(t *testing.T) {
+	t.Parallel()
+	runner := &fakeRunner{responses: ghResponses()}
+	src := &staticSource{pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
+
+	// --env must behave exactly like --environment (gh's own spelling).
+	if _, err := runGithub(t, runner, src, "push", "--yes", "--env", "production"); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, c := range runner.calls {
+		if c.args == "secret set K --body - --env production" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("--env alias not honored: %+v", runner.calls)
+	}
+}
+
+func TestEnvCreate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("resolves repo, gates, PUTs the environments API", func(t *testing.T) {
+		t.Parallel()
+		runner := &fakeRunner{responses: ghResponses()}
+		out, err := runGithub(t, runner, &staticSource{}, "env-create", "prod", "--yes")
+		if err != nil {
+			t.Fatalf("%v\n%s", err, out)
+		}
+		found := false
+		for _, c := range runner.calls {
+			if c.args == "api --method PUT repos/solverhood/sync_go/environments/prod" {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("PUT call missing: %+v", runner.calls)
+		}
+		if !strings.Contains(out, "prod: environment ready") {
+			t.Errorf("output:\n%s", out)
+		}
+	})
+
+	t.Run("explicit --repo skips resolution", func(t *testing.T) {
+		t.Parallel()
+		runner := &fakeRunner{responses: ghResponses()}
+		if _, err := runGithub(t, runner, &staticSource{}, "env-create", "stag", "--repo", "o/r", "--yes"); err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range runner.calls {
+			if strings.HasPrefix(c.args, "repo view") {
+				t.Error("resolved cwd repo despite explicit --repo")
+			}
+		}
+	})
+
+	t.Run("non-interactive without --yes refuses before any API call", func(t *testing.T) {
+		t.Parallel()
+		runner := &fakeRunner{responses: ghResponses()}
+		if _, err := runGithub(t, runner, &staticSource{}, "env-create", "prod"); err == nil {
+			t.Error("want refusal")
+		}
+		for _, c := range runner.calls {
+			if strings.Contains(c.args, "--method PUT") {
+				t.Error("wrote despite refusal")
+			}
+		}
+	})
+}
+
+func TestPush_SelectionFlagsEndToEnd(t *testing.T) {
+	t.Parallel()
+	runner := &fakeRunner{responses: ghResponses()}
+	src := &staticSource{pairs: []dotenv.Pair{{Key: "KEEP", Value: "v"}}}
+
+	// The kit registers the new flags on plugin verbs; they parse and flow
+	// into SelectOpts (semantics unit-tested at the Source; this pins wiring).
+	if _, err := runGithub(t, runner, src, "push", "--yes", "--exclude-prefix", "X_", "--include", "A", "--exclude", "B"); err != nil {
+		t.Fatalf("new selection flags did not parse: %v", err)
+	}
+}

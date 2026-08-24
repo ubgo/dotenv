@@ -1,6 +1,8 @@
 package report
 
 import (
+	"errors"
+	"html/template"
 	"strings"
 	"testing"
 )
@@ -73,5 +75,22 @@ func TestDiffHTML_RevealAndMask(t *testing.T) {
 	}
 	if !strings.Contains(string(page), "old-secret") || !strings.Contains(string(page), "CONTAINS SECRETS") {
 		t.Error("revealed diff page missing values or banner")
+	}
+}
+
+// TestRender_TemplateFailureYieldsNoPartialFile covers the error arm with a
+// template that fails at execution time.
+func TestRender_TemplateFailureYieldsNoPartialFile(t *testing.T) {
+	t.Parallel()
+	// A func that exists at parse time but errors at exec time:
+	failing := template.Must(template.New("x").Funcs(template.FuncMap{
+		"boom": func() (string, error) { return "", errors.New("kaboom") },
+	}).Parse(`{{boom}}`))
+	out, err := render(failing, page{Title: "t"})
+	if err == nil || out != nil {
+		t.Errorf("out=%v err=%v — want error and no bytes", out, err)
+	}
+	if !strings.Contains(err.Error(), "report: render") {
+		t.Errorf("error not wrapped: %v", err)
 	}
 }

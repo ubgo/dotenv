@@ -22,6 +22,7 @@ import (
 
 	"github.com/ubgo/dotenv/cli/internal/outfmt"
 	"github.com/ubgo/dotenv/cli/plugins/githubplugin"
+	"github.com/ubgo/dotenv/cli/plugins/vercelplugin"
 	"github.com/ubgo/dotenv/cli/providerkit"
 )
 
@@ -146,6 +147,15 @@ func executeApp(a *app, args []string, stdout, stderr io.Writer) int {
 	}
 
 	root := newRootCmd(a)
+
+	// Exec-plugin dispatch runs BEFORE cobra: an unknown first token backed
+	// by a dotenvctl-<name> binary on PATH is that plugin's invocation, argv
+	// and exit code passed through verbatim (PLUGINS_SPEC §6). Built-ins can
+	// never be shadowed — hasBuiltin wins first.
+	if code, handled := a.execDispatch(root, args, stdout, stderr); handled {
+		return code
+	}
+
 	root.SetArgs(args)
 	root.SetOut(stdout)
 	root.SetErr(stderr)
@@ -167,7 +177,12 @@ func executeApp(a *app, args []string, stdout, stderr io.Writer) int {
 			}
 			return pe.Code
 		}
-		// Cobra already printed the usage message for its own errors.
+		// Cobra's own errors (unknown flag/command, bad args) reach here — and
+		// because the root sets SilenceErrors+SilenceUsage, NOBODY has printed
+		// anything yet. Silent exit-2 was a real failure mode: `list --env x`
+		// before the alias existed produced no output at all, reading exactly
+		// like "no secrets". Errors must be loud.
+		_, _ = fmt.Fprintf(stderr, "dotenvctl: %v\nRun 'dotenvctl --help' for usage.\n", err)
 		return ExitUsage
 	}
 	return ExitOK
@@ -182,7 +197,7 @@ func newRootCmd(a *app) *cobra.Command {
 		Long: "dotenvctl edits .env files through the ubgo/dotenv library: every byte outside\n" +
 			"the entry you touch survives verbatim — comments, blank lines, ordering, and\n" +
 			"quoting style included. It never modifies its own process environment.",
-		Version:       versionString(),
+		Version:       versionString(debug.ReadBuildInfo),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		// PersistentPreRun rather than doing it in Execute: the flag values
@@ -213,14 +228,17 @@ func newRootCmd(a *app) *cobra.Command {
 	// before RunE fires, and Source parses only when a verb asks.
 	deps := a.pluginDeps()
 	root.AddCommand(githubplugin.New().Command(deps))
+	root.AddCommand(vercelplugin.New().Command(deps))
+	root.AddCommand(newPluginsCmd(a, root))
 	return root
 }
 
 // versionString reads the module version stamped by `go install` — no
 // hand-maintained constant to forget at release time. "devel" for source
-// builds.
-func versionString() string {
-	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" {
+// builds. The reader is a parameter so the fallback arm is testable;
+// production always passes debug.ReadBuildInfo.
+func versionString(read func() (*debug.BuildInfo, bool)) string {
+	if info, ok := read(); ok && info.Main.Version != "" {
 		return info.Main.Version
 	}
 	return "devel"

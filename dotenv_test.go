@@ -336,3 +336,22 @@ func TestExpandedMap(t *testing.T) {
 		t.Errorf("ExpandedMap()[DERIVED] = %q, want %q", got["DERIVED"], "root/x")
 	}
 }
+
+// TestKindString pins every Kind's display name — the strings appear in test
+// failures and logs, so a rename is a (minor) behavior change worth catching —
+// plus the defensive fallback for a Kind the parser never produces.
+func TestKindString(t *testing.T) {
+	for kind, want := range map[Kind]string{
+		KindPair:         "pair",
+		KindComment:      "comment",
+		KindBlank:        "blank",
+		KindOther:        "other",
+		KindDisabledPair: "disabled-pair",
+		KindInherited:    "inherited",
+		Kind(99):         "Kind(99)",
+	} {
+		if got := kind.String(); got != want {
+			t.Errorf("Kind(%d).String() = %q, want %q", int(kind), got, want)
+		}
+	}
+}

@@ -3,6 +3,7 @@ package dotenvcmd
 import (
 	"bytes"
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -129,5 +130,50 @@ func TestGithubEndToEnd(t *testing.T) {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("output missing %q:\n%s", want, out.String())
 		}
+	}
+}
+
+// TestSourceKeys_ResolutionOrder pins the SECRETS_PORT_SPEC §1 precedence:
+// explicit keys > include/exclude > prefix filters, with loud missing-key
+// failures for anything the user NAMED and a no-op for excluding absentees.
+func TestSourceKeys_ResolutionOrder(t *testing.T) {
+	t.Parallel()
+	const content = "GITHUB_SECRET_A=1\nGITHUB_SECRET_B=2\nAPP_X=3\nAPP_Y=4\nACTOR=5\n"
+
+	tests := []struct {
+		name    string
+		opts    providerkit.SelectOpts
+		want    []string
+		wantErr bool
+	}{
+		{"exclude-prefix inverts selection", providerkit.SelectOpts{ExcludePrefix: "GITHUB_SECRET_"}, []string{"APP_X", "APP_Y", "ACTOR"}, false},
+		{"prefix then exclude-prefix compose", providerkit.SelectOpts{Prefix: "APP_", ExcludePrefix: "APP_Y"}, []string{"APP_X"}, false},
+		{"include bypasses prefix filter", providerkit.SelectOpts{Prefix: "GITHUB_SECRET_", IncludeKeys: []string{"ACTOR"}}, []string{"GITHUB_SECRET_A", "GITHUB_SECRET_B", "ACTOR"}, false},
+		{"include deduplicates", providerkit.SelectOpts{Prefix: "GITHUB_SECRET_", IncludeKeys: []string{"GITHUB_SECRET_A"}}, []string{"GITHUB_SECRET_A", "GITHUB_SECRET_B"}, false},
+		{"exclude drops from prefixed selection", providerkit.SelectOpts{Prefix: "GITHUB_SECRET_", ExcludeKeys: []string{"GITHUB_SECRET_B"}}, []string{"GITHUB_SECRET_A"}, false},
+		{"exclude wins over include", providerkit.SelectOpts{IncludeKeys: []string{"ACTOR"}, ExcludeKeys: []string{"ACTOR"}, Prefix: "APP_"}, []string{"APP_X", "APP_Y"}, false},
+		{"excluding an absent key is a no-op", providerkit.SelectOpts{ExcludeKeys: []string{"NOPE"}}, []string{"GITHUB_SECRET_A", "GITHUB_SECRET_B", "APP_X", "APP_Y", "ACTOR"}, false},
+		{"explicit keys ignore prefix filters", providerkit.SelectOpts{Keys: []string{"APP_X"}, Prefix: "GITHUB_SECRET_"}, []string{"APP_X"}, false},
+		{"explicit keys still honor exclude", providerkit.SelectOpts{Keys: []string{"APP_X", "APP_Y"}, ExcludeKeys: []string{"APP_Y"}}, []string{"APP_X"}, false},
+		{"missing include fails loudly", providerkit.SelectOpts{IncludeKeys: []string{"NOPE"}}, nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			src, err := sourceFixture(t, content, tt.opts)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr {
+				return
+			}
+			var got []string
+			for _, p := range src.Pairs() {
+				got = append(got, p.Key)
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("keys = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
