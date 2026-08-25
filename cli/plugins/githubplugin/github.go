@@ -19,7 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/ubgo/dotenv/cli/internal/outfmt"
+	"github.com/ubgo/dotenv/cli/outfmt"
 	"github.com/ubgo/dotenv/cli/providerkit"
 )
 

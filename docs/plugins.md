@@ -106,6 +106,8 @@ set -euo pipefail
 
 Trust model, stated plainly: an exec plugin is exactly as trustworthy as anything else on your PATH — dotenvctl adds discovery (`dotenvctl plugins`) and the no-shadowing rule, not a sandbox.
 
+**Writing a plugin in Go instead?** `providerkit` is importable: implement the capability interfaces for your backend and the standard verbs are generated with the shared flags, guards, and confirm gate. See the [Go API guide](go-api.md#providerkit--plugins).
+
 ## A worked example
 
 Your env file follows the convention of prefixing deploy secrets:

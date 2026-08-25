@@ -158,4 +158,5 @@ This page covers the single-file verbs. The rest of the surface:
 | `github push/list/prune/env-create` — GitHub Actions secrets | [GitHub plugin](plugins/github.md) |
 | `vercel push/list/prune` — Vercel environment variables | [Vercel plugin](plugins/vercel.md) |
 | `plugins` — list third-party exec plugins found on PATH | [Plugins overview](plugins.md#writing-your-own-plugin-exec-plugins) |
+| *(every verb, as a Go function)* | [Go API](go-api.md) |
 | `completion` — shell completions (bash, zsh, fish, powershell) | built in via cobra; `dotenvctl completion --help` |

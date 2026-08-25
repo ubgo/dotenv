@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ubgo/dotenv/cli/internal/outfmt"
+	"github.com/ubgo/dotenv/cli/outfmt"
 )
 
 // TestExecRunner exercises the one production Runner against real (tiny)

@@ -67,8 +67,8 @@ func (a *app) collectKeyNames(f *dotenv.File, sel providerkit.SelectOpts) ([]str
 	if err != nil {
 		return nil, err
 	}
-	names := make([]string, 0, len(src.Pairs()))
-	for _, p := range src.Pairs() {
+	names := make([]string, 0, len(src.Pairs))
+	for _, p := range src.Pairs {
 		names = append(names, p.Key)
 	}
 	return names, nil

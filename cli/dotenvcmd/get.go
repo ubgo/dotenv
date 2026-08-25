@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ubgo/dotenv"
-	"github.com/ubgo/dotenv/cli/internal/outfmt"
+	"github.com/ubgo/dotenv/cli/outfmt"
 )
 
 // getPayload is the --json data shape for `get`. Named struct rather than an

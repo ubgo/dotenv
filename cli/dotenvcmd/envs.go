@@ -1,15 +1,13 @@
 package dotenvcmd
 
 import (
-	"regexp"
 	"strconv"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
-	"github.com/ubgo/dotenv"
-	"github.com/ubgo/dotenv/cli/internal/discover"
-	"github.com/ubgo/dotenv/cli/internal/outfmt"
+	"github.com/ubgo/dotenv/cli/envkit"
+	"github.com/ubgo/dotenv/cli/outfmt"
 )
 
 // flagDir selects the discovery directory on multi-file verbs; shared const
@@ -21,19 +19,9 @@ const flagDir = "dir"
 // that care expose --placeholder to override it.
 const defaultPlaceholderPattern = `^__[A-Z0-9_]+__$`
 
-// envFilePayload is one row of envs --json.
-type envFilePayload struct {
-	Env      string `json:"env"`
-	File     string `json:"file"`
-	Contract bool   `json:"contract"`
-	// Keys counts ACTIVE pairs (deduplicated); Disabled and Inherited count
-	// what list would show; Placeholders counts active values matching the
-	// placeholder pattern — the "still needs a real value" signal.
-	Keys         int `json:"keys"`
-	Disabled     int `json:"disabled"`
-	Inherited    int `json:"inherited"`
-	Placeholders int `json:"placeholders"`
-}
+// envFilePayload is one row of envs --json — an alias for envkit's canonical
+// inventory type.
+type envFilePayload = envkit.Inventory
 
 // envsPayload is the --json data shape for `envs`.
 type envsPayload struct {
@@ -53,28 +41,9 @@ func newEnvsCmd(a *app) *cobra.Command {
 			"  dotenvctl envs --json | jq -r '.data.files[].file'",
 		Args: cobra.NoArgs,
 		RunE: func(*cobra.Command, []string) error {
-			found, err := discover.Scan(dir)
+			rows, err := envkit.Inventories(envkit.InventoryOptions{Dir: dir})
 			if err != nil {
 				return a.failf(outfmt.CodeIO, "%v", err)
-			}
-
-			placeholderRe := regexp.MustCompile(defaultPlaceholderPattern)
-			rows := make([]envFilePayload, 0, len(found))
-			for _, ef := range found {
-				f, err := dotenv.Open(ef.Path)
-				if err != nil {
-					return a.failf(outfmt.CodeIO, "%v", err)
-				}
-				row := envFilePayload{Env: ef.Env, File: ef.File, Contract: ef.Contract}
-				row.Keys = len(f.Keys())
-				row.Disabled = len(f.Disabled())
-				row.Inherited = len(f.Inherited())
-				for _, v := range f.Map() {
-					if placeholderRe.MatchString(v) {
-						row.Placeholders++
-					}
-				}
-				rows = append(rows, row)
 			}
 
 			a.renderEnvsHuman(rows)

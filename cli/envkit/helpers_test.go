@@ -1,15 +1,17 @@
-package dotenvcmd
+package envkit
 
 import (
 	"slices"
 	"testing"
 )
 
+// TestMergeEnv and TestDiffMaps moved here with the functions they cover —
+// the CLI no longer owns this logic.
 func TestMergeEnv(t *testing.T) {
 	t.Parallel()
 
 	base := []string{"KEEP=parent", "OVERRIDE=parent", "NOEQ_MALFORMED"}
-	got := mergeEnv(base, map[string]string{"OVERRIDE": "file", "NEW": "file"})
+	got := MergeEnv(base, map[string]string{"OVERRIDE": "file", "NEW": "file"})
 	slices.Sort(got)
 
 	want := []string{"KEEP=parent", "NEW=file", "NOEQ_MALFORMED", "OVERRIDE=file"}
@@ -28,10 +30,10 @@ func TestMergeEnv(t *testing.T) {
 	}
 }
 
-func TestBuildDiff(t *testing.T) {
+func TestDiffMaps(t *testing.T) {
 	t.Parallel()
 
-	p := buildDiff(
+	p := DiffMaps(
 		map[string]string{"A": "1", "B": "2", "C": "3"},
 		map[string]string{"B": "2", "C": "9", "D": "4"},
 		false,
@@ -47,7 +49,7 @@ func TestBuildDiff(t *testing.T) {
 		t.Errorf("Changed = %v", p.Changed)
 	}
 
-	empty := buildDiff(map[string]string{}, map[string]string{}, true)
+	empty := DiffMaps(map[string]string{}, map[string]string{}, true)
 	if empty.Added == nil || empty.Removed == nil || empty.Changed == nil {
 		t.Error("sections must be empty arrays, never nil — the JSON schema promises arrays")
 	}

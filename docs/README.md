@@ -18,6 +18,7 @@ Or build from a clone: `task cli:build` produces `cli/bin/dotenvctl`.
 | [Command reference](commands.md) | `get` · `set` · `unset` · `restore` · `list` · `keys` · `run` — every flag, with examples |
 | [Multi-environment tools](multi-env.md) | `envs` discovery, the `matrix` drift table, `diff`, HTML reports, secret masking |
 | [Plugins overview](plugins.md) | how plugin namespaces work, shared flags, safety rules |
+| [Go API](go-api.md) | **importing dotenvctl as a library** — envkit operations, providerkit plugins, helper packages |
 | [GitHub plugin](plugins/github.md) | pushing env values to GitHub Actions secrets via `gh` |
 
 ## Design promises (hold everywhere)

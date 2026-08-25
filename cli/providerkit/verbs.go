@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ubgo/dotenv/cli/internal/outfmt"
+	"github.com/ubgo/dotenv/cli/outfmt"
 )
 
 // Shared flag names — one vocabulary across every kit-built verb, matching
@@ -101,10 +101,10 @@ func NewPushCmd(deps Deps, store SecretWriter, cfg VerbConfig) *cobra.Command {
 				return err
 			}
 
-			pairs := src.Pairs()
-			results := make([]Result, 0, len(pairs)+len(src.Skipped()))
-			for _, s := range src.Skipped() {
-				results = append(results, Result(s))
+			pairs := src.Pairs
+			results := make([]Result, 0, len(pairs)+len(src.Skipped))
+			for _, s := range src.Skipped {
+				results = append(results, Result{Name: s.Name, Action: SkipAction(s.Reason)})
 			}
 
 			names := make([]string, 0, len(pairs))
@@ -192,11 +192,11 @@ func NewPruneCmd(deps Deps, lister SecretLister, deleter SecretDeleter, cfg Verb
 			if err != nil {
 				return err
 			}
-			keep := make(map[string]Action, len(src.Pairs())+len(src.Skipped())+len(keepNames))
-			for _, p := range src.Pairs() {
+			keep := make(map[string]Action, len(src.Pairs)+len(src.Skipped)+len(keepNames))
+			for _, p := range src.Pairs {
 				keep[p.Key] = "" // in the selection: kept silently, not reported
 			}
-			for _, s := range src.Skipped() {
+			for _, s := range src.Skipped {
 				keep[s.Name] = ActionKeptSkipped
 			}
 			for _, n := range keepNames {

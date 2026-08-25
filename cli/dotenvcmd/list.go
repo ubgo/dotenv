@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ubgo/dotenv"
-	"github.com/ubgo/dotenv/cli/internal/outfmt"
+	"github.com/ubgo/dotenv/cli/outfmt"
 	"github.com/ubgo/dotenv/cli/providerkit"
 )
 
@@ -108,8 +108,8 @@ func (a *app) collectListPairs(f *dotenv.File, expand bool, sel providerkit.Sele
 	if err != nil {
 		return nil, err
 	}
-	pairs := make([]pairPayload, 0, len(src.Pairs()))
-	for _, p := range src.Pairs() {
+	pairs := make([]pairPayload, 0, len(src.Pairs))
+	for _, p := range src.Pairs {
 		pairs = append(pairs, pairPayload{Key: p.Key, Value: p.Value})
 	}
 	return pairs, nil

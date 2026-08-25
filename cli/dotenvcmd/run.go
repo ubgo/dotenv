@@ -1,20 +1,13 @@
 package dotenvcmd
 
 import (
-	"errors"
 	"os"
-	"os/exec"
-	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/ubgo/dotenv"
-	"github.com/ubgo/dotenv/cli/internal/outfmt"
+	"github.com/ubgo/dotenv/cli/envkit"
+	"github.com/ubgo/dotenv/cli/outfmt"
 )
-
-// envAssignSep joins key and value in a child environment entry — the
-// KEY=VALUE shape os/exec expects.
-const envAssignSep = "="
 
 // newRunCmd executes a command with the file's values injected into the CHILD
 // process environment. Our own os.Environ is never modified — that is the
@@ -38,65 +31,20 @@ func newRunCmd(a *app) *cobra.Command {
 			"  dotenvctl -f .env.test run -- go test ./...\n" +
 			"  dotenvctl run -- sh -c 'echo $DATABASE_URL'",
 		Args: cobra.MinimumNArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			f, err := a.open()
+		RunE: func(cmd *cobra.Command, args []string) error {
+			code, err := envkit.Run(cmd.Context(), a.file, args, envkit.RunOptions{
+				Base:   os.Environ(),
+				Stdout: a.printer.Out,
+				Stderr: a.errOut,
+			})
 			if err != nil {
-				return err
+				return a.failf(outfmt.CodeExec, "%v", err)
 			}
-
-			values, err := f.ExpandedMap()
-			if _, ok := errors.AsType[*dotenv.RequiredError](err); ok {
-				return a.failf(outfmt.CodeRequired, "%v", err)
-			}
-			if err != nil {
-				return a.failf(outfmt.CodeIO, "expand %s: %v", a.file, err)
-			}
-
-			child := exec.Command(args[0], args[1:]...)
-			child.Env = mergeEnv(os.Environ(), values)
-			// Output goes through the app's injected writers — NOT os.Stdout —
-			// so tests capture it and an embedder's redirection is honored.
-			// Stdin stays the real terminal: Execute takes no reader, and an
-			// interactive child (a REPL, a prompt) must reach the user.
-			child.Stdin = os.Stdin
-			child.Stdout = a.printer.Out
-			child.Stderr = a.errOut
-
-			if err := child.Run(); err != nil {
-				if xerr, ok := errors.AsType[*exec.ExitError](err); ok {
-					// The child ran and failed — its code IS our code.
-					return exitWithCode(xerr.ExitCode())
-				}
-				return a.failf(outfmt.CodeExec, "run %s: %v", args[0], err)
+			if code != ExitOK {
+				// The child ran and failed — its code IS our code.
+				return exitWithCode(code)
 			}
 			return nil
 		},
 	}
-}
-
-// mergeEnv overlays the file's values onto the inherited environment,
-// file-wins. Order matters to os/exec: for duplicate names the LAST entry
-// wins, so file values are appended after the base — replacing in place would
-// be equivalent but O(n·m) for no benefit.
-func mergeEnv(base []string, values map[string]string) []string {
-	// Track which names the file defines so the base copy drops them —
-	// appending alone would work, but duplicate entries confuse tools that
-	// read the raw environ block (e.g. `env | sort` in the child).
-	replaced := make(map[string]bool, len(values))
-	for k := range values {
-		replaced[k] = true
-	}
-
-	out := make([]string, 0, len(base)+len(values))
-	for _, entry := range base {
-		name, _, ok := strings.Cut(entry, envAssignSep)
-		if ok && replaced[name] {
-			continue
-		}
-		out = append(out, entry)
-	}
-	for k, v := range values {
-		out = append(out, k+envAssignSep+v)
-	}
-	return out
 }

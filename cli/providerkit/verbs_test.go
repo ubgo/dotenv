@@ -8,7 +8,8 @@ import (
 	"testing"
 
 	"github.com/ubgo/dotenv"
-	"github.com/ubgo/dotenv/cli/internal/outfmt"
+	"github.com/ubgo/dotenv/cli/envkit"
+	"github.com/ubgo/dotenv/cli/outfmt"
 )
 
 // fakeStore records calls and can fail on demand — the whole capability
@@ -38,17 +39,14 @@ func (f *fakeStore) Delete(_ context.Context, name string) error {
 	return nil
 }
 
-// fakeSource is a canned selection.
-type fakeSource struct {
-	pairs []dotenv.Pair
-	skips []Skip
+// selection builds a canned Selection — the concrete type verbs consume, so
+// tests need no fake implementation at all.
+func selection(pairs []dotenv.Pair, skips ...Skip) *envkit.Selection {
+	return &envkit.Selection{Pairs: pairs, Skipped: skips}
 }
 
-func (s *fakeSource) Pairs() []dotenv.Pair { return s.pairs }
-func (s *fakeSource) Skipped() []Skip      { return s.skips }
-
 // testDeps wires a Deps over buffers with scripted interactivity.
-func testDeps(src *fakeSource, interactive, answer bool) (Deps, *bytes.Buffer) {
+func testDeps(src *envkit.Selection, interactive, answer bool) (Deps, *bytes.Buffer) {
 	var out bytes.Buffer
 	return Deps{
 		Printer:     &outfmt.Printer{Out: &out},
@@ -62,10 +60,10 @@ func testDeps(src *fakeSource, interactive, answer bool) (Deps, *bytes.Buffer) {
 
 func TestPush_ActionsAndOrder(t *testing.T) {
 	t.Parallel()
-	src := &fakeSource{
-		pairs: []dotenv.Pair{{Key: "A", Value: "1"}, {Key: "B", Value: "2"}},
-		skips: []Skip{{Name: "PH", Action: ActionSkippedPlaceholder}},
-	}
+	src := selection(
+		[]dotenv.Pair{{Key: "A", Value: "1"}, {Key: "B", Value: "2"}},
+		Skip{Name: "PH", Reason: envkit.SkipPlaceholder},
+	)
 	store := &fakeStore{}
 	deps, out := testDeps(src, true, true)
 
@@ -87,7 +85,7 @@ func TestPush_ActionsAndOrder(t *testing.T) {
 
 func TestPush_DryRunWritesNothing(t *testing.T) {
 	t.Parallel()
-	src := &fakeSource{pairs: []dotenv.Pair{{Key: "A", Value: "1"}}}
+	src := selection([]dotenv.Pair{{Key: "A", Value: "1"}})
 	store := &fakeStore{}
 	deps, out := testDeps(src, true, false) // answer=false: prompt would refuse
 
@@ -119,7 +117,7 @@ func TestPush_ConfirmMatrix(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			src := &fakeSource{pairs: []dotenv.Pair{{Key: "A", Value: "1"}}}
+			src := selection([]dotenv.Pair{{Key: "A", Value: "1"}})
 			store := &fakeStore{}
 			deps, _ := testDeps(src, tt.interactive, tt.answer)
 
@@ -142,7 +140,7 @@ func TestPush_ConfirmMatrix(t *testing.T) {
 
 func TestPush_MidFailureReportsPartial(t *testing.T) {
 	t.Parallel()
-	src := &fakeSource{pairs: []dotenv.Pair{{Key: "A", Value: "1"}, {Key: "BAD", Value: "x"}, {Key: "C", Value: "3"}}}
+	src := selection([]dotenv.Pair{{Key: "A", Value: "1"}, {Key: "BAD", Value: "x"}, {Key: "C", Value: "3"}})
 	store := &fakeStore{failOn: "BAD"}
 	deps, out := testDeps(src, false, false)
 
@@ -164,7 +162,7 @@ func TestPush_MidFailureReportsPartial(t *testing.T) {
 
 func TestPrune_StaleComputationAndGating(t *testing.T) {
 	t.Parallel()
-	src := &fakeSource{pairs: []dotenv.Pair{{Key: "KEEP", Value: "1"}}}
+	src := selection([]dotenv.Pair{{Key: "KEEP", Value: "1"}})
 	store := &fakeStore{names: []string{"KEEP", "STALE_B", "STALE_A"}}
 	deps, out := testDeps(src, false, false)
 
@@ -197,7 +195,7 @@ func TestPrune_StaleComputationAndGating(t *testing.T) {
 func TestList_NamesOnly(t *testing.T) {
 	t.Parallel()
 	store := &fakeStore{names: []string{"B", "A"}}
-	deps, out := testDeps(&fakeSource{}, true, true)
+	deps, out := testDeps(selection(nil), true, true)
 
 	c := NewListCmd(deps, store)
 	c.SetArgs([]string{})
@@ -211,7 +209,7 @@ func TestList_NamesOnly(t *testing.T) {
 
 func TestGate_PluginBannerRuns(t *testing.T) {
 	t.Parallel()
-	src := &fakeSource{pairs: []dotenv.Pair{{Key: "A", Value: "1"}}}
+	src := selection([]dotenv.Pair{{Key: "A", Value: "1"}})
 	store := &fakeStore{}
 	deps, out := testDeps(src, true, true)
 
@@ -237,7 +235,7 @@ func TestPrune_DryRunEmptyAndFailure(t *testing.T) {
 
 	t.Run("dry-run reports would-delete, deletes nothing", func(t *testing.T) {
 		t.Parallel()
-		src := &fakeSource{pairs: []dotenv.Pair{{Key: "KEEP", Value: "1"}}}
+		src := selection([]dotenv.Pair{{Key: "KEEP", Value: "1"}})
 		store := &fakeStore{names: []string{"KEEP", "STALE"}}
 		deps, out := testDeps(src, false, false)
 		c := NewPruneCmd(deps, store, store, VerbConfig{})
@@ -252,7 +250,7 @@ func TestPrune_DryRunEmptyAndFailure(t *testing.T) {
 
 	t.Run("nothing to prune says so and needs no gate", func(t *testing.T) {
 		t.Parallel()
-		src := &fakeSource{pairs: []dotenv.Pair{{Key: "A", Value: "1"}}}
+		src := selection([]dotenv.Pair{{Key: "A", Value: "1"}})
 		store := &fakeStore{names: []string{"A"}}
 		deps, out := testDeps(src, false, false)
 		c := NewPruneCmd(deps, store, store, VerbConfig{})
@@ -267,7 +265,7 @@ func TestPrune_DryRunEmptyAndFailure(t *testing.T) {
 
 	t.Run("mid-delete failure reports partial and exits 1", func(t *testing.T) {
 		t.Parallel()
-		src := &fakeSource{}
+		src := selection(nil)
 		store := &fakeStore{names: []string{"A_OK", "B_BAD", "C_NEVER"}, failOn: "B_BAD"}
 		deps, out := testDeps(src, false, false)
 		c := NewPruneCmd(deps, store, store, VerbConfig{})
@@ -291,7 +289,7 @@ func (failingLister) Names(context.Context) ([]string, error) { return nil, erro
 
 func TestListAndPrune_ListerFailure(t *testing.T) {
 	t.Parallel()
-	deps, out := testDeps(&fakeSource{}, false, false)
+	deps, out := testDeps(selection(nil), false, false)
 	c := NewListCmd(deps, &failingLister{})
 	c.SetArgs([]string{})
 	if err := c.Execute(); err == nil {
@@ -301,7 +299,7 @@ func TestListAndPrune_ListerFailure(t *testing.T) {
 		t.Errorf("cause lost: %q", out.String())
 	}
 
-	deps2, _ := testDeps(&fakeSource{}, false, false)
+	deps2, _ := testDeps(selection(nil), false, false)
 	l := &failingLister{}
 	c2 := NewPruneCmd(deps2, l, &l.fakeStore, VerbConfig{})
 	c2.SetArgs([]string{"--yes"})
@@ -332,7 +330,7 @@ func TestPush_SourceFailureAborts(t *testing.T) {
 
 func TestEmitResults_MetaErrorDowngradesToOmission(t *testing.T) {
 	t.Parallel()
-	src := &fakeSource{pairs: []dotenv.Pair{{Key: "A", Value: "1"}}}
+	src := selection([]dotenv.Pair{{Key: "A", Value: "1"}})
 	store := &fakeStore{}
 	deps, out := testDeps(src, false, false)
 	deps.Printer.JSON = true
@@ -369,7 +367,7 @@ func (brokenWriter) Write([]byte) (int, error) { return 0, errors.New("closed") 
 
 func TestList_EmptyStoreSaysSo(t *testing.T) {
 	t.Parallel()
-	deps, out := testDeps(&fakeSource{}, true, true)
+	deps, out := testDeps(selection(nil), true, true)
 	c := NewListCmd(deps, &fakeStore{})
 	c.SetArgs([]string{})
 	if err := c.Execute(); err != nil {
@@ -388,10 +386,7 @@ func TestPrune_KeepSet(t *testing.T) {
 	t.Run("skipped names are kept, not stale", func(t *testing.T) {
 		t.Parallel()
 		// Local: ACTIVE_KEY pushable, PLACEHOLDER_KEY guard-skipped.
-		src := &fakeSource{
-			pairs: []dotenv.Pair{{Key: "ACTIVE_KEY", Value: "v"}},
-			skips: []Skip{{Name: "PLACEHOLDER_KEY", Action: ActionSkippedPlaceholder}},
-		}
+		src := selection([]dotenv.Pair{{Key: "ACTIVE_KEY", Value: "v"}}, Skip{Name: "PLACEHOLDER_KEY", Reason: envkit.SkipPlaceholder})
 		// Remote holds both plus one genuinely stale name.
 		store := &fakeStore{names: []string{"ACTIVE_KEY", "PLACEHOLDER_KEY", "TRULY_STALE"}}
 		deps, out := testDeps(src, false, false)
@@ -416,7 +411,7 @@ func TestPrune_KeepSet(t *testing.T) {
 
 	t.Run("--keep spares out-of-band names, both spellings", func(t *testing.T) {
 		t.Parallel()
-		src := &fakeSource{pairs: []dotenv.Pair{{Key: "A", Value: "1"}}}
+		src := selection([]dotenv.Pair{{Key: "A", Value: "1"}})
 		store := &fakeStore{names: []string{"A", "ENV_B64", "VPS_DEPLOY_KEY_B64", "STALE"}}
 		deps, out := testDeps(src, false, false)
 
@@ -437,7 +432,7 @@ func TestPrune_KeepSet(t *testing.T) {
 
 	t.Run("nothing stale still reports the keeps", func(t *testing.T) {
 		t.Parallel()
-		src := &fakeSource{skips: []Skip{{Name: "PH", Action: ActionSkippedPlaceholder}}}
+		src := selection(nil, Skip{Name: "PH", Reason: envkit.SkipPlaceholder})
 		store := &fakeStore{names: []string{"PH"}}
 		deps, out := testDeps(src, false, false)
 

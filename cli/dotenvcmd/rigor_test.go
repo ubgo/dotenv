@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ubgo/dotenv/cli/internal/outfmt"
+	"github.com/ubgo/dotenv/cli/outfmt"
 	"github.com/ubgo/dotenv/cli/providerkit"
 )
 

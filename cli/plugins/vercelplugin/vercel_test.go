@@ -10,7 +10,8 @@ import (
 	"testing"
 
 	"github.com/ubgo/dotenv"
-	"github.com/ubgo/dotenv/cli/internal/outfmt"
+	"github.com/ubgo/dotenv/cli/envkit"
+	"github.com/ubgo/dotenv/cli/outfmt"
 	"github.com/ubgo/dotenv/cli/providerkit"
 )
 
@@ -51,15 +52,6 @@ func vercelResponses() map[string]string {
 	}
 }
 
-// staticSource is a canned selection.
-type staticSource struct {
-	pairs []dotenv.Pair
-	skips []providerkit.Skip
-}
-
-func (s *staticSource) Pairs() []dotenv.Pair        { return s.pairs }
-func (s *staticSource) Skipped() []providerkit.Skip { return s.skips }
-
 // runVercel drives the plugin's command tree with scripted deps.
 func runVercel(t *testing.T, runner *fakeRunner, src providerkit.Source, args ...string) (string, error) {
 	t.Helper()
@@ -81,7 +73,7 @@ func runVercel(t *testing.T, runner *fakeRunner, src providerkit.Source, args ..
 func TestPush_ArgvStdinAndDefaultTarget(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{responses: vercelResponses()}
-	src := &staticSource{pairs: []dotenv.Pair{{Key: "DB_URL", Value: "postgres://x"}}}
+	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "DB_URL", Value: "postgres://x"}}}
 
 	out, err := runVercel(t, runner, src, "push", "--yes")
 	if err != nil {
@@ -114,7 +106,7 @@ func TestPush_ArgvStdinAndDefaultTarget(t *testing.T) {
 func TestPush_MultiTargetAndSensitive(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{responses: vercelResponses()}
-	src := &staticSource{pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
+	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
 
 	if _, err := runVercel(t, runner, src, "push", "--yes", "--target", "production", "--target", "preview", "--sensitive"); err != nil {
 		t.Fatal(err)
@@ -137,7 +129,7 @@ func TestPush_MultiTargetAndSensitive(t *testing.T) {
 func TestPush_TargetFailureNamesTheTarget(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{responses: vercelResponses(), failOn: "env add"}
-	src := &staticSource{pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
+	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
 
 	out, err := runVercel(t, runner, src, "push", "--yes")
 	if err == nil {
@@ -152,7 +144,7 @@ func TestList_ParsesTableChatterImmune(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{responses: vercelResponses()}
 
-	out, err := runVercel(t, runner, &staticSource{}, "list")
+	out, err := runVercel(t, runner, &envkit.Selection{}, "list")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +164,7 @@ func TestList_ParsesTableChatterImmune(t *testing.T) {
 func TestPrune_UnionAcrossTargetsDeletesStale(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{responses: vercelResponses()} // remote: DB_URL, API_KEY
-	src := &staticSource{pairs: []dotenv.Pair{{Key: "DB_URL", Value: "x"}}}
+	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "DB_URL", Value: "x"}}}
 
 	if _, err := runVercel(t, runner, src, "prune", "--yes", "--target", "production"); err != nil {
 		t.Fatal(err)
@@ -191,7 +183,7 @@ func TestPrune_UnionAcrossTargetsDeletesStale(t *testing.T) {
 func TestGate_WhoamiFailureIsActionable(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{failOn: "whoami"}
-	src := &staticSource{pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
+	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
 
 	out, err := runVercel(t, runner, src, "push", "--yes")
 	if err == nil {
@@ -221,7 +213,7 @@ func TestTokenOverrideLabeledInBanner(t *testing.T) {
 	// t.Setenv forbids t.Parallel.
 	t.Setenv(tokenEnvVar, "vercel_test_token")
 	runner := &fakeRunner{responses: vercelResponses()}
-	src := &staticSource{pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
+	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
 
 	out, err := runVercel(t, runner, src, "push", "--yes")
 	if err != nil {

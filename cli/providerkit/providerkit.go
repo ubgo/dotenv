@@ -19,8 +19,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ubgo/dotenv"
-	"github.com/ubgo/dotenv/cli/internal/outfmt"
+	"github.com/ubgo/dotenv/cli/envkit"
+	"github.com/ubgo/dotenv/cli/outfmt"
 )
 
 // Plugin contributes one top-level namespace to the CLI. Constructor-per-
@@ -62,60 +62,31 @@ type Deps struct {
 	Ask func(prompt string) bool
 }
 
-// SelectOpts is the shared selection grammar (PLUGINS_SPEC §2,
-// SECRETS_PORT_SPEC §1). Resolution order, deterministic and pinned by tests:
-// explicit Keys are the selection as given (prefix filters do not second-guess
-// them); otherwise all active keys → Prefix keeps → ExcludePrefix drops →
-// IncludeKeys force-adds (bypassing the prefix filters) → ExcludeKeys drops →
-// the placeholder/empty guards run last.
-type SelectOpts struct {
-	// Keys are explicit key names; empty means every active key. A named key
-	// that does not exist fails the selection — a push that silently skips a
-	// key the user typed is a lie.
-	Keys []string
-	// Prefix keeps only keys with this prefix ("" keeps all).
-	Prefix string
-	// ExcludePrefix drops keys with this prefix — the inverse selector, for
-	// "everything EXCEPT the deploy-routing keys" (the bundle workflow).
-	ExcludePrefix string
-	// IncludeKeys force-include specific keys even when the prefix filters
-	// would drop them (a repo's local-testing specials). A named key that
-	// does not exist fails, same contract as Keys.
-	IncludeKeys []string
-	// ExcludeKeys drop specific keys from the selection. Excluding an absent
-	// key is a no-op — "make sure X never pushes" is valid even when X is
-	// already gone.
-	ExcludeKeys []string
-	// StripPrefix removes Prefix from the emitted names (the
-	// GITHUB_SECRET_* → * workflow). Keys without the prefix (explicit or
-	// force-included ones) keep their names untouched.
-	StripPrefix bool
-	// Expand resolves ${references}. Push verbs default it ON: a literal
-	// ${DB_HOST} stored in a remote secret is nearly always wrong.
-	Expand bool
-	// IncludePlaceholders lifts the default guard that skips __LIKE_THIS__
-	// values with a warning.
-	IncludePlaceholders bool
-	// IncludeEmpty lifts the default guard that skips empty values.
-	IncludeEmpty bool
-}
+// SelectOpts is the shared selection grammar — an ALIAS for the canonical
+// type in envkit, not a copy. Selection semantics exist in exactly one place
+// (envkit.Select); this alias just spares plugin authors an extra import.
+type SelectOpts = envkit.SelectOptions
 
-// Source is the resolved selection a verb consumes.
-type Source interface {
-	// Pairs returns the selected pairs, filters applied, names renamed.
-	Pairs() []dotenv.Pair
-	// Skipped returns what the guards removed and why, so verbs can report
-	// skips in the standard action vocabulary instead of hiding them.
-	Skipped() []Skip
-}
+// Source is the resolved selection a verb consumes — the concrete result
+// envkit produces. A struct rather than an interface on purpose: there is one
+// implementation, it is pure data, and tests construct it directly instead of
+// hand-rolling a fake.
+type Source = *envkit.Selection
 
-// Skip is one guarded-out key.
-type Skip struct {
-	// Name is the post-rename key name.
-	Name string
-	// Action is the skip's vocabulary entry: ActionSkippedPlaceholder or
-	// ActionSkippedEmpty.
-	Action Action
+// Skip re-exports envkit's guard record so plugin code can name it.
+type Skip = envkit.Skip
+
+// SkipAction maps a selection guard's reason onto the push-action vocabulary.
+// The two vocabularies stay separate deliberately: "why the selection held a
+// key back" and "what a push did about it" are different questions that only
+// happen to line up today.
+func SkipAction(r envkit.SkipReason) Action {
+	switch r {
+	case envkit.SkipEmpty:
+		return ActionSkippedEmpty
+	default:
+		return ActionSkippedPlaceholder
+	}
 }
 
 // Action classifies one per-name outcome. Closed set — frozen API for humans

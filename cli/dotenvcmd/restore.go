@@ -3,7 +3,7 @@ package dotenvcmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/ubgo/dotenv/cli/internal/outfmt"
+	"github.com/ubgo/dotenv/cli/envkit"
 )
 
 // restorePayload is the --json data shape for `restore`.
@@ -22,20 +22,8 @@ func newRestoreCmd(a *app) *cobra.Command {
 			"  dotenvctl list --disabled            # see what can be restored",
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			f, err := a.open()
-			if err != nil {
-				return err
-			}
-			before := f.Render()
-
-			for _, key := range args {
-				if !f.Restore(key) {
-					return a.failf(outfmt.CodeNotFound, "no disabled entry for %q in %s", key, a.file)
-				}
-			}
-
-			if _, err := a.saveIfChanged(f, before); err != nil {
-				return err
+			if _, err := envkit.Restore(a.file, args, envkit.EditOptions{}); err != nil {
+				return a.editError(err)
 			}
 			return a.printer.OK(restorePayload{Keys: args})
 		},

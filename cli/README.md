@@ -23,6 +23,21 @@ dotenvctl matrix --format html -o envs.html    # shareable report — secrets ma
 dotenvctl github push --prefix GITHUB_SECRET_ --strip-prefix   # sync to GitHub Actions secrets
 ```
 
+## Use it as a Go library
+
+Every verb is an exported function — the CLI is a thin translator over `envkit`:
+
+```go
+import "github.com/ubgo/dotenv/cli/envkit"
+
+sel, err := envkit.SelectFile(".env.prod", envkit.SelectOptions{Prefix: "GITHUB_SECRET_", StripPrefix: true, Expand: true})
+m, err := envkit.BuildMatrix(envkit.MatrixOptions{Dir: ".", ContractPath: ".env.example"})
+d, err := envkit.Diff(".env.staging", ".env.prod", envkit.DiffOptions{Expand: true})
+code, err := envkit.Run(ctx, ".env.test", []string{"go", "test", "./..."}, envkit.RunOptions{Base: os.Environ()})
+```
+
+Plugins are importable too — mount ours in your own binary, or build one for your backend with `providerkit`. Full reference: [Go API](../docs/go-api.md).
+
 Full documentation: [docs/](../docs/README.md) — [getting started](../docs/getting-started.md) · [command reference](../docs/commands.md) · [multi-env tools](../docs/multi-env.md) · [plugins](../docs/plugins.md) · [GitHub plugin](../docs/plugins/github.md).
 
 ## Why this over the usual suspects
@@ -43,4 +58,4 @@ task cli:ci         # fmt-check + vet + race tests
 task ci             # the full gate: library AND cli
 ```
 
-Layout: `cmd/dotenvctl` (main), `dotenvcmd` (verb tree — exported, embeddable), `providerkit` (plugin seam), `plugins/githubplugin`, `internal/{discover,outfmt,report,textdiff}`.
+Layout: `cmd/dotenvctl` (main) · `dotenvcmd` (cobra verb tree) · **`envkit` (the operations API)** · `providerkit` (plugin seam) · `plugins/{githubplugin,vercelplugin}` · helpers `discover`, `outfmt`, `report`, `textdiff` — all exported, nothing under `internal/`.

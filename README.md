@@ -721,7 +721,7 @@ dotenvctl github env-create prod --yes                          # create the dep
 
 Every verb takes `-f <file>` (default `./.env`) and `--json` (stable `{ok,data|error}` envelope). Mutating verbs support `--dry-run`. Exit codes: `0` ok, `1` operation failed, `2` usage. The CLI is a separate Go module, so this library stays dependency-free.
 
-Full CLI documentation — every verb, the multi-env tools, and the plugins — lives in [docs/](docs/README.md).
+Full CLI documentation — every verb, the multi-env tools, and the plugins — lives in [docs/](docs/README.md). Every CLI operation is also an exported Go function: see the [Go API guide](docs/go-api.md).
 
 Matrix cells: `✓` present · `∅` empty · `!` placeholder (`__STAND_IN__` values, pattern configurable via `--placeholder`) · `#` disabled (commented out) · `→` inherited (name-only declaration) · `—` missing. Values are masked (`••••••`) in `--values`, JSON, and HTML output unless you pass `--reveal`.
 

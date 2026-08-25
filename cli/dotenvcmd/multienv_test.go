@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ubgo/dotenv/cli/envkit"
 )
 
 // multiEnvDir builds a directory with a family of env files and returns it.
@@ -83,7 +85,7 @@ func TestMatrix_StatesAndOrder(t *testing.T) {
 		t.Fatalf("exit = %d (%s)", code, out)
 	}
 	var env struct {
-		Data matrixPayload `json:"data"`
+		Data envkit.Matrix `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(out), &env); err != nil {
 		t.Fatalf("bad json: %v", err)
@@ -100,9 +102,9 @@ func TestMatrix_StatesAndOrder(t *testing.T) {
 		}
 	}
 
-	states := map[string]map[string]CellState{}
+	states := map[string]map[string]envkit.CellState{}
 	for _, row := range env.Data.Rows {
-		states[row.Key] = map[string]CellState{}
+		states[row.Key] = map[string]envkit.CellState{}
 		for _, c := range row.Cells {
 			states[row.Key][c.Env] = c.State
 			if c.Value != "" {
@@ -111,7 +113,7 @@ func TestMatrix_StatesAndOrder(t *testing.T) {
 		}
 	}
 
-	wantStates := map[string]map[string]CellState{
+	wantStates := map[string]map[string]envkit.CellState{
 		"DB_HOST":   {"dev": StatePresent, "stag": StatePresent, "prod": StatePresent},
 		"DB_PASS":   {"dev": StatePresent, "stag": StatePlaceholder, "prod": StatePresent},
 		"FEATURE_X": {"dev": StatePresent, "stag": StateDisabled, "prod": StateEmpty},
@@ -176,7 +178,7 @@ func TestMatrix_Contract(t *testing.T) {
 		t.Fatalf("exit = %d, want %d — API_KEY is missing everywhere", code, ExitFailure)
 	}
 	var env struct {
-		Data matrixPayload `json:"data"`
+		Data envkit.Matrix `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(out), &env); err != nil {
 		t.Fatalf("bad json: %v", err)

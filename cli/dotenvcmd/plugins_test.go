@@ -7,7 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ubgo/dotenv/cli/internal/outfmt"
+	"github.com/ubgo/dotenv/cli/envkit"
+	"github.com/ubgo/dotenv/cli/outfmt"
 	"github.com/ubgo/dotenv/cli/providerkit"
 )
 
@@ -30,15 +31,15 @@ func TestPluginSource_SelectionSemantics(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		pairs := src.Pairs()
+		pairs := src.Pairs
 		if len(pairs) != 1 || pairs[0].Key != "TOKEN" || pairs[0].Value != "tok" {
 			t.Errorf("pairs = %+v, want only stripped TOKEN", pairs)
 		}
-		skipped := map[string]providerkit.Action{}
-		for _, s := range src.Skipped() {
-			skipped[s.Name] = s.Action
+		skipped := map[string]envkit.SkipReason{}
+		for _, s := range src.Skipped {
+			skipped[s.Name] = s.Reason
 		}
-		if skipped["ACTOR"] != providerkit.ActionSkippedPlaceholder || skipped["EMPTY"] != providerkit.ActionSkippedEmpty {
+		if skipped["ACTOR"] != envkit.SkipPlaceholder || skipped["EMPTY"] != envkit.SkipEmpty {
 			t.Errorf("skips = %v, want placeholder+empty guards with STRIPPED names", skipped)
 		}
 	})
@@ -49,7 +50,7 @@ func TestPluginSource_SelectionSemantics(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if p := src.Pairs(); len(p) != 1 || p[0].Value != "x-suffix" {
+		if p := src.Pairs; len(p) != 1 || p[0].Value != "x-suffix" {
 			t.Errorf("expanded = %+v", p)
 		}
 	})
@@ -74,8 +75,8 @@ func TestPluginSource_SelectionSemantics(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(src.Pairs()) != 3 || len(src.Skipped()) != 0 {
-			t.Errorf("guards not lifted: pairs=%d skips=%d", len(src.Pairs()), len(src.Skipped()))
+		if len(src.Pairs) != 3 || len(src.Skipped) != 0 {
+			t.Errorf("guards not lifted: pairs=%d skips=%d", len(src.Pairs), len(src.Skipped))
 		}
 	})
 }
@@ -168,7 +169,7 @@ func TestSourceKeys_ResolutionOrder(t *testing.T) {
 				return
 			}
 			var got []string
-			for _, p := range src.Pairs() {
+			for _, p := range src.Pairs {
 				got = append(got, p.Key)
 			}
 			if !slices.Equal(got, tt.want) {

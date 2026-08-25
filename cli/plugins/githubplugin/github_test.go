@@ -8,7 +8,8 @@ import (
 	"testing"
 
 	"github.com/ubgo/dotenv"
-	"github.com/ubgo/dotenv/cli/internal/outfmt"
+	"github.com/ubgo/dotenv/cli/envkit"
+	"github.com/ubgo/dotenv/cli/outfmt"
 	"github.com/ubgo/dotenv/cli/providerkit"
 )
 
@@ -68,19 +69,10 @@ func runGithub(t *testing.T, runner *fakeRunner, src providerkit.Source, args ..
 	return out.String(), err
 }
 
-// staticSource is a canned selection.
-type staticSource struct {
-	pairs []dotenv.Pair
-	skips []providerkit.Skip
-}
-
-func (s *staticSource) Pairs() []dotenv.Pair        { return s.pairs }
-func (s *staticSource) Skipped() []providerkit.Skip { return s.skips }
-
 func TestPush_ArgvAndStdin(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{responses: ghResponses()}
-	src := &staticSource{pairs: []dotenv.Pair{{Key: "DEPLOY_PATH", Value: "/srv/app"}}}
+	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "DEPLOY_PATH", Value: "/srv/app"}}}
 
 	out, err := runGithub(t, runner, src, "push", "--yes")
 	if err != nil {
@@ -117,7 +109,7 @@ func TestPush_ArgvAndStdin(t *testing.T) {
 func TestPush_ScopeFlagsPassThrough(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{responses: ghResponses()}
-	src := &staticSource{pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
+	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
 
 	if _, err := runGithub(t, runner, src, "push", "--yes", "--repo", "o/r", "--environment", "production"); err != nil {
 		t.Fatal(err)
@@ -142,7 +134,7 @@ func TestPush_InvalidSecretNamesAbortBeforeAnyWrite(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{responses: ghResponses()}
 	// Legal env keys under the Compose charset, illegal as GH secret names.
-	src := &staticSource{pairs: []dotenv.Pair{
+	src := &envkit.Selection{Pairs: []dotenv.Pair{
 		{Key: "GOOD_NAME", Value: "x"},
 		{Key: "spring.datasource.url", Value: "x"},
 		{Key: "MY-TOKEN", Value: "x"},
@@ -165,7 +157,7 @@ func TestPush_InvalidSecretNamesAbortBeforeAnyWrite(t *testing.T) {
 func TestPush_NonInteractiveRequiresYes(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{responses: ghResponses()}
-	src := &staticSource{pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
+	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
 
 	if _, err := runGithub(t, runner, src, "push"); err == nil {
 		t.Error("non-interactive push without --yes must refuse")
@@ -180,7 +172,7 @@ func TestPush_NonInteractiveRequiresYes(t *testing.T) {
 func TestPrune_DeletesOnlyStale(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{responses: ghResponses()} // remote: OLD_STALE, DEPLOY_PATH
-	src := &staticSource{pairs: []dotenv.Pair{{Key: "DEPLOY_PATH", Value: "x"}}}
+	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "DEPLOY_PATH", Value: "x"}}}
 
 	out, err := runGithub(t, runner, src, "prune", "--yes")
 	if err != nil {
@@ -201,7 +193,7 @@ func TestList_ParsesGhJSON(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{responses: ghResponses()}
 
-	out, err := runGithub(t, runner, &staticSource{}, "list")
+	out, err := runGithub(t, runner, &envkit.Selection{}, "list")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +205,7 @@ func TestList_ParsesGhJSON(t *testing.T) {
 func TestGate_GhFailureIsActionableAndAborts(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{failOn: "repo view"} // gh missing/unauthenticated
-	src := &staticSource{pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
+	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
 
 	out, err := runGithub(t, runner, src, "push", "--yes")
 	if err == nil {
@@ -233,7 +225,7 @@ func TestPush_TokenOverrideLabeledInBanner(t *testing.T) {
 	// t.Setenv forbids t.Parallel — the label depends on process env.
 	t.Setenv("GH_TOKEN", "ghp_test_override")
 	runner := &fakeRunner{responses: ghResponses()}
-	src := &staticSource{pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
+	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
 
 	out, err := runGithub(t, runner, src, "push", "--yes")
 	if err != nil {
@@ -247,10 +239,7 @@ func TestPush_TokenOverrideLabeledInBanner(t *testing.T) {
 func TestPush_JSONCarriesMetaAndResults(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{responses: ghResponses()}
-	src := &staticSource{
-		pairs: []dotenv.Pair{{Key: "PAT", Value: "v"}},
-		skips: []providerkit.Skip{{Name: "WHO", Action: providerkit.ActionSkippedPlaceholder}},
-	}
+	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "PAT", Value: "v"}}, Skipped: []providerkit.Skip{{Name: "WHO", Reason: envkit.SkipPlaceholder}}}
 
 	var out bytes.Buffer
 	deps := providerkit.Deps{
@@ -283,7 +272,7 @@ func TestPush_JSONCarriesMetaAndResults(t *testing.T) {
 func TestPush_OrgScope(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{responses: ghResponses()}
-	src := &staticSource{pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
+	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
 
 	out, err := runGithub(t, runner, src, "push", "--yes", "--org", "acme")
 	if err != nil {
@@ -354,7 +343,7 @@ func TestStore_DirectEdges(t *testing.T) {
 func TestEnvAliasFlag(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{responses: ghResponses()}
-	src := &staticSource{pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
+	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "K", Value: "v"}}}
 
 	// --env must behave exactly like --environment (gh's own spelling).
 	if _, err := runGithub(t, runner, src, "push", "--yes", "--env", "production"); err != nil {
@@ -377,7 +366,7 @@ func TestEnvCreate(t *testing.T) {
 	t.Run("resolves repo, gates, PUTs the environments API", func(t *testing.T) {
 		t.Parallel()
 		runner := &fakeRunner{responses: ghResponses()}
-		out, err := runGithub(t, runner, &staticSource{}, "env-create", "prod", "--yes")
+		out, err := runGithub(t, runner, &envkit.Selection{}, "env-create", "prod", "--yes")
 		if err != nil {
 			t.Fatalf("%v\n%s", err, out)
 		}
@@ -398,7 +387,7 @@ func TestEnvCreate(t *testing.T) {
 	t.Run("explicit --repo skips resolution", func(t *testing.T) {
 		t.Parallel()
 		runner := &fakeRunner{responses: ghResponses()}
-		if _, err := runGithub(t, runner, &staticSource{}, "env-create", "stag", "--repo", "o/r", "--yes"); err != nil {
+		if _, err := runGithub(t, runner, &envkit.Selection{}, "env-create", "stag", "--repo", "o/r", "--yes"); err != nil {
 			t.Fatal(err)
 		}
 		for _, c := range runner.calls {
@@ -411,7 +400,7 @@ func TestEnvCreate(t *testing.T) {
 	t.Run("non-interactive without --yes refuses before any API call", func(t *testing.T) {
 		t.Parallel()
 		runner := &fakeRunner{responses: ghResponses()}
-		if _, err := runGithub(t, runner, &staticSource{}, "env-create", "prod"); err == nil {
+		if _, err := runGithub(t, runner, &envkit.Selection{}, "env-create", "prod"); err == nil {
 			t.Error("want refusal")
 		}
 		for _, c := range runner.calls {
@@ -425,7 +414,7 @@ func TestEnvCreate(t *testing.T) {
 func TestPush_SelectionFlagsEndToEnd(t *testing.T) {
 	t.Parallel()
 	runner := &fakeRunner{responses: ghResponses()}
-	src := &staticSource{pairs: []dotenv.Pair{{Key: "KEEP", Value: "v"}}}
+	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "KEEP", Value: "v"}}}
 
 	// The kit registers the new flags on plugin verbs; they parse and flow
 	// into SelectOpts (semantics unit-tested at the Source; this pins wiring).

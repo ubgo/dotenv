@@ -1,13 +1,14 @@
 package dotenvcmd
 
 import (
-	"errors"
+	"cmp"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/ubgo/dotenv"
-	"github.com/ubgo/dotenv/cli/internal/outfmt"
+	"github.com/ubgo/dotenv/cli/envkit"
+	"github.com/ubgo/dotenv/cli/outfmt"
 )
 
 // setResult is one key's outcome in set's --json output.
@@ -53,29 +54,29 @@ func newSetCmd(a *app) *cobra.Command {
 				return err
 			}
 
-			f, err := a.open()
+			res, err := envkit.Set(a.file, assignments, envkit.EditOptions{
+				DryRun:       dryRun,
+				Anchor:       cmp.Or(after, before),
+				AnchorBefore: before != "",
+			})
 			if err != nil {
-				return err
+				return a.editError(err)
 			}
-			beforeRender := f.Render()
 
+			created := map[string]bool{}
+			for _, k := range res.Created {
+				created[k] = true
+			}
 			results := make([]setResult, 0, len(assignments))
 			for _, kv := range assignments {
-				created, err := a.applySet(f, kv, after, before)
-				if err != nil {
-					return err
-				}
-				results = append(results, setResult{Key: kv.Key, Created: created})
+				results = append(results, setResult{Key: kv.Key, Created: created[kv.Key]})
 			}
 
-			changed, err := a.previewOrSave(f, beforeRender, dryRun)
-			if err != nil {
-				return err
-			}
-			if !changed {
+			a.printEditResult(res)
+			if !res.Changed {
 				a.printer.Human("no changes (values already current)")
 			}
-			return a.printer.OK(setPayload{Results: results, Changed: changed, DryRun: dryRun})
+			return a.printer.OK(setPayload{Results: results, Changed: res.Changed, DryRun: dryRun})
 		},
 	}
 
@@ -83,28 +84,6 @@ func newSetCmd(a *app) *cobra.Command {
 	c.Flags().StringVar(&before, flagBefore, "", "place a NEW key immediately before this anchor key")
 	c.Flags().BoolVar(&dryRun, flagDryRun, false, "print the would-be diff without writing")
 	return c
-}
-
-// applySet routes one assignment through plain Set or the anchored variants.
-// A missing anchor is an operation failure, not a silent append — the whole
-// point of anchoring is WHERE the key lands.
-func (a *app) applySet(f *dotenv.File, kv dotenv.Pair, after, before string) (bool, error) {
-	switch {
-	case after != "":
-		created, err := f.SetAfter(after, kv.Key, kv.Value)
-		if errors.Is(err, dotenv.ErrAnchorNotFound) {
-			return false, a.failf(outfmt.CodeNotFound, "anchor key %q not found in %s", after, a.file)
-		}
-		return created, nil
-	case before != "":
-		created, err := f.SetBefore(before, kv.Key, kv.Value)
-		if errors.Is(err, dotenv.ErrAnchorNotFound) {
-			return false, a.failf(outfmt.CodeNotFound, "anchor key %q not found in %s", before, a.file)
-		}
-		return created, nil
-	default:
-		return f.Set(kv.Key, kv.Value), nil
-	}
 }
 
 // parseAssignments splits each arg on its FIRST '=' — values legitimately
