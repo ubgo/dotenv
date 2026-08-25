@@ -145,7 +145,7 @@ dotenvctl diff a.env b.env --expand        # compare resolved values instead of 
 dotenvctl diff a.env b.env --json | jq .data.changed
 ```
 
-Output: `+ KEY=…` only in the second file · `- KEY=…` only in the first · `~ KEY: a -> b` changed. Exit `0` identical, `1` different (like `diff(1)`), `2` trouble. Comparison is over the effective last-wins view — formatting, comments, and shadowed duplicates are invisible on purpose. `--format human|json|html` and `-o PATH` control output; HTML reports are secrets-masked unless `--reveal` — see [Multi-environment tools](multi-env.md#html-reports).
+Output: `+ KEY=…` only in the second file · `- KEY=…` only in the first · `~ KEY: a -> b` changed. Exit `0` identical, `1` different (like `diff(1)`), `2` trouble. Comparison is over the effective last-wins view — formatting, comments, and shadowed duplicates are invisible on purpose. `--format human|json|html` and `-o`/`--output PATH` control output; HTML reports are secrets-masked unless `--reveal` — see [Multi-environment tools](multi-env.md#html-reports).
 
 ## Commands documented elsewhere
 

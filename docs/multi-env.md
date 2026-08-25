@@ -62,7 +62,7 @@ Notes and sharp edges:
 
 ## HTML reports
 
-`matrix` and `diff` take `--format human|json|html` and `-o PATH`:
+`matrix` and `diff` take `--format human|json|html` and `-o`/`--output PATH`:
 
 ```sh
 dotenvctl matrix --format html -o envs.html

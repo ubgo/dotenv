@@ -224,6 +224,88 @@ p.Fail(outfmt.CodeNotFound, "key missing")   // {"ok":false,"error":{…}}
 p.Human("plain line")                        // silent in JSON mode
 ```
 
+## Complete API reference
+
+Every exported identifier, by package. Signatures live in `go doc`; this table is the map.
+
+### envkit
+
+| Kind | Identifier | Purpose |
+|---|---|---|
+| func | `Select(f, opts)` / `SelectFile(path, opts)` | apply the selection grammar to a parsed file / a path |
+| func | `Discover(dir)` / `Inventories(opts)` | find the env-file family / summarize each file |
+| func | `BuildMatrix(opts)` | the keys × environments drift table |
+| func | `DriftRows(rows)` | keep only rows that aren't uniformly present |
+| func | `SparseColumn(m, rowsBefore)` | diagnose an ineffective drift filter (returns env, missing count, ok) |
+| func | `DisambiguateColumns(cols)` | make column labels unique when two files classify alike |
+| func | `EnvNameForPath(path)` | label an explicit path with discovery's vocabulary |
+| func | `Diff(a, b, opts)` / `DiffMaps(a, b, expanded)` | effective-config comparison of two files / two maps |
+| func | `Set` / `Unset` / `Restore` | byte-preserving edits |
+| func | `Run(ctx, path, argv, opts)` | execute with the file's values; returns the child's exit code |
+| func | `ChildEnv(path, base, sel)` / `MergeEnv(base, values)` | build a child environment (file wins) |
+| type | `SelectOptions`, `Selection`, `Skip`, `SkipReason` | selection inputs and results |
+| type | `Matrix`, `MatrixRow`, `MatrixCell`, `MatrixOptions`, `CellState` | matrix types |
+| type | `DiffResult`, `DiffPair`, `DiffChange`, `DiffOptions` | diff types |
+| type | `EditOptions`, `EditResult` | edit types |
+| type | `Inventory`, `InventoryOptions`, `EnvFile` | discovery types |
+| type | `RunOptions` | execution options |
+| const | `DefaultPlaceholderPattern`, `SparseColumnThreshold` | the `__LIKE_THIS__` pattern; the sparse-column trigger share |
+| const | `SkipPlaceholder`, `SkipEmpty` | skip reasons |
+| const | `StatePresent`, `StateEmpty`, `StatePlaceholder`, `StateDisabled`, `StateInherited`, `StateMissing` | cell states |
+| var | `StateSymbols` | state → glyph, shared by every renderer |
+| var | `ErrAnchorNotFound`, `ErrKeyNotFound` | sentinels for `errors.Is` |
+
+Methods worth knowing: `Selection.Names()` / `SkippedNames()` / `Map()`, `Matrix.HasContractGaps()`, `MatrixCell.Raw()`, `DiffResult.Empty()`.
+
+### providerkit
+
+| Kind | Identifier | Purpose |
+|---|---|---|
+| type | `Plugin` | the one mandatory contract: `Command(Deps) *cobra.Command` |
+| type | `Deps` | everything a plugin receives from the host |
+| type | `SelectOpts` = `envkit.SelectOptions`, `Source` = `*envkit.Selection`, `Skip` = `envkit.Skip` | aliases — one grammar, no translation |
+| type | `SecretWriter`, `SecretLister`, `SecretDeleter` | capability interfaces; implement what your backend truly supports |
+| type | `Runner`, `ExecRunner` | the injectable exec seam and its production implementation |
+| type | `VerbConfig`, `Gate`, `GateInfo` | per-verb customization: banner + confirm |
+| type | `Action`, `Result`, `CmdError` | the outcome vocabulary and the exit-code carrier |
+| func | `NewPushCmd`, `NewListCmd`, `NewPruneCmd` | generate the standard verbs for your capabilities |
+| func | `Confirm(deps, info)` | the standard prompt/`--yes` contract |
+| func | `Fail(printer, code, format, …)` | emit a failure and return the right exit code |
+| func | `AddSelectionFlags(cmd, sel)` | bind the shared selection flags to any command |
+| func | `SelectionActive(sel)` | did the user actually select something? |
+| func | `SkipAction(reason)` | map a selection guard reason to a push action |
+| const | `ActionPushed`, `ActionWouldPush`, `ActionSkippedPlaceholder`, `ActionSkippedEmpty`, `ActionDeleted`, `ActionWouldDelete`, `ActionKeptSkipped`, `ActionKeptFlag` | the closed action set |
+
+### discover · report · textdiff · outfmt
+
+| Package | Surface |
+|---|---|
+| `discover` | `Scan(dir)`, `Classify(filename)`, `EnvFile`, `EnvDefault` |
+| `report` | `MatrixHTML(Matrix)`, `DiffHTML(Diff)`, types `Matrix`/`MatrixRow`/`MatrixCell`/`Diff`/`DiffPair`/`DiffChange`, `MaskGlyph` |
+| `textdiff` | `Lines(before, after)` |
+| `outfmt` | `Printer` with `OK`/`Fail`/`Human`/`Humanf`, `ErrCode` and its constants (`CodeNotFound`, `CodeIO`, `CodeRequired`, `CodeUsage`, `CodeExec`, `CodeDiff`) |
+
+## CLI ↔ Go equivalence
+
+Every command maps to a call, so a script can graduate to a program without changing behavior:
+
+| CLI | Go |
+|---|---|
+| `dotenvctl get KEY --expand` | `dotenv.Open` + `f.GetExpanded(key)` |
+| `dotenvctl list --prefix P --strip-prefix` | `envkit.SelectFile(path, envkit.SelectOptions{Prefix: "P", StripPrefix: true})` |
+| `dotenvctl keys --exclude-prefix P` | same, reading `Selection.Names()` |
+| `dotenvctl set K=V --after ANCHOR --dry-run` | `envkit.Set(path, pairs, envkit.EditOptions{Anchor: "ANCHOR", DryRun: true})` |
+| `dotenvctl unset K` / `--delete` | `envkit.Unset(path, keys, envkit.EditOptions{Delete: …})` |
+| `dotenvctl restore K` | `envkit.Restore(path, keys, envkit.EditOptions{})` |
+| `dotenvctl envs --dir D` | `envkit.Inventories(envkit.InventoryOptions{Dir: "D"})` |
+| `dotenvctl matrix --contract C --only-drift` | `envkit.BuildMatrix(…{ContractPath: "C", OnlyDrift: true})` |
+| `dotenvctl diff A B --expand` | `envkit.Diff("A", "B", envkit.DiffOptions{Expand: true})` |
+| `dotenvctl matrix --format html -o F` | `report.MatrixHTML(...)` + `os.WriteFile` |
+| `dotenvctl run -- cmd args` | `envkit.Run(ctx, path, argv, envkit.RunOptions{Base: os.Environ()})` |
+| `dotenvctl github push …` | mount `githubplugin.New().Command(deps)`, or call `providerkit.NewPushCmd` with your own store |
+
+Two deliberate differences: the CLI's `--expand` defaults differ by verb (off for reads, on for pushes) while `SelectOptions.Expand` is explicit; and the CLI maps errors to exit codes while the Go API returns them.
+
 ## Stability
 
 `envkit`, `providerkit`, and the helper packages are the public Go surface — their exported signatures are API, and breaking one is a major-version event. The CLI's *flag* names and `--json` envelope are covered by the same promise. Anything under a `dotenvcmd` unexported identifier is not.
