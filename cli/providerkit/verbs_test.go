@@ -446,3 +446,73 @@ func TestPrune_KeepSet(t *testing.T) {
 		}
 	})
 }
+
+// TestSelectionActive pins the predicate read verbs use to decide between
+// their legacy full view and the pipeline view. Exported, so its behavior is
+// API — and it had NO test before this.
+func TestSelectionActive(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		sel  SelectOpts
+		want bool
+	}{
+		{"zero value is inactive", SelectOpts{}, false},
+		{"prefix activates", SelectOpts{Prefix: "P_"}, true},
+		{"exclude-prefix activates", SelectOpts{ExcludePrefix: "P_"}, true},
+		{"include activates", SelectOpts{IncludeKeys: []string{"A"}}, true},
+		{"exclude activates", SelectOpts{ExcludeKeys: []string{"A"}}, true},
+		{"strip-prefix alone activates", SelectOpts{StripPrefix: true}, true},
+		// Value-shaping flags are NOT selection: they change what a selected
+		// key's value looks like, not which keys are selected.
+		{"expand alone is not selection", SelectOpts{Expand: true}, false},
+		{"guard lifts alone are not selection", SelectOpts{IncludePlaceholders: true, IncludeEmpty: true}, false},
+		{"explicit keys are handled by the caller, not this predicate", SelectOpts{Keys: []string{"A"}}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := SelectionActive(tt.sel); got != tt.want {
+				t.Errorf("SelectionActive(%+v) = %v, want %v", tt.sel, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestSkipAction pins the reason→action mapping in both directions, and the
+// defensive default for a reason this package does not know.
+func TestSkipAction(t *testing.T) {
+	t.Parallel()
+	if got := SkipAction(envkit.SkipEmpty); got != ActionSkippedEmpty {
+		t.Errorf("empty → %s", got)
+	}
+	if got := SkipAction(envkit.SkipPlaceholder); got != ActionSkippedPlaceholder {
+		t.Errorf("placeholder → %s", got)
+	}
+	// An unknown reason must still classify as a skip, never as a push.
+	if got := SkipAction(envkit.SkipReason("future-reason")); got != ActionSkippedPlaceholder {
+		t.Errorf("unknown → %s, want a skip action", got)
+	}
+}
+
+// TestEmitResults_MetaSucceedsPopulatesPayload covers the meta happy path
+// (the failure path is covered separately).
+func TestEmitResults_MetaSucceedsPopulatesPayload(t *testing.T) {
+	t.Parallel()
+	src := selection([]dotenv.Pair{{Key: "A", Value: "1"}})
+	store := &fakeStore{}
+	deps, out := testDeps(src, false, false)
+	deps.Printer.JSON = true
+
+	cfg := VerbConfig{Meta: func(context.Context) (map[string]string, error) {
+		return map[string]string{"target": "acme/repo"}, nil
+	}}
+	c := NewPushCmd(deps, store, cfg)
+	c.SetArgs([]string{"--yes"})
+	if err := c.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), `"meta":{"target":"acme/repo"}`) {
+		t.Errorf("meta missing from payload: %s", out.String())
+	}
+}

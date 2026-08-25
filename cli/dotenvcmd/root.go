@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"runtime/debug"
 
 	"github.com/spf13/cobra"
@@ -123,6 +124,11 @@ type app struct {
 	runner        providerkit.Runner
 	interactiveFn func() bool
 	askFn         func(prompt string) bool
+
+	// stdin is where confirmation answers are read from. Injectable because
+	// reading os.Stdin directly made the prompt's accept path untestable —
+	// the branch that decides whether a secret gets written.
+	stdin io.Reader
 }
 
 // Execute parses args, runs the selected verb, and returns the process exit
@@ -144,6 +150,9 @@ func executeApp(a *app, args []string, stdout, stderr io.Writer) int {
 	}
 	if a.askFn == nil {
 		a.askFn = a.askOnTerminal
+	}
+	if a.stdin == nil {
+		a.stdin = os.Stdin
 	}
 
 	root := newRootCmd(a)

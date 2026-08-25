@@ -6,6 +6,7 @@ package dotenvcmd
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -363,4 +364,74 @@ func TestReadVerbSelection(t *testing.T) {
 			t.Errorf("exit %d out %q", code, out)
 		}
 	})
+}
+
+// TestAskOnTerminal_Answers covers the prompt's decision table now that the
+// answer source is injectable — this is the branch that decides whether a
+// secret gets written, so every spelling is pinned.
+func TestAskOnTerminal_Answers(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"y\n", true},
+		{"Y\n", true},
+		{"yes\n", true},
+		{"YES\n", true},
+		{"  y  \n", true},
+		{"n\n", false},
+		{"no\n", false},
+		{"\n", false},
+		{"yeah\n", false},
+		{"", false}, // EOF without a newline: deny
+	}
+	for _, tt := range tests {
+		t.Run(strings.TrimSpace(tt.input)+"/"+fmt.Sprint(tt.want), func(t *testing.T) {
+			t.Parallel()
+			var errBuf bytes.Buffer
+			a := &app{
+				printer: &outfmt.Printer{Out: &bytes.Buffer{}},
+				errOut:  &errBuf,
+				stdin:   strings.NewReader(tt.input),
+			}
+			if got := a.askOnTerminal("proceed? "); got != tt.want {
+				t.Errorf("answer %q → %v, want %v", tt.input, got, tt.want)
+			}
+			if errBuf.String() != "proceed? " {
+				t.Errorf("prompt = %q", errBuf.String())
+			}
+		})
+	}
+}
+
+// TestSelectionErrorMapping pins how envkit failures become CLI exit codes —
+// the three arms a user experiences as different messages.
+func TestSelectionErrorMapping(t *testing.T) {
+	t.Parallel()
+
+	// Named-but-missing key → not_found.
+	path := writeFixture(t, "A=1\n")
+	code, out, _ := runCLI(t, "-f", path, "list", "--include", "NOPE", "--json")
+	if code != ExitFailure || !strings.Contains(out, `"code":"not_found"`) {
+		t.Errorf("exit %d out %q", code, out)
+	}
+
+	// Unsatisfied required reference → required.
+	path = writeFixture(t, "A=${MISSING:?fill me}\n")
+	code, out, _ = runCLI(t, "-f", path, "list", "--prefix", "A", "--expand", "--json")
+	if code != ExitFailure || !strings.Contains(out, `"code":"required"`) {
+		t.Errorf("exit %d out %q", code, out)
+	}
+}
+
+// TestSelectionErrorMapping_IOArm covers the default (IO) arm of the
+// envkit-error mapping: a missing file is neither not_found nor required.
+func TestSelectionErrorMapping_IOArm(t *testing.T) {
+	t.Parallel()
+	missing := filepath.Join(t.TempDir(), "absent.env")
+	code, out, _ := runCLI(t, "-f", missing, "list", "--prefix", "A", "--json")
+	if code != ExitFailure || !strings.Contains(out, `"code":"io"`) {
+		t.Errorf("exit %d out %q, want an io-coded failure", code, out)
+	}
 }

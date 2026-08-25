@@ -724,3 +724,230 @@ func TestErrorArms(t *testing.T) {
 		t.Errorf("before-anchor placement = %q", b)
 	}
 }
+
+func TestSmallSurfaces(t *testing.T) {
+	t.Parallel()
+
+	t.Run("HasContractGaps is false without gaps and without a contract", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		writeFile(t, dir, ".env.dev", "A=1\n")
+		writeFile(t, dir, ".env.prod", "A=1\n")
+		contract := writeFile(t, dir, ".env.example", "A=x\n")
+
+		noContract, err := envkit.BuildMatrix(envkit.MatrixOptions{Dir: dir})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if noContract.HasContractGaps() {
+			t.Error("no contract checked → no gaps")
+		}
+		satisfied, err := envkit.BuildMatrix(envkit.MatrixOptions{Dir: dir, ContractPath: contract})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if satisfied.HasContractGaps() {
+			t.Errorf("every env has A: %v", satisfied.ContractMissing)
+		}
+	})
+
+	t.Run("cellFor reports inherited declarations", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		writeFile(t, dir, ".env.dev", "HOME\nA=1\n")
+		writeFile(t, dir, ".env.prod", "A=1\n")
+		m, err := envkit.BuildMatrix(envkit.MatrixOptions{Dir: dir})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, row := range m.Rows {
+			if row.Key != "HOME" {
+				continue
+			}
+			for _, c := range row.Cells {
+				want := envkit.StateInherited
+				if c.Env == "prod" {
+					want = envkit.StateMissing
+				}
+				if c.State != want {
+					t.Errorf("HOME/%s = %s, want %s", c.Env, c.State, want)
+				}
+			}
+		}
+	})
+
+	t.Run("DiffMaps handles empty inputs and identical maps", func(t *testing.T) {
+		t.Parallel()
+		d := envkit.DiffMaps(map[string]string{}, map[string]string{}, false)
+		if !d.Empty() || d.Added == nil || d.Removed == nil || d.Changed == nil {
+			t.Errorf("empty diff = %+v — slices must be empty, not nil", d)
+		}
+		same := envkit.DiffMaps(map[string]string{"A": "1"}, map[string]string{"A": "1"}, true)
+		if !same.Empty() || !same.Expanded {
+			t.Errorf("identical maps = %+v", same)
+		}
+	})
+
+	t.Run("Run honors Dir and an explicit Stdin", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		path := writeFile(t, dir, ".env", "A=1\n")
+		var out strings.Builder
+		code, err := envkit.Run(context.Background(), path, []string{"sh", "-c", "pwd; cat"}, envkit.RunOptions{
+			Dir:    dir,
+			Stdin:  strings.NewReader("piped"),
+			Stdout: &out,
+			Stderr: &out,
+		})
+		if err != nil || code != 0 {
+			t.Fatalf("code=%d err=%v", code, err)
+		}
+		if !strings.Contains(out.String(), "piped") {
+			t.Errorf("explicit stdin not delivered: %q", out.String())
+		}
+	})
+
+	t.Run("MergeEnv with an empty base is just the values", func(t *testing.T) {
+		t.Parallel()
+		got := envkit.MergeEnv(nil, map[string]string{"A": "1"})
+		if !slices.Equal(got, []string{"A=1"}) {
+			t.Errorf("MergeEnv = %v", got)
+		}
+		if got := envkit.MergeEnv([]string{"KEEP=1"}, nil); !slices.Equal(got, []string{"KEEP=1"}) {
+			t.Errorf("MergeEnv with no values = %v", got)
+		}
+	})
+}
+
+func TestEditFailurePaths(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores file modes")
+	}
+	t.Parallel()
+
+	t.Run("unreadable file", func(t *testing.T) {
+		t.Parallel()
+		path := writeFile(t, t.TempDir(), ".env", "A=1\n")
+		if err := os.Chmod(path, 0o000); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := envkit.SelectFile(path, envkit.SelectOptions{}); err == nil {
+			t.Error("unreadable file must error")
+		}
+		if _, err := envkit.Diff(path, path, envkit.DiffOptions{}); err == nil {
+			t.Error("unreadable diff input must error")
+		}
+	})
+
+	t.Run("save into a read-only directory leaves the file intact", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		path := writeFile(t, dir, ".env", "A=1\n")
+		if err := os.Chmod(dir, 0o500); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+
+		_, err := envkit.Set(path, []dotenv.Pair{{Key: "A", Value: "2"}}, envkit.EditOptions{})
+		if err == nil {
+			t.Error("save into a read-only dir must error")
+		}
+		_ = os.Chmod(dir, 0o700)
+		if b, _ := os.ReadFile(path); string(b) != "A=1\n" {
+			t.Errorf("failed save mutated the file: %q", b)
+		}
+	})
+}
+
+// TestDiscoverDefaultsToWorkingDirectory is separate and NOT parallel:
+// t.Chdir cannot be used under a parallel parent.
+func TestDiscoverDefaultsToWorkingDirectory(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, ".env", "A=1\n")
+	t.Chdir(dir)
+	found, err := envkit.Discover("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(found) != 1 || found[0].Env != "default" {
+		t.Errorf("Discover(\"\") = %+v", found)
+	}
+	inv, err := envkit.Inventories(envkit.InventoryOptions{})
+	if err != nil || len(inv) != 1 {
+		t.Errorf("Inventories default dir = %+v, %v", inv, err)
+	}
+	// MatrixOptions{} with no Dir and no Files also means "." — here that
+	// is a single file, so it must be the two-column error, not a panic.
+	if _, err := envkit.BuildMatrix(envkit.MatrixOptions{}); err == nil {
+		t.Error("one discovered file must error")
+	}
+
+}
+
+// TestRemainingArms covers the last reachable branches: sort comparators
+// (which need 2+ entries per category), and error propagation from the
+// helpers into each public entry point.
+func TestRemainingArms(t *testing.T) {
+	t.Parallel()
+
+	t.Run("diff sorts every category", func(t *testing.T) {
+		t.Parallel()
+		d := envkit.DiffMaps(
+			map[string]string{"Z_GONE": "1", "A_GONE": "1", "Z_CH": "old", "A_CH": "old"},
+			map[string]string{"Z_NEW": "1", "A_NEW": "1", "Z_CH": "new", "A_CH": "new"},
+			false,
+		)
+		if d.Added[0].Key != "A_NEW" || d.Added[1].Key != "Z_NEW" {
+			t.Errorf("added not sorted: %+v", d.Added)
+		}
+		if d.Removed[0].Key != "A_GONE" || d.Removed[1].Key != "Z_GONE" {
+			t.Errorf("removed not sorted: %+v", d.Removed)
+		}
+		if d.Changed[0].Key != "A_CH" || d.Changed[1].Key != "Z_CH" {
+			t.Errorf("changed not sorted: %+v", d.Changed)
+		}
+	})
+
+	t.Run("ChildEnv propagates selection failures", func(t *testing.T) {
+		t.Parallel()
+		if _, err := envkit.ChildEnv(filepath.Join(t.TempDir(), "absent.env"), nil, nil); err == nil {
+			t.Error("missing file must error")
+		}
+		path := writeFile(t, t.TempDir(), ".env", "A=1\n")
+		if _, err := envkit.ChildEnv(path, nil, &envkit.SelectOptions{Keys: []string{"NOPE"}}); err == nil {
+			t.Error("named missing key must error")
+		}
+		// Run surfaces the same failure before spawning anything.
+		if _, err := envkit.Run(context.Background(), path, []string{"true"}, envkit.RunOptions{
+			Select: &envkit.SelectOptions{Keys: []string{"NOPE"}},
+		}); err == nil {
+			t.Error("Run must fail before exec when selection fails")
+		}
+	})
+
+	t.Run("Set errors when the path is unopenable", func(t *testing.T) {
+		t.Parallel()
+		// A path whose parent is a FILE, not a directory: open fails.
+		dir := t.TempDir()
+		file := writeFile(t, dir, "notadir", "x")
+		_, err := envkit.Set(filepath.Join(file, ".env"), []dotenv.Pair{{Key: "A", Value: "1"}}, envkit.EditOptions{})
+		if err == nil {
+			t.Error("unopenable path must error")
+		}
+	})
+
+	t.Run("Inventories surfaces an unreadable member", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("root ignores file modes")
+		}
+		t.Parallel()
+		dir := t.TempDir()
+		bad := writeFile(t, dir, ".env.prod", "A=1\n")
+		if err := os.Chmod(bad, 0o000); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := envkit.Inventories(envkit.InventoryOptions{Dir: dir}); err == nil {
+			t.Error("an unreadable env file must surface, not be skipped")
+		}
+	})
+}

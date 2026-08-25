@@ -2,6 +2,7 @@ package dotenvcmd
 
 import (
 	"bufio"
+	"io"
 	"os"
 	"strings"
 
@@ -53,6 +54,15 @@ func (a *app) selectionError(err error) error {
 	}
 }
 
+// stdinOrDefault resolves the answer source, defaulting to the real stdin so
+// a direct (non-Execute) construction still behaves.
+func (a *app) stdinOrDefault() io.Reader {
+	if a.stdin == nil {
+		return os.Stdin
+	}
+	return a.stdin
+}
+
 // stdinIsTerminal reports whether a human can answer a prompt.
 //
 // A real isatty check (x/term), NOT a char-device check: /dev/null IS a
@@ -71,7 +81,7 @@ func (a *app) askOnTerminal(prompt string) bool {
 	if _, err := a.errOut.Write([]byte(prompt)); err != nil {
 		return false
 	}
-	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	line, err := bufio.NewReader(a.stdinOrDefault()).ReadString('\n')
 	if err != nil {
 		return false
 	}
