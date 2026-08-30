@@ -15,7 +15,7 @@ Or build from a clone: `task cli:build` produces `cli/bin/dotenvctl`.
 | Guide | Covers |
 |---|---|
 | [Getting started](getting-started.md) | install, first commands, the `-f` flag, `--json`, exit codes |
-| [Command reference](commands.md) | `get` · `set` · `unset` · `restore` · `list` · `keys` · `run` — every flag, with examples |
+| [Command reference](commands.md) | **every verb** — `get` · `set` · `unset` · `restore` · `list` · `keys` · `run` · `diff` · `envs` · `matrix` · `github` · `vercel` · `plugins` · `completion` — every flag, with real output |
 | [Multi-environment tools](multi-env.md) | `envs` discovery, the `matrix` drift table, `diff`, HTML reports, secret masking |
 | [Recipes](recipes.md) | complete workflows: CI contract gates, staging→prod cloning, the monorepo prefix split, GitHub sync end to end, jq cookbook |
 | [Plugins overview](plugins.md) | how plugin namespaces work, shared flags, safety rules |

@@ -1,6 +1,23 @@
 # Command reference
 
-Global flags on every command: `-f/--file PATH` (default `./.env`) and `--json` (machine envelope). Exit codes: `0` ok · `1` operation failed · `2` usage — exceptions noted per command.
+Every verb, with real output. Global flags on every command: `-f/--file PATH` (default `./.env`) and `--json` (machine envelope). Exit codes: `0` ok · `1` operation failed · `2` usage — exceptions noted per command. Mutating verbs all take `--dry-run`.
+
+| Verb | Job |
+|---|---|
+| [`get`](#get--print-one-value) | print one value, optionally `${expanded}` |
+| [`set`](#set--upsert-values-byte-preserving) | upsert `KEY=VALUE`s, byte-preserving, anchored placement |
+| [`unset`](#unset--deactivate-a-key) | comment out (default) or delete keys |
+| [`restore`](#restore--the-inverse-of-unset) | reactivate a commented-out key, byte-identical |
+| [`list`](#list--the-files-effective-contents) | the file's contents as a table or JSON |
+| [`keys`](#keys--names-only-pipe-friendly) | names only, for piping |
+| [`run`](#run--execute-a-command-with-the-files-values) | run a child process with the file's values |
+| [`diff`](#diff--compare-two-files-effective-configuration) | compare two files' effective config |
+| [`envs`](#envs--discover-the-env-family) | discover the directory's `.env` family |
+| [`matrix`](#matrix--the-keys--environments-drift-table) | keys × environments drift table, contract gate, HTML reports |
+| [`github`](#github--github-actions-secrets) | push/list/prune GitHub Actions secrets, create environments |
+| [`vercel`](#vercel--vercel-environment-variables) | push/list/prune Vercel env vars |
+| [`plugins`](#plugins--discover-exec-plugins) | list third-party exec plugins on PATH |
+| [`completion`](#completion--shell-completions) | shell completions (bash, zsh, fish, powershell) |
 
 ## get — print one value
 
@@ -17,9 +34,12 @@ $ dotenvctl get API_URL --expand
 https://api.acme.dev
 $ dotenvctl get DB_HOST --json
 {"ok":true,"data":{"key":"DB_HOST","value":"localhost","expanded":false}}
+$ dotenvctl get NOPE --json; echo "exit=$?"
+{"ok":false,"error":{"code":"not_found","message":"key \"NOPE\" not found in .env"}}
+exit=1
 ```
 
-Exits `1` when the key has no active entry. A commented-out setting (`# KEY=…`) and a name-only declaration (`KEY` alone) do not count — they are inactive, and `list --disabled` / `list --inherited` is how you see them.
+Exits `1` when the key has no active entry. A commented-out setting (`# KEY=…`) and a name-only declaration (`KEY` alone) do not count — they are inactive, and `list --disabled` / `list --inherited` is how you see them. A failing `${VAR:?message}` under `--expand` also exits `1`, with the message — that is the point of the `:?` form.
 
 ## set — upsert values, byte-preserving
 
@@ -31,19 +51,29 @@ dotenvctl set DB_DRIVER=postgres --before DB_HOST    # …or before one
 dotenvctl set DEBUG=true --dry-run             # print the would-be line diff, write nothing
 ```
 
-Rules worth knowing:
-
-- An existing key updates in place and never moves; only a new key is placed by `--after`/`--before`. A missing anchor exits `1` without writing anything.
-- Setting a key to its current value is a full no-op — same bytes, same mtime.
-- Everything the author wrote around the value survives: `export` prefixes, spacing, inline comments, and the `=` vs `:` delimiter style.
-- A missing file is created with `0600` permissions.
-
-`--dry-run` output is a minimal `-old`/`+new` line diff:
+`--dry-run` output is a minimal `-old`/`+new` line diff — the *entire* change the write would make:
 
 ```
+$ dotenvctl set DEBUG=true --dry-run
 -DEBUG=false
 +DEBUG=true
 ```
+
+Anchored placement, and what a missing anchor does:
+
+```
+$ dotenvctl set DB_PASSWORD=s3cret --after DB_USER    # lands right after DB_USER, inside its section
+$ dotenvctl set X=1 --after NOPE; echo "exit=$?"
+dotenvctl: envkit: anchor key not found: "NOPE"
+exit=1                                                # nothing was written — no silent append
+```
+
+Rules worth knowing:
+
+- An existing key updates in place and never moves; only a new key is placed by `--after`/`--before`. A missing anchor exits `1` without writing anything.
+- Setting a key to its current value is a full no-op — same bytes, same mtime, file watchers see nothing.
+- Everything the author wrote around the value survives: `export` prefixes, spacing, inline comments, and the `=` vs `:` delimiter style.
+- A missing file is created with `0600` permissions (env files hold credentials — restrictive by default).
 
 ## unset — deactivate a key
 
@@ -51,6 +81,17 @@ Rules worth knowing:
 dotenvctl unset OLD_KEY              # default: comments it out — '# OLD_KEY=…', reversible
 dotenvctl unset OLD_KEY --delete     # removes the line entirely
 dotenvctl unset A B C --dry-run      # preview, write nothing
+```
+
+```
+$ dotenvctl unset DB_HOST DB_PORT --dry-run
+-DB_HOST=localhost
+-DB_PORT=5432
++# DB_HOST=localhost
++# DB_PORT=5432
+
+$ dotenvctl unset DB_HOST --delete --dry-run
+-DB_HOST=localhost
 ```
 
 Comment-out is the default on purpose: it is reversible, diff-friendly, and documentation above the setting stays attached to something.
@@ -62,7 +103,17 @@ dotenvctl restore OLD_KEY
 dotenvctl list --disabled            # see what is restorable
 ```
 
-Removes exactly the comment marker that was added, so `#KEY=v` comes back without inventing a space. Unset followed by restore returns the file to its original bytes.
+```
+$ dotenvctl unset DEBUG && grep DEBUG .env
+# DEBUG=false
+$ dotenvctl restore DEBUG && grep DEBUG .env
+DEBUG=false
+$ dotenvctl restore NOPE; echo "exit=$?"
+dotenvctl: envkit: key not found: no disabled entry for "NOPE"
+exit=1
+```
+
+Removes exactly the comment marker that was added, so `#KEY=v` comes back without inventing a space. Unset followed by restore returns the file to its original bytes — a fuzz-pinned property of the underlying library.
 
 ## Selecting keys — the shared grammar
 
@@ -141,12 +192,35 @@ dotenvctl keys | grep '^DB_'
 dotenvctl keys --json | jq -r '.data.keys[]'
 ```
 
+```
+$ dotenvctl keys
+DB_HOST
+DB_PORT
+DB_USER
+API_URL
+DOMAIN
+$ dotenvctl keys --json
+{"ok":true,"data":{"keys":["DB_HOST","DB_PORT","DB_USER","API_URL","DOMAIN"]}}
+```
+
 ## run — execute a command with the file's values
 
 ```sh
 dotenvctl run -- npm start
 dotenvctl -f .env.test run -- go test ./...
 dotenvctl run -- sh -c 'echo $DATABASE_URL'
+```
+
+```
+$ dotenvctl run -- sh -c 'echo "child sees: $DB_HOST"'
+child sees: localhost
+
+$ dotenvctl run -- sh -c 'exit 3'; echo "exit=$?"
+exit=3                                # the child's exit code, verbatim
+
+$ dotenvctl -f .env.req run -- echo hi; echo "exit=$?"     # .env.req has NEED=${MISSING:?fill me}
+dotenvctl: envkit: expand: dotenv: required variable MISSING is not set or is empty: fill me
+exit=1                                # the child never started
 ```
 
 Semantics:
@@ -167,25 +241,129 @@ dotenvctl diff a.env b.env --json | jq .data.changed
 ```
 
 ```
-$ dotenvctl diff .env.staging .env.prod
+$ dotenvctl diff .env.staging .env.prod; echo "exit=$?"
 + EXTRA=only-here
 - FEATURE_X=on
+- GITHUB_SECRET_GHCR_PAT=ghp_xxxx
 ~ DB_HOST: stag.db.internal -> prod.db.internal
+~ DB_PASS: stag-pass -> __YOU__
 ~ DOMAIN: staging.acme.io -> acme.io
+exit=1
+
+$ dotenvctl diff .env.staging .env.prod --json
+{"ok":true,"data":{"added":[{"key":"EXTRA","value":"only-here"}],"removed":[{"key":"FEATURE_X","value":"on"},…],"changed":[{"key":"DB_HOST","from":"stag.db.internal","to":"prod.db.internal"},…]}}
 ```
 
-Output: `+ KEY=…` only in the second file · `- KEY=…` only in the first · `~ KEY: a -> b` changed. Exit `0` identical, `1` different (like `diff(1)`), `2` trouble. Comparison is over the effective last-wins view — formatting, comments, and shadowed duplicates are invisible on purpose. `--format human|json|html` and `-o`/`--output PATH` control output; HTML reports are secrets-masked unless `--reveal` — see [Multi-environment tools](multi-env.md#html-reports).
+Output: `+ KEY=…` only in the second file · `- KEY=…` only in the first · `~ KEY: a -> b` changed. Exit `0` identical, `1` different (like `diff(1)`), `2` trouble. Comparison is over the effective last-wins view — formatting, comments, and shadowed duplicates are invisible on purpose. `--format human|json|html` and `-o`/`--output PATH` control output; HTML reports are secrets-masked unless `--reveal` — see [HTML reports](multi-env.md#html-reports).
 
-## Commands documented elsewhere
+## envs — discover the .env family
 
-This page covers the single-file verbs. The rest of the surface:
+```sh
+dotenvctl envs
+dotenvctl envs --dir ./deploy
+dotenvctl envs --json | jq -r '.data.files[].file'
+```
 
-| Command | Guide |
-|---|---|
-| `envs` — discover the directory's `.env` family | [Multi-environment tools](multi-env.md#envs--discover-the-family) |
-| `matrix` — keys × environments drift table, `--contract` CI gate, HTML reports | [Multi-environment tools](multi-env.md#matrix--the-drift-table) |
-| `github push/list/prune/env-create` — GitHub Actions secrets | [GitHub plugin](plugins/github.md) |
-| `vercel push/list/prune` — Vercel environment variables | [Vercel plugin](plugins/vercel.md) |
-| `plugins` — list third-party exec plugins found on PATH | [Plugins overview](plugins.md#writing-your-own-plugin-exec-plugins) |
-| *(every verb, as a Go function)* | [Go API](go-api.md) |
-| `completion` — shell completions (bash, zsh, fish, powershell) | built in via cobra; `dotenvctl completion --help` |
+```
+$ dotenvctl envs
+ENV                 FILE          KEYS  DISABLED  INHERITED  PLACEHOLDERS
+default             .env          7     0         0          0
+stag                .env.staging  6     0         0          0
+prod                .env.prod     4     1         0          1
+example (contract)  .env.example  4     0         0          0
+```
+
+Detection is non-recursive and filename-based: `.env` is `default`; long forms collapse to canonical short names (`.env.production` and `.env.prod` mean the same environment); `.env.example`/`.sample`/`.template`/`.dist` are **contracts** — listed, excluded from matrix columns, usable via `--contract`; backup/editor droppings (`.bak`, `.tmp`, `.swp`, …) are ignored; any other `.env.something` is kept verbatim. Ordering is distance-from-prod. The PLACEHOLDERS column counts values matching `^__[A-Z0-9_]+__$` — your "still needs a real value" signal. Full rules table: [multi-env tools](multi-env.md#envs--discover-the-family).
+
+## matrix — the keys × environments drift table
+
+```sh
+dotenvctl matrix                                   # all detected files as columns
+dotenvctl matrix .env.staging .env.prod            # exactly these files
+dotenvctl matrix --only-drift                      # hide rows present everywhere
+dotenvctl matrix --values                          # show values — masked as ••••••
+dotenvctl matrix --values --reveal                 # real values (treat output as a secret)
+dotenvctl matrix --contract .env.example           # CI gate: exit 1 when an env misses a contract key
+dotenvctl matrix --format html -o envs.html        # self-contained shareable report
+```
+
+```
+$ dotenvctl matrix .env.staging .env.prod --only-drift
+KEY                        stag  prod
+DB_PASS                    ✓     !
+EXTRA                      —     ✓
+FEATURE_X                  ✓     #
+GITHUB_SECRET_DEPLOY_PATH  ✓     —
+GITHUB_SECRET_GHCR_PAT     ✓     —
+
+✓ present · ∅ empty · ! placeholder · # disabled · → inherited · — missing
+```
+
+Cell legend: `✓` an active pair with a real value · `!` set but to a `__PLACEHOLDER__` (pattern configurable via `--placeholder REGEX`) · `∅` set to empty · `#` only a commented-out setting exists · `→` a name-only declaration (value comes from the environment) · `—` no entry at all. The distinctions matter: *disabled*, *missing*, and *placeholder* are different problems with different fixes, and parse-to-map tools collapse all three into "absent".
+
+The contract gate, with gaps named and exit `1`:
+
+```
+$ dotenvctl matrix --contract .env.example; echo "exit=$?"
+KEY         default  stag  prod
+DB_HOST     ✓        ✓     ✓
+DB_PASS     —        ✓     !
+SENTRY_DSN  —        —     —
+…
+contract: stag is missing 1 key(s): [SENTRY_DSN]
+contract: prod is missing 1 key(s): [SENTRY_DSN]
+exit=1
+```
+
+Sharp edges (sparse-column drift, duplicate environment labels, leak-proof JSON) and the HTML report details live in [multi-env tools](multi-env.md#matrix--the-drift-table).
+
+## github — GitHub Actions secrets
+
+Verbs: `push [KEY...]` · `list` · `prune` · `env-create NAME`. Auth and encryption come from an authenticated [`gh`](https://cli.github.com); the target repo resolves from the cwd's git remote (override with `--repo owner/name`), and `--env NAME` targets a deployment environment. There is deliberately no `--token` flag — argv is visible in `ps` and shell history; use `GH_TOKEN` if you must override auth.
+
+```
+$ dotenvctl -f .env.staging github push --prefix GITHUB_SECRET_ --strip-prefix --dry-run
+target : ubgo/dotenv (from cwd git remote)
+account: khanakia (stored gh auth)
+keys   : 2
+GHCR_PAT: would-push
+DEPLOY_PATH: would-push
+```
+
+Target and acting account print **before** anything writes; interactive runs prompt `proceed? [y/N]`, non-interactive runs refuse without `--yes`. Selection is the [shared grammar](#selecting-keys--the-shared-grammar); placeholder/empty values are skipped with a warning; values travel via stdin, never argv; output prints names and actions, never values. `prune` deletes remote names absent from the local keep-set — which is deliberately wider than what push pushes (guard-skipped keys are kept, `--keep NAME` spares out-of-band names, every spare is reported with its reason). Full guide with every flag: [GitHub plugin](plugins/github.md).
+
+## vercel — Vercel environment variables
+
+Verbs: `push [KEY...]` · `list` · `prune`. Auth and project linking come from the [`vercel`](https://vercel.com/docs/cli) CLI; `--target production|preview|development` picks the environment, `--sensitive` marks values write-only. Same shared selection grammar, same guards, same confirm gate as every plugin:
+
+```sh
+dotenvctl vercel push --target production --yes
+dotenvctl vercel push DB_URL --sensitive --dry-run
+dotenvctl vercel push --prefix VERCEL_ --strip-prefix --target preview
+dotenvctl vercel prune --target production --yes
+```
+
+Full guide: [Vercel plugin](plugins/vercel.md).
+
+## plugins — discover exec plugins
+
+Any executable named `dotenvctl-<name>` on PATH becomes a subcommand, git-style — `dotenvctl acme push` runs `dotenvctl-acme push`. `plugins` lists what was found; built-ins always win, and a PATH binary shadowed by one is reported as `shadowed by built-in`:
+
+```
+$ dotenvctl plugins
+no exec plugins found on PATH (binaries named dotenvctl-<name>)
+```
+
+How to write one (the env-var contract, calling the host back for parsing): [plugins overview](plugins.md#writing-your-own-plugin-exec-plugins).
+
+## completion — shell completions
+
+```sh
+dotenvctl completion bash|zsh|fish|powershell    # print the script; see `dotenvctl completion --help` for install lines
+```
+
+Built in via cobra — e.g. `source <(dotenvctl completion zsh)` in `.zshrc`, or write it to your shell's completions directory.
+
+---
+
+Every verb on this page is also an exported Go function — the CLI is a thin translator over `envkit`. See the [Go API guide](go-api.md).
