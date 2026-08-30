@@ -10,6 +10,15 @@ dotenvctl get DATABASE_URL --expand        # resolve ${references} against the f
 dotenvctl -f .env.prod get PORT --json
 ```
 
+```
+$ dotenvctl get API_URL
+https://api.${DOMAIN}
+$ dotenvctl get API_URL --expand
+https://api.acme.dev
+$ dotenvctl get DB_HOST --json
+{"ok":true,"data":{"key":"DB_HOST","value":"localhost","expanded":false}}
+```
+
 Exits `1` when the key has no active entry. A commented-out setting (`# KEY=…`) and a name-only declaration (`KEY` alone) do not count — they are inactive, and `list --disabled` / `list --inherited` is how you see them.
 
 ## set — upsert values, byte-preserving
@@ -109,6 +118,18 @@ dotenvctl list --inherited           # add name-only declarations (values come f
 dotenvctl list --json                # all sections always present in JSON, regardless of flags
 ```
 
+```
+$ dotenvctl list
+DB_HOST      localhost
+DB_PORT      5432
+DB_USER      admin
+API_URL      https://api.${DOMAIN}
+DOMAIN       acme.dev
+
+$ dotenvctl list --prefix GITHUB_SECRET_ --strip-prefix --json
+{"ok":true,"data":{"pairs":[{"key":"GHCR_PAT","value":"ghp_xxxx"},{"key":"DEPLOY_PATH","value":"/srv/apps/api-stag"}],"disabled":[],"inherited":[],"expanded":false}}
+```
+
 Without selection flags, `list` shows the file as a linear read would: file order, duplicate keys included. With any selection flag it switches to the effective (last-wins) view — selected, optionally renamed.
 
 ## keys — names only, pipe-friendly
@@ -143,6 +164,14 @@ dotenvctl diff .env.staging .env.prod
 dotenvctl diff .env .env.example           # am I missing keys the template defines?
 dotenvctl diff a.env b.env --expand        # compare resolved values instead of raw text
 dotenvctl diff a.env b.env --json | jq .data.changed
+```
+
+```
+$ dotenvctl diff .env.staging .env.prod
++ EXTRA=only-here
+- FEATURE_X=on
+~ DB_HOST: stag.db.internal -> prod.db.internal
+~ DOMAIN: staging.acme.io -> acme.io
 ```
 
 Output: `+ KEY=…` only in the second file · `- KEY=…` only in the first · `~ KEY: a -> b` changed. Exit `0` identical, `1` different (like `diff(1)`), `2` trouble. Comparison is over the effective last-wins view — formatting, comments, and shadowed duplicates are invisible on purpose. `--format human|json|html` and `-o`/`--output PATH` control output; HTML reports are secrets-masked unless `--reveal` — see [Multi-environment tools](multi-env.md#html-reports).

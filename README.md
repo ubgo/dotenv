@@ -1,10 +1,21 @@
 # dotenv
 
-A comment-preserving `.env` parser and editor.
+A comment-preserving `.env` toolkit for Go — a **parser/editor library** and a **CLI, `dotenvctl`**. Edit any entry and every other byte of the file survives verbatim: comments, blank lines, ordering, quoting style.
 
 ```go
-import "github.com/ubgo/dotenv"
+import "github.com/ubgo/dotenv"      // the library — stdlib-only, zero dependencies
 ```
+
+```sh
+go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@latest   # the CLI
+```
+
+**Two ways in:**
+
+| | You want | Start here |
+|---|---|---|
+| 📦 **Go library** | parse, edit, expand, and write `.env` files from Go | this page, next section down |
+| 🖥️ **`dotenvctl` CLI** | `get`/`set`/`unset` from the shell, env-drift matrix, `diff`, `run`, GitHub/Vercel secret sync | [the CLI section below](#cli--dotenvctl) → [cli/](cli/README.md) → [full docs](docs/README.md) |
 
 ## Why not a dotenv library
 
@@ -33,6 +44,52 @@ A parser and editor. Three things it deliberately does **not** do:
 The first is enforced by a test that snapshots the environment across a full parse → expand → edit → save → reopen cycle.
 
 > **Why `Open`, not `Load`.** `godotenv.Load` sets `os.Environ`. This package deliberately never touches the environment — it hands back a file you read, edit, and save — so a `Load` here would mean the opposite of every other `Load` in the ecosystem. The package is named for the format, the way `encoding/json` and `yaml` are.
+
+## CLI — dotenvctl
+
+Everything below is also available from the shell. `cli/` ships `dotenvctl`, a terminal front-end over this library — every edit keeps the byte-preservation guarantees, and the tool never touches its own process environment.
+
+```sh
+go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@latest
+```
+
+```sh
+dotenvctl get DATABASE_URL --expand        # print one value, references resolved
+dotenvctl set DB_HOST=db.prod --after DB_PORT
+dotenvctl unset OLD_KEY                    # comments it out — reversible
+dotenvctl restore OLD_KEY                  # …and back, byte-identical
+dotenvctl run -- npm start                 # child gets the file's values; your env untouched
+dotenvctl list --prefix GITHUB_SECRET_ --strip-prefix --json   # read one audience of a shared file
+```
+
+And the multi-environment layer — the part `sed` and parse-to-map tools cannot offer at all:
+
+```sh
+$ dotenvctl matrix .env.staging .env.prod --only-drift
+KEY                        stag  prod
+DB_PASS                    ✓     !
+EXTRA                      —     ✓
+FEATURE_X                  ✓     #
+GITHUB_SECRET_DEPLOY_PATH  ✓     —
+
+✓ present · ∅ empty · ! placeholder · # disabled · → inherited · — missing
+```
+
+```sh
+dotenvctl envs                             # discover the directory's .env family
+dotenvctl diff .env.staging .env.prod      # effective-config diff; exit 1 on difference, like diff(1)
+dotenvctl matrix --contract .env.example   # CI gate: exit 1 when an env misses a contract key
+dotenvctl matrix --format html -o envs.html   # shareable report — secrets masked by default
+dotenvctl github push --prefix GITHUB_SECRET_ --strip-prefix   # sync to GitHub Actions secrets via gh
+```
+
+Every verb takes `-f <file>` (default `./.env`) and `--json` (stable `{ok,data|error}` envelope). Mutating verbs support `--dry-run`. Exit codes: `0` ok, `1` operation failed, `2` usage. The CLI is a separate Go module, so this library stays dependency-free — and every CLI operation is also an exported Go function ([`envkit`](docs/go-api.md)).
+
+**Full CLI documentation:** [cli/README.md](cli/README.md) for the pitch and tour · [docs/](docs/README.md) for [getting started](docs/getting-started.md), the [command reference](docs/commands.md), [multi-env tools](docs/multi-env.md), [recipes](docs/recipes.md), and [plugins](docs/plugins.md).
+
+---
+
+The rest of this page is the **library** documentation.
 
 ## Reading
 
@@ -693,37 +750,6 @@ A file that ended without a trailing newline still does not. Adding or removing 
 | `f.Entries` | every entry, including comments and blanks |
 | `f.Existed` / `Mode` / `Path` | file facts |
 | `Kind` (6 kinds), `Entry`, `Pair`, `RequiredError`, `ErrAnchorNotFound` | types and errors |
-
-## CLI — dotenvctl
-
-The `cli/` directory ships `dotenvctl`, a terminal front-end over this library — every edit keeps the byte-preservation guarantees, and the tool never touches its own process environment.
-
-```sh
-go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@latest
-```
-
-```sh
-dotenvctl get DATABASE_URL --expand        # print one value, references resolved
-dotenvctl set DB_HOST=db.prod --after DB_PORT
-dotenvctl unset OLD_KEY                    # comments it out — reversible
-dotenvctl restore OLD_KEY                  # …and back
-dotenvctl list --disabled --inherited     # the whole picture
-dotenvctl diff .env.staging .env.prod      # exit 1 when configs differ, like diff(1)
-dotenvctl run -- npm start                 # child gets the file's values; our env untouched
-dotenvctl list --prefix GITHUB_SECRET_ --strip-prefix --json   # read one audience of a shared file, push nothing
-dotenvctl envs                             # discover the directory's .env family
-dotenvctl matrix --only-drift              # keys × environments drift table
-dotenvctl matrix --contract .env.example   # CI gate: exit 1 when an env misses a contract key
-dotenvctl matrix --format html -o envs.html   # shareable report — secrets masked by default
-dotenvctl github push --prefix GITHUB_SECRET_ --strip-prefix   # sync to GitHub Actions secrets via gh
-dotenvctl github env-create prod --yes                          # create the deployment environment, idempotently
-```
-
-Every verb takes `-f <file>` (default `./.env`) and `--json` (stable `{ok,data|error}` envelope). Mutating verbs support `--dry-run`. Exit codes: `0` ok, `1` operation failed, `2` usage. The CLI is a separate Go module, so this library stays dependency-free.
-
-Full CLI documentation — every verb, the multi-env tools, and the plugins — lives in [docs/](docs/README.md). Every CLI operation is also an exported Go function: see the [Go API guide](docs/go-api.md).
-
-Matrix cells: `✓` present · `∅` empty · `!` placeholder (`__STAND_IN__` values, pattern configurable via `--placeholder`) · `#` disabled (commented out) · `→` inherited (name-only declaration) · `—` missing. Values are masked (`••••••`) in `--values`, JSON, and HTML output unless you pass `--reveal`.
 
 ## Testing
 

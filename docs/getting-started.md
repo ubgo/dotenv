@@ -69,4 +69,5 @@ Error `code` values are stable API: `not_found` · `io` · `required` · `usage`
 - Selecting subsets of a file (`--prefix`, `--exclude`, multi-value syntax): [the shared selection grammar](commands.md#selecting-keys--the-shared-grammar)
 - Full flag-by-flag detail: [Command reference](commands.md)
 - Comparing environments and generating reports: [Multi-environment tools](multi-env.md)
+- Complete copy-paste workflows (CI gates, env cloning, secret sync): [Recipes](recipes.md)
 - Syncing secrets outward: [Plugins](plugins.md)
