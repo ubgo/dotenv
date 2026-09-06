@@ -1,0 +1,21 @@
+# Normalize line endings — keep LF in the repo regardless of OS.
+* text=auto eol=lf
+
+# Test fixtures round-trip byte-exactly (CRLF and mixed-ending files are the
+# point of several tests) — never normalize them.
+testdata/** -text
+cli/**/testdata/** -text
+
+# Binary assets (don't diff/normalize).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+
+# Generated/vendored — collapse in diffs and exclude from language stats.
+go.sum linguist-generated=true
+vendor/** linguist-vendored

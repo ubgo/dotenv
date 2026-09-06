@@ -1,0 +1,23 @@
+# dotenv
+
+> Comment-preserving .env parser, editor & CLI for Go. Edit any entry — every other byte survives: comments, blank lines, ordering, quoting. dotenvctl: get/set/unset, env drift matrix, diff, run, GitHub Actions & Vercel secret sync. Docker Compose interpolation, zero dependencies, fuzz-tested.
+
+dotenv is open source (ubgo/dotenv, MIT). The library is stdlib-only and never touches os.Environ; the dotenvctl CLI operates on local files and contacts a network service only when you explicitly push secrets via the gh or vercel CLIs.
+
+## Docs
+- [README](https://github.com/ubgo/dotenv/blob/main/README.md): the library — invariants, reading/writing, expansion, plugins, typed config
+- [CLI overview](https://github.com/ubgo/dotenv/blob/main/cli/README.md): dotenvctl — pitch, tour, comparison
+- [Command reference](https://github.com/ubgo/dotenv/blob/main/docs/commands.md): every verb with real output
+- [Multi-env tools](https://github.com/ubgo/dotenv/blob/main/docs/multi-env.md): envs, matrix, diff, HTML reports
+- [Recipes](https://github.com/ubgo/dotenv/blob/main/docs/recipes.md): CI gates, env cloning, secret sync workflows
+- [Go API](https://github.com/ubgo/dotenv/blob/main/docs/go-api.md): envkit — every CLI operation as an importable function
+- [CHANGELOG](https://github.com/ubgo/dotenv/blob/main/CHANGELOG.md): release history
+- [CONTRIBUTING](https://github.com/ubgo/dotenv/blob/main/CONTRIBUTING.md): how to contribute
+
+## Install
+- Library: `go get github.com/ubgo/dotenv`
+- CLI: `go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@latest`
+
+## Links
+- Repository: https://github.com/ubgo/dotenv
+- API docs: https://pkg.go.dev/github.com/ubgo/dotenv

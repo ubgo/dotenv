@@ -1,0 +1,21 @@
+{
+  "name": "dotenv",
+  "binary": "dotenvctl",
+  "tagline": "The comment-preserving .env toolkit for Go.",
+  "description": "Comment-preserving .env parser, editor & CLI for Go. Edit any entry — every other byte survives: comments, blank lines, ordering, quoting. dotenvctl: get/set/unset, env drift matrix, diff, run, GitHub Actions & Vercel secret sync. Docker Compose interpolation, zero dependencies, fuzz-tested.",
+  "repo": "ubgo/dotenv",
+  "module": "github.com/ubgo/dotenv",
+  "language": "go",
+  "kind": "library+cli",
+  "license": "MIT",
+  "author": { "name": "khanakia", "email": "khanakia@gmail.com", "github": "khanakia" },
+  "homepage": "https://pkg.go.dev/github.com/ubgo/dotenv",
+  "topics": ["golang", "go", "dotenv", "env", "environment", "environment-variables", "cli", "parser", "configuration", "dotenv-parser", "envfile", "secrets-management", "developer-tools", "docker-compose", "github-actions", "vercel", "twelve-factor", "config-management"],
+  "positioning": {
+    "audience": "Go developers and platform/DevOps engineers who edit, compare, and sync .env files across environments",
+    "problem": "every dotenv tool parses to a map and destroys the file on write — comments, ordering, and quoting are lost; none can tell disabled from missing from placeholder",
+    "alternatives": ["godotenv", "dotenv-cli (npm)", "dotenvx", "direnv", "sed/hand-editing"],
+    "differentiators": ["byte-exact round trip pinned by fuzz tests", "reversible unset/restore", "env drift matrix + contract CI gate", "selection-based secret sync with placeholder guards", "stdlib-only library, zero dependencies"]
+  },
+  "brandKit": false
+}

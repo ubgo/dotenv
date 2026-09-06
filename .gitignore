@@ -3,3 +3,5 @@
 /docsi
 # END repolink
 cli/bin/
+cover.out
+cover.html

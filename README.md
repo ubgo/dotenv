@@ -1,6 +1,16 @@
-# dotenv
+<h1 align="center">dotenv</h1>
+<p align="center"><strong>The comment-preserving .env toolkit for Go.</strong></p>
+<p align="center">Parse, edit, compare, and sync .env files — every byte you don't touch survives verbatim.</p>
 
-A comment-preserving `.env` toolkit for Go — a **parser/editor library** and a **CLI, `dotenvctl`**. Edit any entry and every other byte of the file survives verbatim: comments, blank lines, ordering, quoting style.
+<p align="center">
+  <a href="https://pkg.go.dev/github.com/ubgo/dotenv"><img src="https://pkg.go.dev/badge/github.com/ubgo/dotenv.svg" alt="Go Reference on pkg.go.dev"></a>
+  <a href="https://goreportcard.com/report/github.com/ubgo/dotenv"><img src="https://goreportcard.com/badge/github.com/ubgo/dotenv" alt="Go Report Card"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/dependencies-zero-2ea44f" alt="Zero dependencies — stdlib only">
+  <img src="https://img.shields.io/badge/coverage-100%25%20lib%20·%2099%25%20cli-2ea44f" alt="Statement coverage: 100% library, 99% CLI">
+</p>
+
+A comment-preserving `.env` parser, editor, and CLI for Go. The library (`github.com/ubgo/dotenv`) is a stdlib-only, zero-dependency package for reading, editing, and writing dotenv files with byte-exact round-tripping and full Docker Compose interpolation; the CLI (`dotenvctl`) adds environment-variable management from the shell — get/set/unset, an environment drift matrix, effective-config diff, `run`, and secrets sync to GitHub Actions and Vercel. Open source, fuzz-tested, and built for the twelve-factor configuration workflow.
 
 ```go
 import "github.com/ubgo/dotenv"
@@ -17,6 +27,8 @@ go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@latest
 | 📦 **Go library** | parse, edit, expand, and write `.env` files from Go | this page, next section down |
 | 🖥️ **`dotenvctl` CLI** | `get`/`set`/`unset` from the shell, env-drift matrix, `diff`, `run`, GitHub/Vercel secret sync | [the CLI section below](#cli--dotenvctl) → [cli/](cli/README.md) → [full docs](docs/README.md) |
 
+**Contents:** [Why not a dotenv library](#why-not-a-dotenv-library) · [Scope](#scope) · [CLI — dotenvctl](#cli--dotenvctl) · [Reading](#reading) · [Writing](#writing) · [Generating a file](#generating-a-file) · [Disabled settings](#disabled-settings) · [Inherited declarations](#inherited-declarations) · [Cloning between environments](#cloning-between-environments) · [Plugins](#plugins) · [Typed configuration](#typed-configuration) · [Feature support](#feature-support) · [Variable expansion](#variable-expansion) · [Saving safely](#saving-safely) · [Line endings](#line-endings-and-trailing-newlines) · [API](#api) · [Testing](#testing) · [FAQ](#faq)
+
 ## Why not a dotenv library
 
 Parse-to-map libraries keep the keys and throw away everything else. Write the file back and the comments, blank lines, ordering, and quoting style are gone.
@@ -29,6 +41,19 @@ This package edits **line-wise**: every byte outside the entry you touch survive
 parse → render with no changes   ⇒  byte-identical output
 Set(key, <current value>)        ⇒  byte-identical output (a true no-op)
 ```
+
+How that places it against the other ways people handle `.env` files:
+
+| | **dotenv + dotenvctl** | Loaders (godotenv, Node/Python dotenv) | Encryption tools (dotenvx, sops) | sed / hand-editing |
+|---|---|---|---|---|
+| Edit without destroying comments & formatting | ✅ byte-exact, fuzz-pinned | ❌ parse-to-map, write loses everything | ⚠️ varies | ❌ breaks on quoting & multiline |
+| Reversible disable (`unset` → `restore`) | ✅ byte-identical round trip | ❌ | ❌ | ❌ |
+| Distinguish disabled / missing / placeholder | ✅ | ❌ all collapse to "absent" | ❌ | ❌ |
+| Drift matrix + contract CI gate across envs | ✅ `matrix`, exit-code gates | ❌ | ❌ | ❌ |
+| Selection-based secret sync (GitHub / Vercel) | ✅ with placeholder guards | ❌ | ⚠️ own model | ❌ hand-rolled loops |
+| Leaves `os.Environ` alone | ✅ by design, test-pinned | ❌ loading is the point | ⚠️ | — |
+
+If you want a loader that injects variables into your process, godotenv already does that well; if you want the **file itself** managed — edited safely, compared across environments, synced outward — that is this toolkit.
 
 ## Scope
 
@@ -86,8 +111,6 @@ dotenvctl github push --prefix GITHUB_SECRET_ --strip-prefix   # sync to GitHub 
 Every verb takes `-f <file>` (default `./.env`) and `--json` (stable `{ok,data|error}` envelope). Mutating verbs support `--dry-run`. Exit codes: `0` ok, `1` operation failed, `2` usage. The CLI is a separate Go module, so this library stays dependency-free — and every CLI operation is also an exported Go function ([`envkit`](docs/go-api.md)).
 
 **Full CLI documentation:** [cli/README.md](cli/README.md) for the pitch and tour · [docs/](docs/README.md) for [getting started](docs/getting-started.md), the [command reference](docs/commands.md), [multi-env tools](docs/multi-env.md), [recipes](docs/recipes.md), and [plugins](docs/plugins.md).
-
----
 
 The rest of this page is the **library** documentation.
 
@@ -755,10 +778,13 @@ A file that ended without a trailing newline still does not. Adding or removing 
 
 | | |
 |---|---|
-| Statement coverage | 100% |
-| Subtests | 380+ |
+| Statement coverage — library | 100% |
+| Statement coverage — CLI | 99.4% |
+| Test cases (both modules) | 840+ |
 | Fuzz properties | 8 |
-| Dependencies | 0 |
+| Dependencies (library) | 0 |
+
+Re-measure any of it with `task cover` (both modules) or `task test:uncovered` (what's left, per function). The CLI's remaining fraction is enumerable, not mystery: the `os.Exit` wrapper in `main`, the Windows branch of `isExecutable` on a non-Windows host, and defensive arms with no reachable error source (`os.Executable` failing, expansion errors the CLI's wiring cannot produce) — each is a couple of lines whose absence from the count is explained, not ignored.
 
 Conformance is asserted by tests, not claimed — `conformance_test.go` has one assertion per syntax rule in the tables above.
 
@@ -793,3 +819,23 @@ Worth stating because all three passed 100% line coverage — coverage proves ev
 Two further properties surfaced **hazards rather than bugs**, both now pinned by their own tests: appending after an unterminated quote, and `Restore` picking the last of several disabled entries. Neither is fixable — the first is a malformed source, the second is the "last wins" rule this package applies everywhere — so they are documented instead of papered over.
 
 Both failing inputs are checked in under `testdata/fuzz/`, so they run on every `go test` forever.
+
+## FAQ
+
+**Does it load variables into my process like godotenv?** No, deliberately — it never touches `os.Environ`. It parses, edits, and writes the file; you apply the values with your own precedence via `f.Map()`, or run a child process with them via `dotenvctl run`. That is why the constructor is `Open`, not `Load`.
+
+**Will editing a file destroy my comments and formatting?** No — that is the whole point. Parse → render with no changes is byte-identical, and `Set` touches only the entry you name. Both invariants are pinned by fuzz tests, not just claimed.
+
+**Is it compatible with Docker Compose `.env` files?** Yes — the full Compose interpolation spec (`${VAR:-default}`, `${VAR:?err}`, nesting, `$$`), Compose's key charset, the `:` delimiter, and name-only inherited declarations. Every rule is asserted in `conformance_test.go`; use `WithEscapes(EscapeCompose)` for exact escape parity.
+
+**Does the library have dependencies?** Zero — stdlib only. The CLI is a separate Go module, so cobra never enters the library's dependency graph.
+
+**How do I get typed values like `int` or `time.Duration`?** Compose with a binder (`sethvargo/go-envconfig` or `caarlos0/env`) — the file satisfies their lookup interfaces with a three-line adapter. Typed getters were rejected on purpose: `PORT=eighty` silently returning a default is a production incident.
+
+**Can it manage secrets in GitHub Actions or Vercel?** Yes — `dotenvctl github push` / `vercel push` sync a *selection* of your file (prefix-based, renamed, placeholder-guarded) via the `gh`/`vercel` CLIs. Values travel by stdin, never argv, and output never prints them.
+
+**How is `dotenvctl` different from dotenv-cli or dotenvx?** Those focus on loading a file into a process (and, for dotenvx, encrypting it). `dotenvctl` manages the file itself: byte-preserving edits, reversible disable, an environment drift matrix, contract gates for CI, and outward secret sync. See the [comparison](#why-not-a-dotenv-library).
+
+**Is it safe to write files that hold credentials?** Saves are atomic (temp file at `0600`, then rename), new files are created `0600`, existing permissions are preserved, and shareable CLI output masks values unless you pass `--reveal`.
+
+<sub>dotenv is an open-source, comment-preserving .env file parser, editor, and CLI for Go — byte-exact round-tripping, Docker Compose interpolation, environment drift detection, and GitHub Actions / Vercel secrets sync, with zero dependencies. MIT licensed.</sub>
