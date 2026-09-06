@@ -20,6 +20,18 @@ tasks:
     cmds:
       - go build -o bin/dotenvctl ./cmd/dotenvctl
 
+  bump:
+    desc: Re-pin the library to the pushed main HEAD — run after any library change, then commit go.mod/go.sum
+    cmds:
+      # GOWORK=off so the pin resolves against the REMOTE main, not the
+      # sibling directory — this pin is what `go install …@main` users build
+      # against, and the workspace would mask a stale one. The library commit
+      # must be pushed first; a local-only commit cannot become a
+      # pseudo-version.
+      - GOWORK=off go get github.com/ubgo/dotenv@main
+      - GOWORK=off go build ./...
+      - 'grep "github.com/ubgo/dotenv v" go.mod'
+
   install:
     desc: Install dotenvctl into GOPATH/bin
     cmds:

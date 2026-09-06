@@ -44,6 +44,7 @@ task fuzz -- FuzzParseRender 60s  # or one property, longer
 - [ ] `task ci` passes.
 - [ ] New behavior has a pinning test; round-trip-affecting changes also ran the fuzz targets.
 - [ ] The library stays stdlib-only (dependencies belong in the `cli/` module, if anywhere).
+- [ ] Library changes ran `task cli:bump` (after the library commit is pushed) so `go install …@main` builds the CLI against the new library — the workspace hides a stale pin locally.
 - [ ] Docs/README/CHANGELOG updated if the change is user-facing.
 - [ ] No unrelated files or formatting churn.
 
