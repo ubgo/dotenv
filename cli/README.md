@@ -3,7 +3,7 @@
 A comment-preserving `.env` control tool — the command-line companion to [`github.com/ubgo/dotenv`](../README.md). Read, edit, compare, and sync env files from the shell without ever destroying the formatting a human wrote: every byte outside the entry you touch survives verbatim — comments, blank lines, ordering, quoting style, even the author's `=` vs `:` delimiter. It never modifies its own process environment.
 
 ```sh
-go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@latest
+go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@main
 ```
 
 **Docs:** [getting started](../docs/getting-started.md) · [command reference](../docs/commands.md) · [multi-env tools](../docs/multi-env.md) · [recipes](../docs/recipes.md) · [plugins](../docs/plugins.md) · [GitHub](../docs/plugins/github.md) / [Vercel](../docs/plugins/vercel.md) · [Go API](../docs/go-api.md)

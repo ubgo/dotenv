@@ -15,8 +15,8 @@ dotenv is open source (ubgo/dotenv, MIT). The library is stdlib-only and never t
 - [CONTRIBUTING](https://github.com/ubgo/dotenv/blob/main/CONTRIBUTING.md): how to contribute
 
 ## Install
-- Library: `go get github.com/ubgo/dotenv`
-- CLI: `go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@latest`
+- Library: `go get github.com/ubgo/dotenv@main`
+- CLI: `go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@main`
 
 ## Links
 - Repository: https://github.com/ubgo/dotenv

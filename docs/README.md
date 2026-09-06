@@ -5,7 +5,7 @@
 ## Install
 
 ```sh
-go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@latest
+go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@main
 ```
 
 Or build from a clone: `task cli:build` produces `cli/bin/dotenvctl`.

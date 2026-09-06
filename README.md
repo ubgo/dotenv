@@ -17,7 +17,7 @@ import "github.com/ubgo/dotenv"
 ```
 
 ```sh
-go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@latest
+go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@main
 ```
 
 **Two ways in:**
@@ -75,7 +75,7 @@ The first is enforced by a test that snapshots the environment across a full par
 Everything below is also available from the shell. `cli/` ships `dotenvctl`, a terminal front-end over this library — every edit keeps the byte-preservation guarantees, and the tool never touches its own process environment.
 
 ```sh
-go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@latest
+go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@main
 ```
 
 ```sh
