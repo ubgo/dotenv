@@ -41,6 +41,24 @@ tasks:
     cmds:
       - go test -race ./...
 
+  test:cover:
+    desc: Report statement coverage
+    cmds:
+      - go test -coverprofile=cover.out ./...
+      - go tool cover -func=cover.out | tail -1
+
+  test:cover:html:
+    desc: Open the coverage report in a browser
+    deps: [test:cover]
+    cmds:
+      - go tool cover -html=cover.out
+
+  test:uncovered:
+    desc: List functions below 100% coverage
+    cmds:
+      - go test -coverprofile=cover.out ./... > /dev/null
+      - 'go tool cover -func=cover.out | grep -v "100.0%" || echo "everything is covered"'
+
   vet:
     desc: Run go vet
     cmds:

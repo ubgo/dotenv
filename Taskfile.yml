@@ -53,6 +53,14 @@ tasks:
       - go test -coverprofile=cover.out ./... > /dev/null
       - 'go tool cover -func=cover.out | grep -v "100.0%" || echo "everything is covered"'
 
+  cover:
+    desc: Statement coverage for BOTH modules — the numbers the README badge quotes
+    cmds:
+      - echo "── library"
+      - task: test:cover
+      - echo "── cli"
+      - task: cli:test:cover
+
   fuzz:
     desc: 'Fuzz one property: task fuzz -- FuzzParseRender [30s]'
     vars:
