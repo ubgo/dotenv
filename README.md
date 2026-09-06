@@ -3,11 +3,11 @@
 A comment-preserving `.env` toolkit for Go — a **parser/editor library** and a **CLI, `dotenvctl`**. Edit any entry and every other byte of the file survives verbatim: comments, blank lines, ordering, quoting style.
 
 ```go
-import "github.com/ubgo/dotenv"      // the library — stdlib-only, zero dependencies
+import "github.com/ubgo/dotenv"
 ```
 
 ```sh
-go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@latest   # the CLI
+go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@latest
 ```
 
 **Two ways in:**
