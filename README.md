@@ -559,7 +559,7 @@ err := env.ParseWithOptions(&cfg, env.Options{Environment: m})
 
 ### A binder built on this package
 
-`github.com/ubgo/cfgkit` is the same idea taken further, and it reads through this package rather than through a plain map — so quoting, multiline values and `${VAR}` expansion behave in the binder exactly as they do here, including `${VAR:-default}` and `${VAR:?message}`:
+`github.com/ubgo/cfgkit` is the same idea taken further, and it reads through this package rather than through a plain map — so quoting, multiline values and `${VAR}` expansion behave in the binder exactly as they do here, including `${VAR:-default}` and `${VAR:?message}`. It uses the `Lookuper` seam to let a later file in a `.env` / `.env.local` chain reference a value an earlier one defined:
 
 ```go
 cfg, res, err := cfgkit.Load[Config](cfgkit.DefaultSources())
