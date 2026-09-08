@@ -557,6 +557,18 @@ m, _ := dotenv.Read(".env")
 err := env.ParseWithOptions(&cfg, env.Options{Environment: m})
 ```
 
+### A binder built on this package
+
+`github.com/ubgo/cfgkit` is the same idea taken further, and it reads through this package rather than through a plain map — so quoting, multiline values and `${VAR}` expansion behave in the binder exactly as they do here, including `${VAR:-default}` and `${VAR:?message}`:
+
+```go
+cfg, res, err := cfgkit.Load[Config](cfgkit.DefaultSources())
+```
+
+It adds what a binder alone cannot: it reports **which source set each field** (`.env`, `.env.local`, the environment, a secret store), masks values marked secret so they cannot reach a log, validates a configuration **without booting the application** so a stale file fails CI instead of a container, and generates the `.env.example` contract from the struct so the file and the code cannot drift.
+
+The trade is scope. `go-envconfig` and `caarlos0/env` are small and do one thing; `cfgkit` is a layered configuration system. If environment variables are your only source and you want the smallest surface, the two above remain the better fit — this package composes with all three and depends on none of them.
+
 ### Why there is no `f.Int("PORT", 8080)`
 
 A `.env` has no types. `PORT=8443` is four characters, and which Go type it becomes depends on the field receiving it — the application's decision, not the format's. `encoding/json` draws the line in the same place: you unmarshal into a struct, there is no `json.GetInt`.
@@ -830,7 +842,7 @@ Both failing inputs are checked in under `testdata/fuzz/`, so they run on every 
 
 **Does the library have dependencies?** Zero — stdlib only. The CLI is a separate Go module, so cobra never enters the library's dependency graph.
 
-**How do I get typed values like `int` or `time.Duration`?** Compose with a binder (`sethvargo/go-envconfig` or `caarlos0/env`) — the file satisfies their lookup interfaces with a three-line adapter. Typed getters were rejected on purpose: `PORT=eighty` silently returning a default is a production incident.
+**How do I get typed values like `int` or `time.Duration`?** Compose with a binder — `sethvargo/go-envconfig` or `caarlos0/env` for the smallest surface, or `ubgo/cfgkit`, which is built on this package and adds layered sources, provenance, secret masking and `.env.example` generation. The file satisfies the first two's lookup interfaces with a three-line adapter. Typed getters were rejected on purpose: `PORT=eighty` silently returning a default is a production incident.
 
 **Can it manage secrets in GitHub Actions or Vercel?** Yes — `dotenvctl github push` / `vercel push` sync a *selection* of your file (prefix-based, renamed, placeholder-guarded) via the `gh`/`vercel` CLIs. Values travel by stdin, never argv, and output never prints them.
 
