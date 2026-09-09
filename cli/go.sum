@@ -12,6 +12,8 @@ github.com/ubgo/dotenv v0.0.0-20260906065600-9b4aaed49820 h1:JPrtyo4u5Wsa0dylvms
 github.com/ubgo/dotenv v0.0.0-20260906065600-9b4aaed49820/go.mod h1:eng/tDmSBJVTUiyz7Vvw4vazzzWDlwGg53hZxlsENXk=
 github.com/ubgo/dotenv v0.1.0 h1:xA2w9Tcyp/P65UsRSWQBoBKDxGAgkvJ7aOLme09KRU0=
 github.com/ubgo/dotenv v0.1.0/go.mod h1:eng/tDmSBJVTUiyz7Vvw4vazzzWDlwGg53hZxlsENXk=
+github.com/ubgo/dotenv v0.1.1 h1:yAOSS3jZqcGIr5BTL3Lg0Tr0/g6Iv9fdAvoeAylIrm8=
+github.com/ubgo/dotenv v0.1.1/go.mod h1:eng/tDmSBJVTUiyz7Vvw4vazzzWDlwGg53hZxlsENXk=
 go.yaml.in/yaml/v3 v3.0.4/go.mod h1:DhzuOOF2ATzADvBadXxruRBLzYTpT36CKvDb3+aBEFg=
 golang.org/x/sys v0.47.0 h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=
 golang.org/x/sys v0.47.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=

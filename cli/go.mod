@@ -5,7 +5,7 @@ go 1.26.4
 require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.9
-	github.com/ubgo/dotenv v0.0.0-20260906065600-9b4aaed49820
+	github.com/ubgo/dotenv v0.1.1
 	golang.org/x/term v0.45.0
 )
 
