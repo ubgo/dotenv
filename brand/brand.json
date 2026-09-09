@@ -7,7 +7,7 @@
   "module": "github.com/ubgo/dotenv",
   "language": "go",
   "kind": "library+cli",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "author": { "name": "khanakia", "email": "khanakia@gmail.com", "github": "khanakia" },
   "homepage": "https://pkg.go.dev/github.com/ubgo/dotenv",
   "topics": ["golang", "go", "dotenv", "env", "environment", "environment-variables", "cli", "parser", "configuration", "dotenv-parser", "envfile", "secrets-management", "developer-tools", "docker-compose", "github-actions", "vercel", "twelve-factor", "config-management"],

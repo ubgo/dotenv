@@ -2,7 +2,7 @@
 
 > Comment-preserving .env parser, editor & CLI for Go. Edit any entry — every other byte survives: comments, blank lines, ordering, quoting. dotenvctl: get/set/unset, env drift matrix, diff, run, GitHub Actions & Vercel secret sync. Docker Compose interpolation, zero dependencies, fuzz-tested.
 
-dotenv is open source (ubgo/dotenv, MIT). The library is stdlib-only and never touches os.Environ; the dotenvctl CLI operates on local files and contacts a network service only when you explicitly push secrets via the gh or vercel CLIs.
+dotenv is open source (ubgo/dotenv, Apache-2.0). The library is stdlib-only and never touches os.Environ; the dotenvctl CLI operates on local files and contacts a network service only when you explicitly push secrets via the gh or vercel CLIs.
 
 ## Docs
 - [README](https://github.com/ubgo/dotenv/blob/main/README.md): the library — invariants, reading/writing, expansion, plugins, typed config

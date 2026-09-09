@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://pkg.go.dev/github.com/ubgo/dotenv"><img src="https://pkg.go.dev/badge/github.com/ubgo/dotenv.svg" alt="Go Reference on pkg.go.dev"></a>
   <a href="https://goreportcard.com/report/github.com/ubgo/dotenv"><img src="https://goreportcard.com/badge/github.com/ubgo/dotenv" alt="Go Report Card"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="License: MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-2ea44f" alt="License: Apache-2.0"></a>
   <img src="https://img.shields.io/badge/dependencies-zero-2ea44f" alt="Zero dependencies — stdlib only">
   <img src="https://img.shields.io/badge/coverage-100%25%20lib%20·%2099%25%20cli-2ea44f" alt="Statement coverage: 100% library, 99% CLI">
 </p>
@@ -850,4 +850,4 @@ Both failing inputs are checked in under `testdata/fuzz/`, so they run on every 
 
 **Is it safe to write files that hold credentials?** Saves are atomic (temp file at `0600`, then rename), new files are created `0600`, existing permissions are preserved, and shareable CLI output masks values unless you pass `--reveal`.
 
-<sub>dotenv is an open-source, comment-preserving .env file parser, editor, and CLI for Go — byte-exact round-tripping, Docker Compose interpolation, environment drift detection, and GitHub Actions / Vercel secrets sync, with zero dependencies. MIT licensed.</sub>
+<sub>dotenv is an open-source, comment-preserving .env file parser, editor, and CLI for Go — byte-exact round-tripping, Docker Compose interpolation, environment drift detection, and GitHub Actions / Vercel secrets sync, with zero dependencies. Apache-2.0 licensed.</sub>
