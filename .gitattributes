@@ -1,8 +1,15 @@
 # Normalize line endings — keep LF in the repo regardless of OS.
 * text=auto eol=lf
 
-# Test fixtures round-trip byte-exactly (CRLF and mixed-ending files are the
-# point of several tests) — never normalize them.
+# Test fixtures must round-trip BYTE-EXACTLY — that round trip is the library's
+# defining invariant, so a fixture whose bytes git rewrote on checkout would
+# fail a test for a reason nobody could see in the diff.
+#
+# CRLF is currently exercised through Go string literals rather than a fixture
+# file (37 assertions across dotenv_test.go, edit_test.go, edge_test.go and
+# compose_test.go), so nothing on disk depends on this today. It stays because
+# the day someone adds a CRLF or mixed-ending fixture, normalization would
+# corrupt it silently and the test would look like a parser bug.
 testdata/** -text
 cli/**/testdata/** -text
 

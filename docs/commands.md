@@ -364,6 +364,6 @@ dotenvctl completion bash|zsh|fish|powershell    # print the script; see `dotenv
 
 Built in via cobra — e.g. `source <(dotenvctl completion zsh)` in `.zshrc`, or write it to your shell's completions directory.
 
----
+## Every verb is also a Go function
 
 Every verb on this page is also an exported Go function — the CLI is a thin translator over `envkit`. See the [Go API guide](go-api.md).
