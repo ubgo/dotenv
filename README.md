@@ -7,7 +7,7 @@
   <a href="https://goreportcard.com/report/github.com/ubgo/dotenv"><img src="https://goreportcard.com/badge/github.com/ubgo/dotenv" alt="Go Report Card"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-2ea44f" alt="License: Apache-2.0"></a>
   <img src="https://img.shields.io/badge/dependencies-zero-2ea44f" alt="Zero dependencies — stdlib only">
-  <img src="https://img.shields.io/badge/coverage-100%25%20lib%20·%2099%25%20cli-2ea44f" alt="Statement coverage: 100% library, 99% CLI">
+  <img src="https://img.shields.io/badge/coverage-100%25%20lib%20·%2099.5%25%20cli-2ea44f" alt="Statement coverage: 100% library, 99.5% CLI">
 </p>
 
 A comment-preserving `.env` parser, editor, and CLI for Go. The library (`github.com/ubgo/dotenv`) is a stdlib-only, zero-dependency package for reading, editing, and writing dotenv files with byte-exact round-tripping and full Docker Compose interpolation; the CLI (`dotenvctl`) adds environment-variable management from the shell — get/set/unset, an environment drift matrix, effective-config diff, `run`, and secrets sync to GitHub Actions and Vercel. Open source, fuzz-tested, and built for the twelve-factor configuration workflow.
@@ -790,13 +790,16 @@ A file that ended without a trailing newline still does not. Adding or removing 
 
 | | |
 |---|---|
-| Statement coverage — library | 100% |
-| Statement coverage — CLI | 99.4% |
-| Test cases (both modules) | 840+ |
+| Statement coverage — library | 100.00% (611/611 statements) |
+| Statement coverage — CLI | 99.52% (1237/1243 statements) |
+| Test functions | 255 |
+| Test cases including subtests | 845 |
 | Fuzz properties | 8 |
 | Dependencies (library) | 0 |
 
-Re-measure any of it with `task cover` (both modules) or `task test:uncovered` (what's left, per function). The CLI's remaining fraction is enumerable, not mystery: the `os.Exit` wrapper in `main`, the Windows branch of `isExecutable` on a non-Windows host, and defensive arms with no reachable error source (`os.Executable` failing, expansion errors the CLI's wiring cannot produce) — each is a couple of lines whose absence from the count is explained, not ignored.
+Re-measure any of it with `task cover` (both modules) or `task test:uncovered` (what's left, per function). The numbers above are the measured ones, not rounded claims.
+
+The CLI's remaining fraction is **six statements**, enumerable rather than mystery: the `os.Exit` wrapper in `main`, the Windows arm of `isExecutable` on a non-Windows host, two fallbacks for a host that cannot locate its own working directory or executable, and two expansion-error arms the CLI's own wiring cannot produce — it never attaches a library plugin, and a plugin is the only thing that makes expansion fail with something other than a `RequiredError`. Every one is named, with its reason, in [CONTRIBUTING](CONTRIBUTING.md#coverage-and-the-six-statements-that-are-not-covered).
 
 Conformance is asserted by tests, not claimed — `conformance_test.go` has one assertion per syntax rule in the tables above.
 

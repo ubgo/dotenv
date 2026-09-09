@@ -33,30 +33,33 @@ task fuzz -- FuzzParseRender 60s  # or one property, longer
 - **Request a feature** — open an issue using the feature template; describe the problem first, then your proposed solution. Note the deliberate non-goals in the README (no `os.Environ`, no multi-file merging, no type coercion, no streaming) — PRs adding those will be declined with thanks.
 - **Send a pull request** — for anything non-trivial, open an issue first so we can agree on the approach before you write code.
 
-## Coverage, and the seven statements that are not covered
+## Coverage, and the six statements that are not covered
 
 ```sh
+task cover               # both modules
 task test:cover          # library
 task cli:test:cover      # CLI
 task test:uncovered      # every function below 100%
 ```
 
-Today: **100.0% of the library, 99.4% of the CLI.** The badge rounds the second to 99%.
+Today: **100.00% of the library (611/611 statements), 99.52% of the CLI (1237/1243).**
 
 The library is at 100% and should stay there — it is a parser whose defining promise is byte-exact round-tripping, and an untested branch in it is a byte somebody loses.
 
-The CLI's **seven uncovered statements are listed here rather than rounded away**, because a number with no explanation invites the assumption that what is missing does not matter. Two of these are real gaps, and saying so is the point of the list:
+The CLI's **six uncovered statements are listed here rather than rounded away**, because a number with no explanation invites the assumption that what is missing does not matter:
 
 | Where | Why it is uncovered |
 |---|---|
-| `cmd/dotenvctl/main.go:15` | the binary entrypoint. `Execute` exists as a separate function precisely so tests drive the CLI without a process; `main` is the four lines that cannot be reached that way |
-| `dotenvcmd/execplugin.go:85` | `filepath.Abs` failing, which needs `os.Getwd` to fail |
+| `cmd/dotenvctl/main.go:15` | the binary entrypoint. `Execute` exists as a separate function precisely so tests drive the whole CLI in-process with buffers; `main` is the one `os.Exit` line that cannot be reached that way |
+| `dotenvcmd/execplugin.go:85` | `filepath.Abs` failing, which requires `os.Getwd` to fail — a deleted or unreadable working directory |
+| `dotenvcmd/execplugin.go:89` | `os.Executable` failing. Same shape: the fallback exists so a host that cannot name itself still dispatches |
 | `dotenvcmd/execplugin.go:236` | the `isWindows()` arm of the executable-bit check — unreachable on any other platform |
-| `dotenvcmd/root.go:184` | a plugin failing with `providerkit.CmdError`; needs a real exec-plugin binary that exits non-zero |
-| **`dotenvcmd/get.go:52`** | **a real gap.** Reachable, not defensive — a `Lookuper` plugin whose lookup fails makes expansion return a non-`RequiredError` (`expand.go:291`) |
-| **`dotenvcmd/list.go:138`** | **the same gap**, on the list path |
+| `dotenvcmd/get.go:52` | expansion returning a non-`RequiredError`. The library can produce one (`expand.go:291`, a `Lookuper` plugin whose lookup fails), but **the CLI never attaches a library plugin**, so its own wiring cannot reach this arm |
+| `dotenvcmd/list.go:138` | the same arm on the list path, for the same reason |
 
-The last two would be closed by a fixture plugin that fails a lookup. They are written down as *untested* rather than *unreachable* because they are not the same thing, and the difference is exactly what a coverage note is for.
+The last two were previously written down here as *reachable gaps a fixture plugin would close*. That was wrong, and the correction is worth keeping rather than quietly deleting: the plugin seam exists in the **library**, and `dotenvcmd` constructs every `dotenv.File` through a bare `dotenv.Open` with no plugins attached. No fixture reachable from the CLI can make expansion fail that way. The arms stay because they guard a documented library contract — if the CLI ever does attach a `Lookuper`, deleting them today would turn a plugin failure into a silently wrong value.
+
+The rule the list follows: *unreachable* and *untested* are different words, and a coverage note that blurs them is worse than no note. Anything genuinely reachable gets a test instead of a table row — `root.go:184` was in this table until it turned out to need only a printer whose writes fail, which is entirely testable in-process.
 
 ## Branches & commits
 
