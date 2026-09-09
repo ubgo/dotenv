@@ -213,3 +213,34 @@ func TestRootMapsCmdError(t *testing.T) {
 		t.Errorf("exit %d for a backend failure — want %d via CmdError", code, ExitFailure)
 	}
 }
+
+// TestRootPrintsNonQuietCmdError pins the OTHER half of root's CmdError arm —
+// the `!pe.Quiet` branch, which TestRootMapsCmdError cannot reach.
+//
+// providerkit.Fail normally returns a QUIET CmdError, because it has already
+// written the failure envelope itself. The one time it returns a loud one is
+// when that write FAILED, and then root is the last thing standing between a
+// broken pipe and a process that exits non-zero having said nothing at all.
+//
+// Driving it needs a printer whose own output is broken, which is why the
+// backend must also fail: a successful command never calls Fail.
+func TestRootPrintsNonQuietCmdError(t *testing.T) {
+	t.Parallel()
+	var errBuf bytes.Buffer
+	a := &app{
+		// Out is broken, so the envelope write inside Fail fails and the
+		// resulting CmdError carries Err with Quiet unset.
+		printer:       &outfmt.Printer{Out: errWriter{}},
+		errOut:        &errBuf,
+		runner:        boomRunner{},
+		interactiveFn: func() bool { return false },
+	}
+	code := executeApp(a, []string{"github", "list"}, errWriter{}, &errBuf)
+	if code != ExitFailure {
+		t.Errorf("exit %d for a backend failure with a broken stdout — want %d", code, ExitFailure)
+	}
+	if !strings.Contains(errBuf.String(), "dotenvctl:") {
+		t.Errorf("stderr = %q — want the dotenvctl: line, since the envelope "+
+			"never reached stdout and the exit code alone would be silent", errBuf.String())
+	}
+}
