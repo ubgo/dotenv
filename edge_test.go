@@ -509,7 +509,7 @@ func BenchmarkParseLarge(b *testing.B) {
 
 	b.Run("ReadAll then Parse", func(b *testing.B) {
 		b.ReportAllocs()
-		for b.Loop() {
+		for range b.N {
 			raw, err := io.ReadAll(strings.NewReader(src))
 			if err != nil {
 				b.Fatal(err)
@@ -520,7 +520,7 @@ func BenchmarkParseLarge(b *testing.B) {
 
 	b.Run("ParseReader", func(b *testing.B) {
 		b.ReportAllocs()
-		for b.Loop() {
+		for range b.N {
 			if _, err := ParseReader(strings.NewReader(src)); err != nil {
 				b.Fatal(err)
 			}

@@ -585,7 +585,7 @@ func BenchmarkParseManyEntries(b *testing.B) {
 
 	b.ReportAllocs()
 	b.SetBytes(int64(len(src)))
-	for b.Loop() {
+	for range b.N {
 		_ = Parse(src)
 	}
 }
