@@ -46,10 +46,10 @@ All four take the same options (`WithEscapes`, `WithLookup`, `WithPlugin` and th
 
 - **`Read` and `Open` differ on a missing file.** `Read` fails; `Open` succeeds with an empty file. Code that switches from one to the other changes its error behaviour.
 - **`Read` stops at the first expansion error.** One `${VAR:?message}` that is unset fails the whole call, with a `*RequiredError`. That is deliberate: a half-expanded map would hide which values are trustworthy. See [expansion, step 8](../library/expansion.md#step-8--handle-requirederror).
-- **`ExpandedMap` (and so `Read`) expands every occurrence, including duplicates that a later line overrides.** If an early duplicate holds a `${VAR:?…}` that fails, the call fails even though `GetExpanded` on that key returns the later, valid value. Remove dead duplicates.
+- **`ExpandedMap` (and so `Read`) expands only the line that wins for each key.** An overridden duplicate holding a failing `${VAR:?…}` is skipped, the same answer `GetExpanded` gives; Compose would fail on it. In library v0.1.1 and earlier the overridden line was expanded too and failed the call.
 - **A parsed file has no path.** `Save` on a file from `Parse` or `ParseReader` returns an error until you set `f.Path`, or call `SaveAs(path)` ([`ExampleFile_Save_noPath`](../../example_edit_test.go)).
 - **Nothing here reads `os.Environ`.** Name-only lines such as `HOME` are listed by `Inherited()` but never resolved, and a `${VAR}` the file does not define expands to `""` unless you install `WithLookup(os.LookupEnv)`.
-- **Prose comments with `=` or `:` read as disabled settings.** `# TODO=fix` and `# Note: rotate monthly` both appear in `Disabled()` ([`ExampleKind_pitfalls`](../../example_read_test.go)).
+- **Prose comments with `=` read as disabled settings.** `# TODO=fix` appears in `Disabled()`. The `:` form counts only when its value is one token, so `# Note: rotate monthly` and `# http://example.com` stay comments, while `# Owner: alice` is still a disabled setting ([`ExampleKind_pitfalls`](../../example_read_test.go)).
 
 ## Related
 

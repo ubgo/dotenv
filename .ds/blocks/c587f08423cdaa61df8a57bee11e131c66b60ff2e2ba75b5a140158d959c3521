@@ -1,0 +1,18 @@
+func colonProse(head, rhs string) bool {
+	if !strings.HasSuffix(head, ":") {
+		return false
+	}
+	if strings.HasPrefix(rhs, "//") {
+		return true
+	}
+	v := strings.TrimLeft(rhs, " \t")
+	if v == "" || strings.ContainsAny(v[:1], "\"'`") {
+		// Empty, or quoted: valueEndsOnThisLine has already required the quote
+		// to close, so the value is one token however many spaces it holds.
+		return false
+	}
+	if loc := inlineCommentRe.FindStringIndex(v); loc != nil {
+		v = v[:loc[0]]
+	}
+	return strings.ContainsAny(strings.TrimRight(v, " \t"), " \t")
+}

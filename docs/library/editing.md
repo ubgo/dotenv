@@ -657,8 +657,8 @@ The text each example prints is the `// Output:` block at the end of its snippet
 ## Pitfalls
 
 - **`Set` cannot write a reference.** A changed value containing `$` is stored literally, so `Set("URL", "${HOST}/v1")` writes `URL='${HOST}/v1'`, and `GetExpanded` returns that text. To write a reference, place a parsed line with `Append` or `InsertAfter`, as in [Step 8](#step-8--place-blocks-with-append-insertafter-and-insertbefore). Setting the value an entry already has is still a no-op, so an existing reference stays a reference.
-- **Before v0.1.3, `Set` wrote `$` bare and dropped literal quotes.** `Set("P", "a$b")` wrote `P=a$b`, which reads back as `a`, and `S='${A}'` set to `${A}y` was written `S=${A}y`, so `GetExpanded` gave one answer in memory and another after a reload.
-- **Before v0.1.3, the spacing after the delimiter was lost on edit.** `KEY = old` became `KEY =new`; it is now `KEY = new`.
+- **In library v0.1.1 and earlier, `Set` wrote `$` bare and dropped literal quotes.** `Set("P", "a$b")` wrote `P=a$b`, which reads back as `a`, and `S='${A}'` set to `${A}y` was written `S=${A}y`, so `GetExpanded` gave one answer in memory and another after a reload.
+- **In library v0.1.1 and earlier, the spacing after the delimiter was lost on edit.** `KEY = old` became `KEY =new`; it is now `KEY = new`.
 - **Appending after an unterminated quote.** If the last value in a file opens a quote and never closes it, everything you append is read back as part of that value, because the open quote keeps consuming lines. The source was already broken, and guessing where the quote should have closed would corrupt real multi-line values. Check files you did not write before appending to them. Pinned by `TestAppend_UnterminatedQuoteSwallowsWhatFollows`:
 
 <!-- snippet: example_edit_test.go#edit_Append_unterminatedQuote -->

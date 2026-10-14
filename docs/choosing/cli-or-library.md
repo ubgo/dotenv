@@ -28,9 +28,9 @@ The [CLI ↔ Go equivalence table](../go-api.md#cli--go-equivalence) maps every 
 ## Pitfalls
 
 - **The library never touches `os.Environ`.** It hands you values; applying them to a process, with whatever precedence you want, is your decision. `dotenvctl run` and `envkit.Run` build a child's environment instead.
-- **Embedded, `--version` reports your program's version.** `dotenvcmd.Execute` reads the main module's build info, so `--version` and `DOTENVCTL_VERSION` (passed to exec plugins) show the host program's module version.
-- **Embedded, failure messages still say `dotenvctl:`.** The prefix is fixed in the output printer.
-- **In human mode, some failures go to stdout.** `v=$(dotenvctl get NOPE 2>/dev/null)` captures the error text. Check the exit code, or use `--json`, before trusting captured output.
+- **Embedded, `--version` reports the CLI module's version, not your program's.** `--version` and `DOTENVCTL_VERSION` (passed to exec plugins) show the version of `github.com/ubgo/dotenv/cli` your binary was built with ([Go API](../go-api.md)). In cli v0.1.2 and earlier they showed the host program's module version.
+- **Embedded with `dotenvcmd.Execute`, failure messages still say `dotenvctl:`.** Code that prints through its own `outfmt.Printer` can set `Program` to change the prefix ([Go API](../go-api.md)); in cli v0.1.2 and earlier there was no such field.
+- **Check the exit code, not captured output.** Human-mode failures go to stderr, so `v=$(dotenvctl get NOPE)` leaves `v` empty, and an empty value is also a valid value. In cli v0.1.2 and earlier some failures went to stdout and ended up in `v`.
 - **`envkit` options can switch expansion off.** A non-nil `Select` in `RunOptions` or `ChildEnv` turns expansion off unless you also set `Expand` ([Go API, running a command](../go-api.md#running-a-command-with-the-files-values)).
 
 ## Related

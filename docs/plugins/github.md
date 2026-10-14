@@ -138,7 +138,7 @@ Every spared name is reported with its reason, so the decision is auditable.
 - **`--org` cannot be combined** with `--repo` or `--environment`; `push` and `prune` stop with a usage error (exit `2`) before anything is written.
 - **Trailing newlines are dropped.** Values reach `gh` on stdin, and `gh` trims a trailing `\r\n` from what it reads, so a multi-line value that ends in a newline is stored without it.
 - **Name checks see the final names.** Validation runs after `--strip-prefix`, so `GITHUB_SECRET_1PASSWORD` fails (it becomes `1PASSWORD`, digit-first) even though the original key would be legal.
-- **A mid-way failure under `--json` is one `ok:false` envelope that still has `data`**: `.data.results` lists what was written, `.error` names the key that failed. Before cli v0.1.3 it printed two envelopes.
+- **A mid-way failure under `--json` is one `ok:false` envelope that still has `data`**: `.data.results` lists what was written, `.error` names the key that failed. In cli v0.1.2 and earlier, it printed two envelopes.
 - **No `--token` flag, on purpose.** Use `GH_TOKEN` for a one-off identity, and read the `account:` line in the banner before you answer `y`.
 
 ## Related

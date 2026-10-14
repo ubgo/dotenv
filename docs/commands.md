@@ -91,8 +91,8 @@ Rules worth knowing:
 
 - An existing key updates in place and never moves; only a new key is placed by `--after`/`--before`. A missing anchor exits `1` without writing anything.
 - Setting a key to its current value is a full no-op — same bytes, same mtime, file watchers see nothing.
-- What the author wrote around the value survives: `export` prefixes, indentation, spacing on both sides of the delimiter (`A = 1` becomes `A = 2`), inline comments, and the `=` vs `:` delimiter style. The value's quoting is chosen afresh for the new value. Before cli v0.1.3 the spacing after the delimiter was lost (`A = 1` became `A =2`).
-- A value is stored literally: `dotenvctl set 'P=a$b'` writes `P='a$b'`, so `get --expand` gives `a$b` back. To store a reference such as `${HOST}`, edit the file by hand. Before cli v0.1.3 a `$` was written bare and read back as a reference.
+- What the author wrote around the value survives: `export` prefixes, indentation, spacing on both sides of the delimiter (`A = 1` becomes `A = 2`), inline comments, and the `=` vs `:` delimiter style. The value's quoting is chosen afresh for the new value. In cli v0.1.2 and earlier, the spacing after the delimiter was lost (`A = 1` became `A =2`).
+- A value is stored literally: `dotenvctl set 'P=a$b'` writes `P='a$b'`, so `get --expand` gives `a$b` back. To store a reference such as `${HOST}`, edit the file by hand. In cli v0.1.2 and earlier, a `$` was written bare and read back as a reference.
 - A missing file is created with `0600` permissions (env files hold credentials — restrictive by default).
 
 ## unset — deactivate a key
@@ -479,7 +479,7 @@ github  /usr/local/bin/dotenvctl-github  shadowed by built-in
 - Only files with an execute bit count (on Windows, any matching file). A script you forgot to `chmod +x` is silently left out of the list and is not dispatched either.
 - When the same name appears in two PATH directories, the first one wins, as with any command lookup. The list shows only that first hit.
 - `help` and `completion` are built-ins too, so `dotenvctl-help` and `dotenvctl-completion` are always shadowed.
-- Before cli v0.1.3, `plugins --json` with at least one plugin installed printed the human table before the envelope, so `jq` failed on the first line.
+- In cli v0.1.2 and earlier, `plugins --json` with at least one plugin installed printed the human table before the envelope, so `jq` failed on the first line.
 
 How to write one (the env-var contract, calling the host back for parsing, a complete script): [plugins overview](plugins.md#writing-your-own-plugin-exec-plugins).
 
@@ -612,10 +612,10 @@ The verbs themselves are thin translators over the `envkit` package, which you c
 
 These apply to every verb.
 
-- **Failure messages go to stderr in human mode.** When a verb fails (a missing key, a missing anchor), the `dotenvctl: …` line is written to stderr and stdout stays empty, so `VALUE=$(dotenvctl get NOPE)` leaves `VALUE` empty. An empty value is also a valid value, so check the exit code before using captured output: `if VALUE=$(dotenvctl get KEY); then …; fi`. Before cli v0.1.3, human-mode failures (but not usage errors) went to stdout.
+- **Failure messages go to stderr in human mode.** When a verb fails (a missing key, a missing anchor), the `dotenvctl: …` line is written to stderr and stdout stays empty, so `VALUE=$(dotenvctl get NOPE)` leaves `VALUE` empty. An empty value is also a valid value, so check the exit code before using captured output: `if VALUE=$(dotenvctl get KEY); then …; fi`. In cli v0.1.2 and earlier, human-mode failures (but not usage errors) went to stdout.
 - **Flags after `--` belong to the child.** `dotenvctl run -- cmd --json` passes `--json` to `cmd`.
 - **A missing file reads as empty.** `get` reports `not found`, `keys` and `list` print nothing and exit `0`, and `set` creates the file. A typo in `-f` is not reported as a missing file.
-- **`--json` is exactly one envelope per run**, on stdout, including usage errors (`{"ok":false,"error":{"code":"usage",…}}`, exit `2`) and a plugin `push`/`prune` that fails part-way (an `ok:false` envelope whose `data` holds the partial record, see [Vercel failure behavior](plugins/vercel.md#failure-behavior)). The exceptions are output that is not dotenvctl's: `run` passes the child's stdout through, and an exec plugin prints whatever it prints. Before cli v0.1.3, usage errors printed plain text on stderr, and the two cases above printed more than one line.
+- **`--json` is exactly one envelope per run**, on stdout, including usage errors (`{"ok":false,"error":{"code":"usage",…}}`, exit `2`) and a plugin `push`/`prune` that fails part-way (an `ok:false` envelope whose `data` holds the partial record, see [Vercel failure behavior](plugins/vercel.md#failure-behavior)). The exceptions are output that is not dotenvctl's: `run` passes the child's stdout through, and an exec plugin prints whatever it prints. In cli v0.1.2 and earlier, usage errors printed plain text on stderr, and the two cases above printed more than one line.
 
 ## Related
 

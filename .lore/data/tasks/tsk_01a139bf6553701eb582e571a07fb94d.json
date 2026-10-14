@@ -15,9 +15,9 @@
   "priority": "high",
   "project_id": "prj_01a1397c42717315be667a3133d26336",
   "repo_id": null,
-  "started_at": null,
-  "status": "todo",
+  "started_at": "2026-10-14T09:51:29.354614437Z",
+  "status": "in_progress",
   "tasklist_id": "tlt_01a139822ae272658b34eda4f307b756",
   "title": "Fix batch: shared docs, final gates, FIX-REPORT-2",
-  "updated_at": "2026-10-14T09:30:07.059006344Z"
+  "updated_at": "2026-10-14T09:51:29.354615580Z"
 }

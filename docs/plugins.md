@@ -190,7 +190,7 @@ To push to a real backend instead of printing, replace the `printf` with your st
 
 **Pitfalls**
 
-- **Test the host's exit status, not its output.** `dotenvctl get NOPE` prints `dotenvctl: key "NOPE" not found …` on stderr and exits `1`; captured with `$(…)`, the value is empty, which a real empty value also is. Test the exit status, as the script does with `if ! value=$(…)`. Before cli v0.1.3 the host printed human-mode failures on stdout, where `$(…)` captured them as the "value".
+- **Test the host's exit status, not its output.** `dotenvctl get NOPE` prints `dotenvctl: key "NOPE" not found …` on stderr and exits `1`; captured with `$(…)`, the value is empty, which a real empty value also is. Test the exit status, as the script does with `if ! value=$(…)`. In cli v0.1.2 and earlier, the host printed human-mode failures on stdout, where `$(…)` captured them as the "value".
 - **Only flags before the plugin name are the host's.** `dotenvctl -f .env.prod export` sets `DOTENVCTL_FILE`; `dotenvctl export -f .env.prod` passes `-f .env.prod` to your script, and `DOTENVCTL_FILE` stays `.env`. The same goes for `--json` and `DOTENVCTL_JSON`.
 - **`DOTENVCTL_PLACEHOLDER` is always the default pattern**, so a team that uses `matrix --placeholder` must pass its own pattern to the plugin some other way.
 - **A built-in name can never be a plugin name.** `dotenvctl-github`, `dotenvctl-keys`, `dotenvctl-help` and `dotenvctl-completion` are never run; `dotenvctl plugins` shows them as `shadowed by built-in`.

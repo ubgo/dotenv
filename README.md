@@ -286,7 +286,7 @@ Inserting by *section name* is designed but deferred: section boundaries are a c
 
 `Set` on a duplicated key updates the **last** occurrence, because that is the one a consumer actually sees.
 
-What `Set` keeps on the line it edits: the `export` prefix, any indentation, the spacing *before* the delimiter, the `=` or `:` delimiter itself, and an inline comment. Spacing *after* the delimiter is not kept (`A = 1` becomes `A =2`), and the value's quoting is chosen afresh for the new value ([`ExampleFile_Set_quoting`](example_edit_test.go)).
+What `Set` keeps on the line it edits: the `export` prefix, any indentation, the spacing on both sides of the delimiter (`A = 1` becomes `A = 2`), the `=` or `:` delimiter itself, and an inline comment. The value's quoting is chosen afresh for the new value ([`ExampleFile_Set_quoting`](example_edit_test.go)). `Set` stores the value literally: a value containing `$` is written in single quotes, so `GetExpanded` after a reload gives back exactly what you set, and `Set` cannot write a reference such as `${HOST}`. To add a reference, `Append` a parsed line ([`ExampleFile_Set_dollar`](example_edit_test.go), [`ExampleFile_Append_verbatim`](example_edit_test.go)).
 
 Step-by-step guides: [Editing](docs/library/editing.md) · [Saving](docs/library/saving.md). Not sure which method? See [Choosing how to edit](docs/choosing/editing.md).
 
@@ -393,7 +393,7 @@ func Example_disabledSettings() {
 
 Disabled entries stay **inactive** — `Get`, `Has`, `Count`, `Map`, and `Keys` all ignore them, exactly as a consumer of the file would. The point is that a tool can now say *"DB_USER is disabled"* rather than *"DB_USER is missing"*, which are different problems with different fixes.
 
-**The trade:** prose shaped like an assignment is misfiled. `# TODO=fix this` reads as a disabled setting — which is also what a human skimming the file would assume. Because `:` is a delimiter too, so do `# Note: rotate monthly` and `# http://example.com` ([`ExampleKind_pitfalls`](example_read_test.go)). A commented value whose quote does not close on its own line stays prose, since a multi-line block cannot be reassembled from separate comment lines.
+**The trade:** prose shaped like an assignment is misfiled. `# TODO=fix this` reads as a disabled setting — which is also what a human skimming the file would assume. Inside a comment the `:` form counts only when its value is one token, so `# Note: rotate monthly` and `# http://example.com` stay comments, while `# DB_URL: postgres://db/app` and the one-word `# Owner: alice` are still disabled settings ([`ExampleKind_pitfalls`](example_read_test.go)). A commented value whose quote does not close on its own line stays prose, since a multi-line block cannot be reassembled from separate comment lines.
 
 ### Turning one back on
 
@@ -567,7 +567,7 @@ You install one with `dotenv.Open(path, dotenv.WithPlugin(p))` (or the same opti
 
 Every value-changing hook lives in the expansion path, which `Render` and `Save` never call. So round-trip stays byte-exact regardless of which plugins are installed, and a decrypted secret can never be written back in plaintext. `SaveGuard` sits nearest the write path and may only return an error — it cannot rewrite.
 
-That is structural rather than a convention, and it is asserted two ways: `TestPlugins_NeverAffectBytes`, a plain test that renders one file with every hook and with none, and `FuzzPluginsNeverAffectBytes`, which does the same for arbitrary input. Two caveats apply to plugin code you write: a `SaveGuard` receives the live `*File`, so a guard that calls `f.Set` changes what is saved, and an `EntryObserver` receives the live `*Entry`, so mutating it changes the rendered line. Treat both as read-only ([plugins guide, pitfalls](docs/library/plugins.md#pitfalls)).
+That is structural rather than a convention, and it is asserted two ways: `TestPlugins_NeverAffectBytes`, a plain test that renders one file with every hook and with none, and `FuzzPluginsNeverAffectBytes`, which does the same for arbitrary input. The test also covers plugin code that misbehaves: a `SaveGuard` receives a copy of the file and an `EntryObserver` a copy of the entry, so a guard that calls `f.Set` or an observer that edits its entry changes nothing that is saved ([plugins guide, pitfalls](docs/library/plugins.md#pitfalls)).
 
 ### Worked examples
 
@@ -694,7 +694,7 @@ Every `.env` construct in common use, including the full [Docker Compose interpo
 | Spaces around `=` | `KEY = value` | ✅ |
 | `export` prefix | `export KEY=value` | ✅ |
 | Empty value | `KEY=` | ✅ |
-| `KEY: value` — colon delimiter | `FOO: bar` | ✅ — in the Compose grammar and Node dotenv's parser; the author's delimiter is preserved on edit (spacing after it is not) |
+| `KEY: value` — colon delimiter | `FOO: bar` | ✅ — in the Compose grammar and Node dotenv's parser; the author's delimiter and the spacing around it are preserved on edit |
 | Key charset: letters, digits, `_` `.` `-` `[` `]` | `spring.datasource.url=x`, `2FA_SECRET=x` | ✅ — Compose's charset, a superset of Node dotenv's and godotenv's `[\w.-]` |
 
 ### Comments
@@ -757,13 +757,15 @@ Applied to unquoted and double-quoted values only. Covers the full [Docker Compo
 | `$$` | literal `$` — `$${VAR}` yields `${VAR}` | ✅ |
 | Nesting | `${VAR:-${FOO:-default}}` | ✅ |
 | Chained / recursive | `C=${B}` where `B=${A}` | ✅ |
-| Cycles terminate: the re-entering reference resolves to `""` | `A=a${B}`, `B=b${A}` → `A` is `aba` | ✅ |
+| Cycles terminate: the re-entering reference sees only the lines above it, then the Lookuper, else `""` | `A=a${B}`, `B=b${A}` → `A` is `ab`, `B` is `ba` | ✅ — Compose gives `ba` too, and `a` for `A` because it never reads ahead |
 | Unresolved → `""`, not an error | `${NOPE}` | ✅ |
 | **Single quotes suppress it** when you read that key | `B='${A}'` → `${A}` | ✅ — but see the note below the table |
 | **Backticks suppress it** | ``B=`${A}` `` → `${A}` | ✅ |
 | `${VAR/foo/bar}` shell-style edits | — | ❌ not supported by Compose either |
 
-A single-quoted or backtick value is literal when you read *that* key. When another value references it (`C=${B}` with `B='${A}'`), the quoted text is expanded during that resolution today, so `C` resolves `${A}`. Keep literal `${…}` text out of values that other values reference ([expansion guide, step 6](docs/library/expansion.md#step-6--quotes-that-turn-expansion-off)).
+A single-quoted or backtick value is literal everywhere, including when another value references it: with `B='${A}'` and `C=${B}`, `C` is the text `${A}` ([expansion guide, step 6](docs/library/expansion.md#step-6--quotes-that-turn-expansion-off)).
+
+A key that refers to itself sees the definition above it, as in Docker Compose: `A=1` then `A=${A}2` gives `12`, and `ZONE=${ZONE:-x}` with no earlier `ZONE` asks your Lookuper, then gives `x` ([expansion guide, step 4](docs/library/expansion.md#step-4--nesting-chains-and-cycles)).
 
 The two `?` forms exist to fail loudly, so they are the only ones that produce an error, a `*RequiredError` you match with `errors.As`:
 
@@ -799,7 +801,7 @@ func ExampleRequiredError() {
 
 Expansion is hand-written rather than delegating to `os.Expand`, which cannot express `$$` or nesting — it stops at the first `}`, so the inner default of `${A:-${B:-c}}` swallows the outer one.
 
-A reference that re-enters a variable already being expanded resolves to `""`, the same answer an unset variable gives and the only one that terminates. The rest of each value is kept, so a cycle can still produce text: with `A=a${B}` and `B=b${A}`, `A` expands to `aba` ([`ExampleFile_GetExpanded_nesting`](example_expand_test.go)). A key also cannot extend itself: `A=1` then `A=${A}2` gives `22`, and `ZONE=${ZONE:-x}` gives `""`, not `x`. Two *separate* references to one variable are not a cycle: `K=${A}-${A}` expands both.
+A reference that re-enters a variable already being expanded sees only the definitions above the line being expanded, then the Lookuper, then nothing, which always terminates. The rest of each value is kept, so a cycle can still produce text: with `A=a${B}` and `B=b${A}`, `A` expands to `ab` and `B` to `ba` ([`ExampleFile_GetExpanded_nesting`](example_expand_test.go)). The same rule lets a key extend itself, as in Docker Compose: `A=1` then `A=${A}2` gives `12`, and `ZONE=${ZONE:-x}` with no earlier `ZONE` asks the Lookuper, then gives `x` ([`ExampleFile_GetExpanded_selfReference`](example_expand_test.go)). Two *separate* references to one variable are not a cycle: `K=${A}-${A}` expands both.
 
 ### How `$` is dispatched
 
@@ -899,7 +901,7 @@ func Example_expansion() {
 }
 ```
 
-Read directly, single-quoted and backtick values are not interpolated — `SECRET='${A}'` means the literal text `${A}`. Expanding it would silently replace a value the author explicitly marked as literal. (A reference *to* such a value is the exception noted under [Interpolation](#interpolation).)
+Single-quoted and backtick values are not interpolated — `SECRET='${A}'` means the literal text `${A}`, whether you read `SECRET` directly or through another value that references it. Expanding it would silently replace a value the author explicitly marked as literal.
 
 Expansion is depth-bounded, so a reference cycle terminates instead of hanging the caller.
 

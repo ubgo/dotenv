@@ -54,9 +54,9 @@ Operators nest: `${A:-${B:-c}}` works, and so do chains (`C=${B}` where `B=${A}`
 
 - **A failing command expands to `""` with no error**, as a shell does inside a value. A command that must succeed needs a check in your runner.
 - **`WithCommandRunner(nil)` turns on the real `sh -c`**, the same as `WithCommandSubstitution(true)`.
-- **Single quotes protect a value only when you read that key.** When another value references it (`C=${B}` with `B='${A}'`), the text inside the quotes is expanded during that resolution today. Keep literal `${…}` text out of values that others reference.
-- **A key cannot extend itself.** `A=1` followed by `A=${A}2` gives `22`, and `ZONE=${ZONE:-x}` gives `""`, not `x`: the self-reference counts as a cycle and resolves to `""` before the operator applies, and the lookup is never asked.
-- **Cycles terminate but can leave text.** A reference that re-enters a variable already being expanded resolves to `""`; the rest of each value stays, so `A=a${B}` with `B=b${A}` gives `A` = `aba` ([`ExampleFile_GetExpanded_nesting`](../../example_expand_test.go)).
+- **A key that refers to itself sees the line above it**, as in Docker Compose. `A=1` followed by `A=${A}2` gives `12`; `ZONE=${ZONE:-x}` with no earlier `ZONE` asks your Lookuper, then gives `x` ([`ExampleFile_GetExpanded_selfReference`](../../example_expand_test.go)). In library v0.1.1 and earlier these gave `22` and `""`.
+- **Cycles terminate but can leave text.** A reference that re-enters a variable already being expanded sees only the lines above, then the Lookuper, else `""`; the rest of each value stays, so `A=a${B}` with `B=b${A}` gives `A` = `ab` ([`ExampleFile_GetExpanded_nesting`](../../example_expand_test.go)).
+- **Forward references differ from Compose.** A reference to a key defined further down resolves here; Compose reads top to bottom and leaves it unset.
 - **Names stop at characters that are not part of a bare name.** `$spring.url` reads `$spring` followed by `.url`; use `${spring.url}`. `${MY-KEY}` reads as the `-` operator on `MY` ([`ExampleFile_GetExpanded_names`](../../example_expand_test.go)).
 - **A backslash never escapes a `$`.** Use `$$`.
 

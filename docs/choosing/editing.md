@@ -45,9 +45,9 @@ Both save calls write a temp file at `0600` and rename it over the destination, 
 ## Pitfalls
 
 - **`Set` on a key that is only disabled appends a new active line**; the commented-out one stays. To turn the original back on, call `Restore` instead.
-- **`Set` re-renders the value.** It keeps the `export` prefix, indentation, spacing before the delimiter, the `=` or `:` delimiter and any inline comment. It does not keep spacing after the delimiter (`A = 1` becomes `A =2`), and it picks the quoting for the new value ([`ExampleFile_Set_quoting`](../../example_edit_test.go)).
-- **`Set` does not quote a `$`.** `Set("P", "a$b")` writes `P=a$b`, which reads back through `GetExpanded` as `a` followed by the value of `b`. There is no `Set` form that stores a literal `$` today ([`ExampleFile_Set_dollar`](../../example_edit_test.go)).
-- **Changing a single-quoted value can change how it expands.** After `Set("S", "${A}y")` on `S='${A}'`, the value still reads as literal in memory, but it is written unquoted (`S=${A}y`), so after re-reading it expands. Check `Render()` before saving such edits.
+- **`Set` re-renders the value.** It keeps the `export` prefix, indentation, spacing on both sides of the delimiter (`A = 1` becomes `A = 2`), the `=` or `:` delimiter and any inline comment, and it picks the quoting for the new value ([`ExampleFile_Set_quoting`](../../example_edit_test.go)).
+- **`Set` stores a value literally.** `Set("P", "a$b")` writes `P='a$b'`, so `GetExpanded` gives `a$b` back, before and after a reload. The one exception is a value holding both a `'` and a backtick: no literal quote is left, so it is double-quoted and its `$` stays a reference ([`ExampleFile_Set_dollar`](../../example_edit_test.go)). In library v0.1.1 and earlier, the `$` was written bare and read back as a reference.
+- **`Set` cannot write a reference.** `Set("URL", "${HOST}/v1")` stores the text `${HOST}/v1`, not a reference to `HOST`. To write a reference, `Append` a parsed line: `f.Append(dotenv.Parse("URL=${HOST}/v1\n").Entries()[0])` ([`ExampleFile_Append_verbatim`](../../example_edit_test.go)).
 - **Duplicates: every method targets the last occurrence**, because it is the one a consumer sees. `Restore` also picks the last disabled entry, which may not be the one `Unset` just created.
 - **Appending after an unterminated quote** puts the new lines inside that value. The source was already malformed ([`ExampleFile_Append_unterminatedQuote`](../../example_edit_test.go)).
 

@@ -39,9 +39,8 @@ A plugin type is any value with a `Name() string` method plus the capability met
 
 - **A method with the wrong signature is silently ignored.** `LookUp` instead of `Lookup`, or a missing `error` result, compiles and never runs. Add compile-time assertions such as `var _ dotenv.Lookuper = (*Vault)(nil)` ([compile-time assertions](../library/plugins.md#compile-time-assertions)).
 - **A `CommandRunner` error does not fail the read.** The `$(…)` expands to `""`, as a shell does.
-- **A `SaveGuard` receives the live `*File`.** Calling `f.Set` inside a guard changes what is saved. Treat the file as read-only.
-- **An `EntryObserver` receives the live `*Entry`.** Changing its fields changes the rendered line. Treat it as read-only.
-- **A self-referencing default does not ask the lookup.** `ZONE=${ZONE:-default-zone}` expands to `""`; see [Which expansion setup](expansion.md#pitfalls).
+- **A `SaveGuard` and an `EntryObserver` receive copies.** A `Set` inside a guard or a changed field in an observer is silently lost; neither can change the saved bytes. To change the file, edit it before `Save`. In library v0.1.1 and earlier both received the live value, and edits leaked into the file.
+- **A self-referencing default asks the lookup only when no earlier line defines the key.** `ZONE=${ZONE:-default-zone}` with no `ZONE` above gives the Lookuper's value, else `default-zone`; see [Which expansion setup](expansion.md#pitfalls).
 
 ## Related
 

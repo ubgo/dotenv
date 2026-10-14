@@ -199,7 +199,7 @@ if ! DB_HOST=$(dotenvctl -f .env.prod get DB_HOST); then
 fi
 ```
 
-Before cli v0.1.3, human-mode failures went to stdout, so the error text ended up in the captured variable.
+In cli v0.1.2 and earlier, human-mode failures went to stdout, so the error text ended up in the captured variable.
 
 ## Related
 

@@ -41,8 +41,8 @@ The built-in backends share one set of verbs and flags: `push`, `list`, `prune`,
 - **GitHub secrets are write-only.** `github list` shows names, never values.
 - **Vercel's default target is `development`.** A push without `--target` never reaches production.
 - **The Vercel plugin reads `.vercel/project.json` from the working directory**, not from the `-f` file's directory.
-- **With `--json`, a push or prune that fails part-way prints two envelopes** (`"ok":true`, then `"ok":false`). Read the last line, or check the exit code.
-- **An empty `list` prints a GitHub-style hint** (`--environment` / `--org`) for every backend, including Vercel.
+- **With `--json`, a push or prune that fails part-way prints one `ok:false` envelope whose `data` holds what was written.** In cli v0.1.2 and earlier it printed two envelopes.
+- **An empty `list` prints a hint from the plugin**: GitHub names `--environment` / `--org`, Vercel names its targets. In cli v0.1.2 and earlier every backend printed the GitHub hint.
 
 ## Related
 

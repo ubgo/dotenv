@@ -240,7 +240,7 @@ Every failure exits non-zero and names what failed. Nothing is written before th
 - **The default target is `development`.** A forgotten `--target production` writes to development, not production. That is deliberate, but check the `targets:` line in the banner.
 - **The project line comes from the current directory, not from `-f`.** Run `dotenvctl -f app/.env vercel push` from the repo root and the banner reads the root's `.vercel/project.json` (or says `unlinked directory`), even if `app/` is linked. `cd app` first, so the banner and the `vercel` CLI agree.
 - **Names are not checked locally.** Unlike the [GitHub plugin](github.md#secret-names), this plugin does not validate key names before writing. A name Vercel rejects fails at that key, after the earlier keys were pushed.
-- **A mid-way failure under `--json` is one `ok:false` envelope that still has `data`.** Read `.data.results` for what was written and `.error` for what stopped the run. Before cli v0.1.3 it printed two envelopes, the partial `{"ok":true,…}` record and then the error.
+- **A mid-way failure under `--json` is one `ok:false` envelope that still has `data`.** Read `.data.results` for what was written and `.error` for what stopped the run. In cli v0.1.2 and earlier, it printed two envelopes, the partial `{"ok":true,…}` record and then the error.
 - **Values are expanded before pushing.** `--expand` is on by default, so `DB_URL=postgres://${DB_HOST}/app` arrives in Vercel resolved. Pass `--expand=false` only if you really want the literal `${…}` stored.
 
 ## A note on `list`/`prune` parsing

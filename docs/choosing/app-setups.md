@@ -35,7 +35,7 @@ A scaffolder, an installer or a dev tool that changes a user's `.env`.
 4. Add a `WithSaveGuard` for invariants the file must keep, such as "no plaintext passwords" ([`ExampleWithSaveGuard`](../../example_plugin_test.go)).
 5. `Save`. It is atomic and keeps the file's mode ([saving](../library/saving.md)).
 
-**Pitfalls:** `Set` cannot store a literal `$` ([`ExampleFile_Set_dollar`](../../example_edit_test.go)); it does not keep spacing after the delimiter; and it re-picks the value's quoting.
+**Pitfalls:** `Set` stores values literally, so it cannot write a reference such as `${HOST}`; `Append` a parsed line for that ([`ExampleFile_Append_verbatim`](../../example_edit_test.go)). It re-picks the value's quoting ([`ExampleFile_Set_quoting`](../../example_edit_test.go)).
 
 ## A CI pipeline
 
@@ -45,7 +45,7 @@ A scaffolder, an installer or a dev tool that changes a user's `.env`.
 4. Parse output with `--json`: one `{"ok":…}` envelope per call ([`ExampleExecute_json`](../../cli/dotenvcmd/example_test.go)).
 5. Sync secrets with `github push` or `vercel push` and `--yes` ([which sync backend](sync-backend.md)).
 
-**Pitfalls:** in human mode some failures print on stdout, so check exit codes rather than captured text; with `--json`, a partly failed push prints two envelopes.
+**Pitfalls:** check exit codes rather than captured text, since a failing verb prints nothing on stdout and an empty value is valid too; with `--json`, a partly failed push prints one `ok:false` envelope whose `data` lists what was written.
 
 ## A monorepo or shared file
 

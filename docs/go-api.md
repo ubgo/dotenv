@@ -1178,9 +1178,9 @@ func ExampleAddSelectionFlags() {
 - `Deps.Interactive` and `Deps.Ask` must be non-nil: `Confirm` calls `Interactive()` whenever a write is neither a dry run nor `--yes` and the printer is not in JSON mode.
 - JSON mode never prompts. `--json` without `--yes` is always refused, even at a terminal, so the envelope cannot be mixed with a prompt.
 - A nil `Gate` still runs `Confirm`. No mutating kit verb runs ungated.
-- `Meta` runs once at the end of a push or prune, and only under `--json`. If your `Gate` already looked up the same values (the account for the banner), cache them for the run, for example in a field you clear in the verb's `PreRun`, so the backend is asked once; the GitHub and Vercel plugins do this. A `Meta` error drops the metadata and keeps the results. Before cli v0.1.3 `Meta` also ran in human mode.
+- `Meta` runs once at the end of a push or prune, and only under `--json`. If your `Gate` already looked up the same values (the account for the banner), cache them for the run, for example in a field you clear in the verb's `PreRun`, so the backend is asked once; the GitHub and Vercel plugins do this. A `Meta` error drops the metadata and keeps the results. In cli v0.1.2 and earlier, `Meta` also ran in human mode.
 - When a write fails half-way, the kit fails with exit 1 and keeps the results so far: in human mode as lines on stdout before the failure line on stderr, under `--json` as the `data` of the one `ok:false` envelope. Re-running is safe as long as your `Set` is an upsert.
-- `NewListCmd` with an empty store prints `DefaultEmptyListHint` (`no secrets found for this scope`) in human mode. If your backend splits names across scopes, implement `EmptyListHint() string` (the optional `EmptyListHinter` interface) on the lister to name your own scope flag; the GitHub and Vercel plugins do. Under `--json` an empty store is `{"names":[]}`. Before cli v0.1.3 the hint named GitHub's `--environment` and `--org` for every plugin, and a lister that returned nil printed `"names":null` in JSON.
+- `NewListCmd` with an empty store prints `DefaultEmptyListHint` (`no secrets found for this scope`) in human mode. If your backend splits names across scopes, implement `EmptyListHint() string` (the optional `EmptyListHinter` interface) on the lister to name your own scope flag; the GitHub and Vercel plugins do. Under `--json` an empty store is `{"names":[]}`. In cli v0.1.2 and earlier, the hint named GitHub's `--environment` and `--org` for every plugin, and a lister that returned nil printed `"names":null` in JSON.
 - `AddSelectionFlags` adds only the five selection flags. `--expand`, `--include-placeholders` and `--include-empty` exist only on the kit's store verbs, where they default to expand-on and guards-on.
 - Cobra keeps flag values between `Execute` calls on the same tree. Build a fresh tree with `Plugin.Command` for each invocation in a long-running process.
 
@@ -1330,7 +1330,7 @@ The examples share a small fake runner and a run helper, `apiGhRun` / `apiVercel
 - In production pass `providerkit.ExecRunner{}`; `gh` or `vercel` must be installed and logged in. A missing binary fails the gate with `resolve account: …` before anything is written.
 - The `account:` banner line reads `GH_TOKEN` / `GITHUB_TOKEN` (github) or `VERCEL_TOKEN` (vercel) from your process environment to label the auth source. The token itself is passed to the backend CLI only through the inherited environment.
 - The vercel plugin reads `.vercel/project.json` relative to your process's working directory, not to `Deps.File`. In any other directory the banner says `unlinked directory`.
-- Each push or prune looks up the target and the account once, for the banner, and reuses them for the `--json` metadata (`ExampleNew` shows the single `gh api user`). Before cli v0.1.3 a push called `gh api user` twice.
+- Each push or prune looks up the target and the account once, for the banner, and reuses them for the `--json` metadata (`ExampleNew` shows the single `gh api user`). In cli v0.1.2 and earlier, a push called `gh api user` twice.
 - Use `--repo` (github) when your process does not run inside the target repository; without it the plugin asks `gh repo view` for the working directory's repo.
 
 Examples: [`githubplugin.ExampleNew`](../cli/plugins/githubplugin/example_test.go), [`githubplugin.ExamplePlugin_Command`](../cli/plugins/githubplugin/example_test.go), [`vercelplugin.ExampleNew`](../cli/plugins/vercelplugin/example_test.go), [`vercelplugin.ExamplePlugin_Command`](../cli/plugins/vercelplugin/example_test.go). Flag-level docs: [github plugin](plugins/github.md), [vercel plugin](plugins/vercel.md).
@@ -1438,7 +1438,7 @@ API_KEY
 - `Execute` builds a fresh command tree per call, so calls do not share state. It does use process-wide things: confirmation prompts read `os.Stdin`, interactivity is a terminal check on `os.Stdin`, and exec plugins inherit `os.Environ()` and `os.Stdin`.
 - Any first word that is not a built-in verb is looked up on `PATH` as `dotenvctl-<word>` and run. Built-ins always win, so a PATH binary cannot shadow `github`.
 - `DOTENVCTL_BIN` is `os.Executable()`: inside your program that is *your* binary. A plugin's callback (`"$DOTENVCTL_BIN" -f … list --json`) then runs your program, so route those arguments to `Execute`.
-- `DOTENVCTL_VERSION` and `--version` report the version of `github.com/ubgo/dotenv/cli` itself, read from your binary's dependency list, not your module's version. With a `replace` to a local directory they report `devel`. Before cli v0.1.3 they reported your main module's version.
+- `DOTENVCTL_VERSION` and `--version` report the version of `github.com/ubgo/dotenv/cli` itself, read from your binary's dependency list, not your module's version. With a `replace` to a local directory they report `devel`. In cli v0.1.2 and earlier, they reported your main module's version.
 - Messages say `dotenvctl:` no matter what your binary is called.
 
 Related: [Plugins](plugins.md) for the exec-plugin protocol, [Commands](commands.md) for every verb.
@@ -1707,7 +1707,7 @@ func ExampleErrCode() {
 
 **Pitfalls**
 
-- In human mode `Fail` writes to `Err`, and a nil `Err` means `os.Stderr`, so a test that only sets `Out` sees no failure line; set `Err` too. Under `--json` the failure envelope goes to `Out`. The human line starts with `Program` (default `dotenvctl`, see `ProgramName`). Before cli v0.1.3, `Fail` wrote to `Out` in both modes and the prefix was fixed.
+- In human mode `Fail` writes to `Err`, and a nil `Err` means `os.Stderr`, so a test that only sets `Out` sees no failure line; set `Err` too. Under `--json` the failure envelope goes to `Out`. The human line starts with `Program` (default `dotenvctl`, see `ProgramName`). In cli v0.1.2 and earlier, `Fail` wrote to `Out` in both modes and the prefix was fixed.
 - `Fail` only prints. Return an exit code yourself, or use `providerkit.Fail`, which also builds the `*CmdError`.
 - One invocation, one envelope. When an operation fails part-way, use `FailWith(code, message, data)` rather than `OK` followed by `Fail`: under `--json` it prints a single `ok:false` envelope that carries `data` (the partial record) next to `error`. The kit's `push` and `prune` do this.
 - Pass a named struct to `OK`, not a map, so the JSON shape is visible where it is produced.
