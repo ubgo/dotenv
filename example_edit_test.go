@@ -116,7 +116,7 @@ func ExampleFile_Set() {
 	// DB_HOST created: false
 	// DB_PORT created: true
 	// # database
-	// export DB_HOST =db.internal # dev only
+	// export DB_HOST = db.internal # dev only
 	// DB_PORT=5432
 }
 

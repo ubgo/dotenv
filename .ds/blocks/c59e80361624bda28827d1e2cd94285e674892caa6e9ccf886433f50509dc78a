@@ -1,0 +1,17 @@
+func (f *File) Set(key, value string) (created bool) {
+	for i := len(f.entries) - 1; i >= 0; i-- {
+		e := f.entries[i]
+		if e.Kind != KindPair || e.Key != key {
+			continue
+		}
+		if e.Value == value {
+			return false // no-op: byte-identical output guaranteed
+		}
+		e.Value = value
+		e.Raw, e.quote = renderPair(e.prefix+valueGap(e, value), value, e.inlineComment, f.eol())
+		return false
+	}
+
+	f.Append(NewPair(key, value))
+	return true
+}

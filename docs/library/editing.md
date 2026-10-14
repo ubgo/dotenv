@@ -82,18 +82,16 @@ func ExampleFile_Set() {
 	// DB_HOST created: false
 	// DB_PORT created: true
 	// # database
-	// export DB_HOST =db.internal # dev only
+	// export DB_HOST = db.internal # dev only
 	// DB_PORT=5432
 }
 ```
 
 What `Set` keeps when it changes a value:
 
-- the `export` prefix, the spacing before the delimiter, and the delimiter itself (`=` or the Compose-style `:`; a colon pair is never rewritten to `=`)
+- the `export` prefix, the spacing on both sides of the delimiter, and the delimiter itself (`=` or the Compose-style `:`; a colon pair is never rewritten to `=`)
 - the inline comment after the value (`# dev only` above)
 - every other line of the file, byte for byte
-
-It does not keep the spacing after the delimiter: `DB_HOST = localhost` becomes `DB_HOST =db.internal`. See [Pitfalls](#pitfalls).
 
 Setting the value a key already has is a true no-op, even when the source used quotes or odd spacing. This is why a tool can call `Set` on every run without producing a diff:
 
@@ -660,7 +658,7 @@ The text each example prints is the `// Output:` block at the end of its snippet
 
 - **`Set` cannot write a reference.** A changed value containing `$` is stored literally, so `Set("URL", "${HOST}/v1")` writes `URL='${HOST}/v1'`, and `GetExpanded` returns that text. To write a reference, place a parsed line with `Append` or `InsertAfter`, as in [Step 8](#step-8--place-blocks-with-append-insertafter-and-insertbefore). Setting the value an entry already has is still a no-op, so an existing reference stays a reference.
 - **Before v0.1.3, `Set` wrote `$` bare and dropped literal quotes.** `Set("P", "a$b")` wrote `P=a$b`, which reads back as `a`, and `S='${A}'` set to `${A}y` was written `S=${A}y`, so `GetExpanded` gave one answer in memory and another after a reload.
-- **Spacing after the delimiter is not kept on edit.** `KEY = old` becomes `KEY =new` and `KEY: old` becomes `KEY:new`. Spacing before the delimiter, `export`, and the inline comment are kept.
+- **Before v0.1.3, the spacing after the delimiter was lost on edit.** `KEY = old` became `KEY =new`; it is now `KEY = new`.
 - **Appending after an unterminated quote.** If the last value in a file opens a quote and never closes it, everything you append is read back as part of that value, because the open quote keeps consuming lines. The source was already broken, and guessing where the quote should have closed would corrupt real multi-line values. Check files you did not write before appending to them. Pinned by `TestAppend_UnterminatedQuoteSwallowsWhatFollows`:
 
 <!-- snippet: example_edit_test.go#edit_Append_unterminatedQuote -->

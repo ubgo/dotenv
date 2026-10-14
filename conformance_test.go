@@ -494,7 +494,7 @@ func TestColonDelimiter_EditPreservesDelimiter(t *testing.T) {
 	}
 
 	f.Set("FOO", "baz")
-	if got := f.Render(); got != "FOO:baz\nKEEP=1\n" {
+	if got := f.Render(); got != "FOO: baz\nKEEP=1\n" {
 		t.Errorf("Set rewrote the delimiter: %q", got)
 	}
 	if got, _ := Parse(f.Render()).Get("FOO"); got != "baz" {

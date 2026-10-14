@@ -222,9 +222,10 @@ func (f *File) ExpandedMap() (map[string]string, error) {
 //
 //   - only the LAST occurrence is updated, because it is the effective one
 //   - setting the identical value is a byte-level no-op
-//   - everything left of the value (export prefix, spacing, and the `=` or
-//     `:` delimiter the author chose) and the inline comment after it are
-//     preserved exactly — a colon-delimited pair is never rewritten to `=`
+//   - everything left of the value (export prefix, the spacing on both sides
+//     of the delimiter, and the `=` or `:` delimiter the author chose) and the
+//     inline comment after it are preserved exactly — a colon-delimited pair
+//     is never rewritten to `=`
 //   - a changed value is re-rendered with canonical quoting (see
 //     renderStyle): bare when that reads back the same, double-quoted
 //     otherwise, a double-quoted block when it contains newlines, and
@@ -241,12 +242,30 @@ func (f *File) Set(key, value string) (created bool) {
 			return false // no-op: byte-identical output guaranteed
 		}
 		e.Value = value
-		e.Raw, e.quote = renderPair(e.prefix, value, e.inlineComment, f.eol())
+		e.Raw, e.quote = renderPair(e.prefix+valueGap(e, value), value, e.inlineComment, f.eol())
 		return false
 	}
 
 	f.Append(NewPair(key, value))
 	return true
+}
+
+// valueGap returns the whitespace the author put between the delimiter and the
+// value — the " " in `KEY = value` — so an edit keeps it like the spacing before
+// the delimiter. The prefix stops at the delimiter, so the gap is read back from
+// the entry's first physical line.
+//
+// An edit to an empty value with no inline comment drops the gap rather than
+// leaving trailing whitespace on the line.
+func valueGap(e *Entry, value string) string {
+	if len(e.Raw) == 0 || (value == "" && e.inlineComment == "") {
+		return ""
+	}
+	rest, ok := strings.CutPrefix(strings.TrimSuffix(e.Raw[0], "\r"), e.prefix)
+	if !ok {
+		return ""
+	}
+	return rest[:len(rest)-len(strings.TrimLeft(rest, " \t"))]
 }
 
 // SetAfter sets key, placing a NEW entry immediately after the anchor key's

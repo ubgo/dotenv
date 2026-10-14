@@ -212,3 +212,44 @@ func TestSet_NewKeyStoresDollarLiterally(t *testing.T) {
 		t.Errorf("GetExpanded = %q, want a$b", got)
 	}
 }
+
+// TestSet_KeepsSpacingAfterDelimiter pins that the whitespace between the
+// delimiter and the value is the author's, like the spacing before it.
+func TestSet_KeepsSpacingAfterDelimiter(t *testing.T) {
+	tests := []struct {
+		name, src, value, want string
+	}{
+		{"spaced equals", "A = 1\n", "2", "A = 2\n"},
+		{"colon and space", "A: 1\n", "2", "A: 2\n"},
+		{"tab after the delimiter", "A=\t1\n", "2", "A=\t2\n"},
+		{"wide spacing with export and comment", "export A =  1 # c\n", "2", "export A =  2 # c\n"},
+		{"quoted value", "A = \"one two\"\n", "x", "A = x\n"},
+		{"multi-line source", "A = \"x\ny\"\nB=1\n", "z", "A = z\nB=1\n"},
+		{"to a multi-line value", "A = 1\n", "a\nb", "A = \"a\nb\"\n"},
+		{"to a literal value", "A = 1\n", "a$b", "A = 'a$b'\n"},
+		{"no spacing stays none", "A=1\n", "2", "A=2\n"},
+		{"empty source value", "A = \n", "2", "A = 2\n"},
+		{"crlf", "A = 1\r\n", "2", "A = 2\r\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := Parse(tt.src)
+			f.Set("A", tt.value)
+			if got := f.Render(); got != tt.want {
+				t.Errorf("Render = %q, want %q", got, tt.want)
+			}
+			if got, _ := Parse(f.Render()).Get("A"); got != tt.value {
+				t.Errorf("re-read Get = %q, want %q", got, tt.value)
+			}
+		})
+	}
+
+	t.Run("restored entry", func(t *testing.T) {
+		f := Parse("# A = 1\n")
+		f.Restore("A")
+		f.Set("A", "2")
+		if got := f.Render(); got != "A = 2\n" {
+			t.Errorf("Render = %q, want %q", got, "A = 2\n")
+		}
+	})
+}
