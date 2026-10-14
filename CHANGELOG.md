@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-Release prerequisite: `cli/go.mod` still requires `github.com/ubgo/dotenv v0.1.1`. The library fixes below reach the CLI only through `go.work` in this repository, so a CLI release that ships them needs the library tagged first and `cli/go.mod` bumped to that tag.
+Release prerequisite: `cli/go.mod` still requires `github.com/ubgo/dotenv v0.1.1`. The library fixes in [0.1.2] reach the CLI only through `go.work` in this repository, so the CLI release that ships them bumps `cli/go.mod` to `v0.1.2`.
 
 ### Added
 
@@ -16,10 +16,29 @@ Release prerequisite: `cli/go.mod` still requires `github.com/ubgo/dotenv v0.1.1
 
 ### Changed
 
-- **`Set` and `NewPair` store a value containing `$` literally.** It is written in single quotes (backticks if the value has a `'`, double quotes only if it has both, where `$` stays a reference), so `GetExpanded` returns what was set, before and after a reload. `Set` can therefore no longer write a reference: `Set("URL", "${HOST}/v1")` writes `URL='${HOST}/v1'`, and so does `dotenvctl set`. To write a reference, `Append` a parsed line (`ExampleFile_Append_verbatim`).
 - **Embedders that set only `Printer.Out` now get human-mode failures on stderr.** Set `Printer.Err` to capture them; under `--json` the failure envelope stays on `Out`.
-- **A commented `KEY: two words` reads back as a plain comment after a reload.** In a comment the `:` form counts as a disabled setting only when its value is one token, so a value with a space that was `Unset`, saved and read again cannot be found by `Restore`. Within one `File`, `Unset` then `Restore` still works. Quote such values, or use `=`.
 
+### Fixed
+
+- **`dotenvctl` prints human-mode failures on stderr.** `VALUE=$(dotenvctl get NOPE)` no longer captures the error text as the value.
+- **`--json` prints exactly one envelope per run.** `plugins --json` no longer prints the human table first, a push or prune that fails part-way prints one `ok:false` envelope whose `data` holds the partial results (was two envelopes), and usage errors print a `usage` envelope with exit code 2 (was plain text). `run` and exec plugins still pass through output that is not dotenvctl's.
+- **An empty `list` prints the plugin's own hint.** The Vercel plugin no longer prints GitHub's `--environment` / `--org` hint, and an empty store is `"names":[]` under `--json` (was `null`).
+- **`--version` reports dotenvctl's own module version when the CLI is embedded** with `dotenvcmd.Execute`, read from the binary's dependency list (replace-aware), instead of the host program's version. `DOTENVCTL_VERSION` for exec plugins follows.
+- **A push or prune looks up the account and target once.** `gh api user` (and Vercel's `whoami`) ran twice per run; the metadata lookup now runs only under `--json` and reuses the banner's answer.
+- **`matrix --contract` prints its contract lines without blank lines between them.**
+
+### Deprecated
+### Removed
+### Security
+
+## [0.1.2] - 2026-10-14
+
+Library release, tagged `v0.1.2`. The CLI picks these changes up in its next release, which requires this tag. The documentation below covers both modules.
+
+### Changed
+
+- **`Set` and `NewPair` store a value containing `$` literally.** It is written in single quotes (backticks if the value has a `'`, double quotes only if it has both, where `$` stays a reference), so `GetExpanded` returns what was set, before and after a reload. `Set` can therefore no longer write a reference: `Set("URL", "${HOST}/v1")` writes `URL='${HOST}/v1'`, and so does `dotenvctl set`. To write a reference, `Append` a parsed line (`ExampleFile_Append_verbatim`).
+- **A commented `KEY: two words` reads back as a plain comment after a reload.** In a comment the `:` form counts as a disabled setting only when its value is one token, so a value with a space that was `Unset`, saved and read again cannot be found by `Restore`. Within one `File`, `Unset` then `Restore` still works. Quote such values, or use `=`.
 - **The library's minimum Go is now 1.22** (was 1.26.4, the toolchain that happened to be installed). The real floor is range-over-int in `parse.go`; nothing in the standard library newer than 1.20 is used. Three benchmarks that used `b.Loop` (Go 1.24) are back to the classic loop. Build and vet were checked with a real go1.22.0 toolchain, and the full suite passes on 1.23.
 
 ### Documentation
@@ -29,8 +48,6 @@ Release prerequisite: `cli/go.mod` still requires `github.com/ubgo/dotenv v0.1.1
 - **Docs gate.** `task docs:check` checks links and anchors, that every Go code block matches a tested `Example` (`task docs:snippets:fix` rewrites drifted blocks), hard-wrapped lines, local paths and banned words, and runs every `Example` in both modules.
 - **Corrected claims.** New lines use CRLF as soon as a file contains any CRLF (not the dominant style); a failing `CommandRunner` expands to `""` rather than failing; go-envconfig v1 takes `envconfig.ProcessWith(ctx, &envconfig.Config{Target: &cfg, Lookuper: l})` and stops at its first error. The README's `task dotenv:bench` / `task dotenv:fuzz*` commands are now `task bench` / `task fuzz` / `task fuzz:all` / `task fuzz:list`, and `task fuzz:all` runs all eight properties.
 
-### Deprecated
-### Removed
 ### Fixed
 
 - **A key that refers to itself now sees the line above it, as in Docker Compose.** `A=1` then `A=${A}2` gives `12` (was `22`), and `ZONE=${ZONE:-d}` with no earlier `ZONE` asks the Lookuper and otherwise gives `d` (was `""`, with the Lookuper never asked). The decision follows Compose: compose-go v2.16.1 `dotenv/parser.go` expands each line against the lines read so far; its fixture `dotenv/fixtures/substitutions-default.env` starts with `OPTION_A=${OPTION_A:-1}`, which `TestSubstitutionsWithUnsetVarEnvFileDefaultValuePrecedence` expects to be `1` and `TestSubstitutionsWithEnvFileDefaultValuePrecedence` expects to take the lookup's value.
@@ -41,17 +58,9 @@ Release prerequisite: `cli/go.mod` still requires `github.com/ubgo/dotenv v0.1.1
 - **`Set` keeps the spacing after the delimiter.** `A = 1` set to `2` is now `A = 2` (was `A =2`).
 - **No plugin can change the saved bytes.** A `SaveGuard` now receives a copy of the file and an `EntryObserver` a copy of the entry, so a guard that calls `Set` or an observer that edits its entry no longer changes what is parsed or saved. `TestPlugins_NeverAffectBytes` covers both hooks.
 - **A commented colon line is read as prose unless its value is one token.** `# Note: rotate monthly`, `# TODO: fix this later` and `# http://example.com` are comments again, no longer disabled settings that `Restore` could turn into live keys; `# KEY: value`, `# KEY: "a b"` and `# DB_URL: postgres://db/app` are still disabled settings.
-- **`dotenvctl` prints human-mode failures on stderr.** `VALUE=$(dotenvctl get NOPE)` no longer captures the error text as the value.
-- **`--json` prints exactly one envelope per run.** `plugins --json` no longer prints the human table first, a push or prune that fails part-way prints one `ok:false` envelope whose `data` holds the partial results (was two envelopes), and usage errors print a `usage` envelope with exit code 2 (was plain text). `run` and exec plugins still pass through output that is not dotenvctl's.
-- **An empty `list` prints the plugin's own hint.** The Vercel plugin no longer prints GitHub's `--environment` / `--org` hint, and an empty store is `"names":[]` under `--json` (was `null`).
-- **`--version` reports dotenvctl's own module version when the CLI is embedded** with `dotenvcmd.Execute`, read from the binary's dependency list (replace-aware), instead of the host program's version. `DOTENVCTL_VERSION` for exec plugins follows.
-- **A push or prune looks up the account and target once.** `gh api user` (and Vercel's `whoami`) ran twice per run; the metadata lookup now runs only under `--json` and reuses the banner's answer.
-- **`matrix --contract` prints its contract lines without blank lines between them.**
 - **`TestParse_ScalesLinearly` no longer fails under `-race`.** It used a fixed 5 second budget, which the race detector's slowdown exceeds with the code unchanged. It now compares parse time at two input sizes (4x the input should cost about 4x, quadratic would cost about 16x), a ratio the slowdown cancels out of.
 
-### Security
-
-## [0.1.2] - 2026-10-14
+## [cli 0.1.2] - 2026-10-14
 
 CLI-only release, tagged `cli/v0.1.2`. There is no new library release; the CLI still pins `github.com/ubgo/dotenv v0.1.1`.
 
@@ -89,6 +98,7 @@ Release process:
   3. Tag the release (e.g. v1.2.0) and update the link refs at the bottom.
 -->
 
-[Unreleased]: https://github.com/ubgo/dotenv/compare/cli/v0.1.2...main
-[0.1.2]: https://github.com/ubgo/dotenv/releases/tag/cli/v0.1.2
+[Unreleased]: https://github.com/ubgo/dotenv/compare/v0.1.2...main
+[0.1.2]: https://github.com/ubgo/dotenv/releases/tag/v0.1.2
+[cli 0.1.2]: https://github.com/ubgo/dotenv/releases/tag/cli/v0.1.2
 [0.1.1]: https://github.com/ubgo/dotenv/releases/tag/v0.1.1
