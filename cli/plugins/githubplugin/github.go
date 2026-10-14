@@ -199,15 +199,20 @@ func (s *ghStore) validateScope() error {
 	return nil
 }
 
-// Set implements providerkit.SecretWriter: gh secret set NAME --body - with
-// the value on STDIN — never argv (spec §1: argv is visible in ps).
+// Set implements providerkit.SecretWriter: gh secret set NAME with the value
+// on STDIN — never argv (spec §1: argv is visible in ps).
+//
+// There is deliberately NO --body flag. gh has no "-means-stdin" convention: a
+// non-empty --body is the literal value, so `--body -` stored every secret as
+// the single character "-" (issue #1). With --body absent and stdin not a
+// terminal, gh reads the value from stdin and trims only trailing \r\n.
 func (s *ghStore) Set(ctx context.Context, name, value string) error {
 	if !secretNameRe.MatchString(name) {
 		// Defense in depth: the gate already batch-validated; this guards
 		// direct programmatic use of the store.
 		return fmt.Errorf("invalid secret name %q", name)
 	}
-	args := append([]string{"secret", "set", name, "--body", "-"}, s.scopeArgs()...)
+	args := append([]string{"secret", "set", name}, s.scopeArgs()...)
 	_, err := s.deps.Runner.Run(ctx, value, ghBinary, args...)
 	return err
 }

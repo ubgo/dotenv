@@ -89,7 +89,7 @@ func TestPush_ArgvAndStdin(t *testing.T) {
 		t.Fatalf("no secret set call: %+v", runner.calls)
 	}
 	// The value must travel by STDIN and must never appear in argv.
-	if set.args != "secret set DEPLOY_PATH --body -" {
+	if set.args != "secret set DEPLOY_PATH" {
 		t.Errorf("argv = %q", set.args)
 	}
 	if set.stdin != "/srv/app" {
@@ -116,7 +116,7 @@ func TestPush_ScopeFlagsPassThrough(t *testing.T) {
 	}
 	found := false
 	for _, c := range runner.calls {
-		if c.args == "secret set K --body - --repo o/r --env production" {
+		if c.args == "secret set K --repo o/r --env production" {
 			found = true
 		}
 	}
@@ -280,7 +280,7 @@ func TestPush_OrgScope(t *testing.T) {
 	}
 	found := false
 	for _, c := range runner.calls {
-		if c.args == "secret set K --body - --org acme" {
+		if c.args == "secret set K --org acme" {
 			found = true
 		}
 	}
@@ -351,7 +351,7 @@ func TestEnvAliasFlag(t *testing.T) {
 	}
 	found := false
 	for _, c := range runner.calls {
-		if c.args == "secret set K --body - --env production" {
+		if c.args == "secret set K --env production" {
 			found = true
 		}
 	}

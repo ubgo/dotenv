@@ -121,7 +121,7 @@ func TestGithubEndToEnd(t *testing.T) {
 	}
 
 	joined := strings.Join(runner.calls, "\n")
-	if !strings.Contains(joined, "secret set PAT --body - <stdin:ghtoken>") {
+	if !strings.Contains(joined, "secret set PAT <stdin:ghtoken>") {
 		t.Errorf("push call wrong:\n%s", joined)
 	}
 	if strings.Contains(joined, "UNRELATED") || strings.Contains(joined, "WHO") {
