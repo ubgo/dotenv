@@ -91,7 +91,8 @@ Rules worth knowing:
 
 - An existing key updates in place and never moves; only a new key is placed by `--after`/`--before`. A missing anchor exits `1` without writing anything.
 - Setting a key to its current value is a full no-op — same bytes, same mtime, file watchers see nothing.
-- What the author wrote around the value survives: `export` prefixes, indentation, spacing before the delimiter, inline comments, and the `=` vs `:` delimiter style. Spacing after the delimiter is not kept (`A = 1` becomes `A =2`), and the value's quoting is chosen afresh for the new value.
+- What the author wrote around the value survives: `export` prefixes, indentation, spacing on both sides of the delimiter (`A = 1` becomes `A = 2`), inline comments, and the `=` vs `:` delimiter style. The value's quoting is chosen afresh for the new value. Before cli v0.1.3 the spacing after the delimiter was lost (`A = 1` became `A =2`).
+- A value is stored literally: `dotenvctl set 'P=a$b'` writes `P='a$b'`, so `get --expand` gives `a$b` back. To store a reference such as `${HOST}`, edit the file by hand. Before cli v0.1.3 a `$` was written bare and read back as a reference.
 - A missing file is created with `0600` permissions (env files hold credentials — restrictive by default).
 
 ## unset — deactivate a key

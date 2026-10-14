@@ -390,7 +390,8 @@ func TestEditOperations(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := strings.Replace(original, "export A = 1 # inline", "export A =9 # inline", 1)
+		// Spacing on both sides of the delimiter survives (library v0.1.3).
+		want := strings.Replace(original, "export A = 1 # inline", "export A = 9 # inline", 1)
 		if string(got) != want {
 			t.Errorf("file drifted:\n got: %q\nwant: %q", got, want)
 		}
