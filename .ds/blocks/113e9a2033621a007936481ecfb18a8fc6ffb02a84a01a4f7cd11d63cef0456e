@@ -1,0 +1,1 @@
+var pairRe = regexp.MustCompile(`^((?:export[ \t]+)?[ \t]*(` + keyClass + `+)[ \t]*[=:])(.*)$`)

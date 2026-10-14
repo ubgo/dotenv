@@ -1,0 +1,1 @@
+var inlineCommentRe = regexp.MustCompile(`[ \t]#`)

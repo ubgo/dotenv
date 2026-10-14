@@ -1,0 +1,23 @@
+{
+  "_table": "memories",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Library files at repo root: dotenv.go (File model, Open/Parse/ParseReader, Save/SaveAs, Clone), parse.go, edit.go (Set/SetAfter/SetBefore, Append/InsertAfter/InsertBefore, Unset/Restore), expand.go (interpolation), options.go (WithEscapes, WithCommandSubstitution, WithCommandRunner, WithValueTransform, WithSaveGuard, WithPlugin, WithLookup), plugin.go (hook interfaces), render.go.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:18.466306000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "mem_01a1397da6e274b7ae1a0f00a49c32b3",
+  "kind": "core",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "repo root *.go",
+  "superseded_by_id": null,
+  "trust_score": 0.5,
+  "tx_at": "2026-10-14T08:18:18.466360000Z",
+  "updated_at": "2026-10-14T08:18:18.466307000Z",
+  "valid_at": null,
+  "valid_until": null,
+  "validated_by_actor_id": null
+}

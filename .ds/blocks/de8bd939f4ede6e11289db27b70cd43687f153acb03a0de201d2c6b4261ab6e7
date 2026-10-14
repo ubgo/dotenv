@@ -1,0 +1,56 @@
+const (
+	// KindPair is a KEY=value entry, possibly multi-line and possibly
+	// `export`-prefixed.
+	KindPair Kind = iota
+
+	// KindComment is a full-line comment: the first non-space character is #.
+	KindComment
+
+	// KindBlank is an empty or whitespace-only line.
+	KindBlank
+
+	// KindOther is any line the parser does not recognise. Preserved verbatim
+	// and never touched — an unparseable line is far more likely to be
+	// something the parser has not learned yet than something safe to discard.
+	//
+	// This is a DELIBERATE divergence from compose-go, which errors on an
+	// invalid character in a key (`unexpected character "!" in variable name`)
+	// and refuses the whole file. An editor cannot afford that: erroring would
+	// make an otherwise-valid file unopenable — and so uneditable — because of
+	// one stray line, and "parse, edit, save" must never be blocked by content
+	// it was never going to touch. Preservation over rejection. The cost is
+	// that a malformed pair is silently invisible to Get/Keys/Map rather than
+	// loudly reported; a caller that wants strictness can walk Entries and
+	// treat KindOther as its own error.
+	KindOther
+
+	// KindDisabledPair is a commented-out setting: "# DB_USER=admin". Key and
+	// Value are populated, but the entry is INACTIVE — Get, Has, Count, and Map
+	// all ignore it, exactly as a consumer of the file would.
+	//
+	// It is a distinct kind rather than a plain comment because the two mean
+	// different things to anything inspecting a file: one is a setting somebody
+	// turned off, the other is prose. Restore turns it back on.
+	//
+	// The parser assigns this to any comment whose body parses as a pair, so a
+	// line the author commented out by hand is indistinguishable from one Unset
+	// produced. The cost is a false positive on prose shaped like an
+	// assignment — "# TODO=fix this" reads as a disabled setting, which is also
+	// what a human skimming the file would assume.
+	KindDisabledPair
+
+	// KindInherited is a name-only line — `HOME`, or `export HOME` — with no
+	// delimiter and no value. In the Compose env-file grammar it declares that
+	// the variable's value comes from the process environment, and it is how a
+	// file whitelists host variables (an AWS key, a proxy setting) without
+	// hardcoding their values.
+	//
+	// This package recognises the declaration but NEVER resolves it: doing so
+	// would read os.Environ, which this package promises not to touch. So the
+	// entry is INACTIVE — Get, Has, Count, Keys, Pairs, and Map all ignore it,
+	// and an unresolved ${reference} to it expands to "" like any other unset
+	// variable. Inherited lists the declared names so a caller that wants
+	// Compose's behaviour can apply os.Getenv (or any other source) itself —
+	// the decision to read the environment stays with the application.
+	KindInherited
+)

@@ -1,0 +1,20 @@
+{
+  "_table": "decisions",
+  "_v": 1,
+  "archived_at": null,
+  "body": "gh parses the -f file as dotenv itself: a dollar sign gets expanded and a value is cut at a space-hash. That would silently change secret values, so the plugin pushes one secret per gh call with the value on stdin. Recorded in the reply on issue #1, which proposed the same reasoning.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:15.947426000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "dec_01a1397d9d0b768b9fdf40d1e6644191",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "github issue ubgo/dotenv#1 (maintainer comment); commit 3000d77",
+  "status": "accepted",
+  "superseded_by_id": null,
+  "title": "github push does not use gh secret set -f (env-file mode)",
+  "trust_score": 0.5,
+  "updated_at": "2026-10-14T08:18:15.947426000Z"
+}

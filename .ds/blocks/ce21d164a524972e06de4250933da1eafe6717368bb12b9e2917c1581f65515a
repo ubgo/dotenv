@@ -1,0 +1,7 @@
+func (v visiting) enter(name string) bool {
+	if v[name] {
+		return false
+	}
+	v[name] = true
+	return true
+}

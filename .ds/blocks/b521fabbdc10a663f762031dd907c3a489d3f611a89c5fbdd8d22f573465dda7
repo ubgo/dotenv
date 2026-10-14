@@ -1,0 +1,12 @@
+func Confirm(deps Deps, info GateInfo) error {
+	if info.DryRun || info.Yes {
+		return nil
+	}
+	if deps.Printer.JSON || !deps.Interactive() {
+		return Fail(deps.Printer, outfmt.CodeUsage, "refusing to write without --%s in non-interactive mode", flagYes)
+	}
+	if !deps.Ask("proceed? [y/N] ") {
+		return Fail(deps.Printer, outfmt.CodeUsage, "aborted")
+	}
+	return nil
+}

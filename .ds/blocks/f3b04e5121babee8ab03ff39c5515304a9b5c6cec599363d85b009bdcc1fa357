@@ -1,0 +1,9 @@
+func hasBuiltin(root *cobra.Command, name string) bool {
+	for _, c := range root.Commands() {
+		if c.Name() == name || c.HasAlias(name) {
+			return true
+		}
+	}
+	// Cobra's implicit verbs are built-ins too.
+	return slices.Contains(cobraImplicitCommands, name)
+}

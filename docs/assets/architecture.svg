@@ -1,0 +1,133 @@
+<svg viewBox="0 0 930 567" width="930" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    text { font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', system-ui, sans-serif; }
+  </style>
+  <defs>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#22c55e"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#a855f7"/>
+    </marker>
+  </defs>
+  <!-- White canvas: keeps the diagram readable on a dark page (house style uses a light card, not dual theming). -->
+  <rect x="0" y="0" width="930" height="567" fill="#ffffff"/>
+  <text x="520" y="34" font-size="16" fill="#1e293b" text-anchor="middle">dotenv architecture: from caller to .env file and secret store</text>
+  <!-- Layer names, one per row, vertically centred on the row. -->
+  <text x="24" y="87" font-size="11" fill="#64748b" text-anchor="start">Callers</text>
+  <text x="24" y="178" font-size="11" fill="#64748b" text-anchor="start">CLI</text>
+  <text x="24" y="278" font-size="11" fill="#64748b" text-anchor="start">Operations</text>
+  <text x="24" y="378" font-size="11" fill="#64748b" text-anchor="start">Library</text>
+  <text x="24" y="469" font-size="11" fill="#64748b" text-anchor="start">Files, services</text>
+  <!-- Connectors. Each starts 5px off its source edge and ends 11px short of its target (refX=2 tip). -->
+  <!-- 1: the caller runs a verb -->
+  <path d="M509,115 L 509,127" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <text x="497" y="128" font-size="10" fill="#1e40af" text-anchor="end">1</text>
+  <!-- result back: {ok,data|error} envelope and exit code -->
+  <path d="M529,133 L 529,121" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <!-- a Go program imports envkit (or dotenv itself) and skips the CLI row -->
+  <path d="M253,115 L 253,227" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <text x="265" y="170" font-size="10" fill="#64748b" text-anchor="start">imports envkit</text>
+  <text x="265" y="184" font-size="10" fill="#64748b" text-anchor="start">or dotenv directly</text>
+  <!-- 2: the verb is a thin translator over one envkit call -->
+  <path d="M509,215 L 509,227" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <text x="497" y="228" font-size="10" fill="#1e40af" text-anchor="end">2</text>
+  <path d="M529,233 L 529,221" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <!-- the CLI mounts each plugin as a namespace -->
+  <path d="M643,174.0 L 655,174.0" fill="none" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+  <!-- envkit Select feeds plugins their values through Deps.Source; plugins never parse the file -->
+  <path d="M643,260 C 696,260 706,236 706,221" fill="none" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+  <!-- 6: push through the backend CLI, routed clear of the hooks box -->
+  <path d="M876,215 L 876,427" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <text x="864" y="278" font-size="10" fill="#1e40af" text-anchor="end">6</text>
+  <!-- 3: envkit opens and parses the file -->
+  <path d="M186.5,315 L 186.5,327" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <text x="174.5" y="328" font-size="10" fill="#1e40af" text-anchor="end">3</text>
+  <!-- values back to envkit (Get, Map, ExpandedMap) -->
+  <path d="M319.5,333 L 319.5,321" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <!-- 4: parse, model, edit or expand, render: left to right inside the library -->
+  <path d="M244,374 L 256,374" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+  <path d="M377,374 L 389,374" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+  <path d="M510,374 L 522,374" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+  <text x="386" y="361" font-size="10" fill="#1e40af" text-anchor="middle">4</text>
+  <!-- library hooks plug into expand and save -->
+  <path d="M661,374 L 649,374" fill="none" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+  <!-- 5: render and save back to the same file -->
+  <path d="M585.5,415 L 585.5,427" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <text x="573.5" y="428" font-size="10" fill="#1e40af" text-anchor="end">5</text>
+  <!-- the file's bytes are read up into the parser: out of the file's left edge, through the empty column A -->
+  <path d="M395,465 C 226.5,465 186.5,455 186.5,421" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <!-- Boxes, painted over the connectors. -->
+  <!-- Go program: x=134, y=56, w=238, h=54, right=372, bottom=110 -->
+  <rect x="134" y="56" width="238" height="54" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="253" y="78" font-size="12" fill="#1e40af" text-anchor="middle">Go program</text>
+  <text x="253" y="96" font-size="10" fill="#1e40af" text-anchor="middle">service, deploy tool, test</text>
+  <!-- Developer or CI: x=400, y=56, w=238, h=54, right=638, bottom=110 -->
+  <rect x="400" y="56" width="238" height="54" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="519" y="78" font-size="12" fill="#1e40af" text-anchor="middle">Developer or CI job</text>
+  <text x="519" y="96" font-size="10" fill="#1e40af" text-anchor="middle">runs dotenvctl in a shell or step</text>
+  <!-- dotenvctl verbs: x=400, y=138, w=238, h=72, right=638, bottom=210 -->
+  <rect x="400" y="138" width="238" height="72" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="519" y="161" font-size="12" fill="#1e40af" text-anchor="middle">dotenvctl (cli/dotenvcmd)</text>
+  <text x="519" y="179" font-size="10" fill="#1e40af" text-anchor="middle">get set unset restore list keys</text>
+  <text x="519" y="194" font-size="10" fill="#1e40af" text-anchor="middle">envs matrix diff run · --json</text>
+  <!-- plugins: x=666, y=138, w=240, h=72, right=906, bottom=210 -->
+  <rect x="666" y="138" width="240" height="72" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="786" y="161" font-size="12" fill="#6b21a8" text-anchor="middle">Plugins (cli/providerkit)</text>
+  <text x="786" y="179" font-size="10" fill="#6b21a8" text-anchor="middle">github, vercel: push · list · prune</text>
+  <text x="786" y="194" font-size="10" fill="#6b21a8" text-anchor="middle">dotenvctl-&lt;name&gt; exec plugins on PATH</text>
+  <!-- envkit: x=134, y=238, w=504, h=72, right=638, bottom=310 -->
+  <rect x="134" y="238" width="504" height="72" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="386" y="261" font-size="12" fill="#b45309" text-anchor="middle">envkit: operations API (cli/envkit)</text>
+  <text x="386" y="279" font-size="10" fill="#b45309" text-anchor="middle">Select · Set · Unset · Restore · Diff · Matrix · Run</text>
+  <text x="386" y="294" font-size="10" fill="#b45309" text-anchor="middle">discover finds the .env family · report writes HTML</text>
+  <!-- Parse: x=134, y=338, w=105, h=72, right=239, bottom=410 -->
+  <rect x="134" y="338" width="105" height="72" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="186.5" y="361" font-size="12" fill="#b45309" text-anchor="middle">Parse</text>
+  <text x="186.5" y="379" font-size="10" fill="#b45309" text-anchor="middle">Open · Parse</text>
+  <text x="186.5" y="394" font-size="10" fill="#b45309" text-anchor="middle">ParseReader</text>
+  <!-- File model: x=267, y=338, w=105, h=72, right=372, bottom=410 -->
+  <rect x="267" y="338" width="105" height="72" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="319.5" y="361" font-size="12" fill="#b45309" text-anchor="middle">File model</text>
+  <text x="319.5" y="379" font-size="10" fill="#b45309" text-anchor="middle">entries in order</text>
+  <text x="319.5" y="394" font-size="10" fill="#b45309" text-anchor="middle">comments kept</text>
+  <!-- Edit · Expand: x=400, y=338, w=105, h=72, right=505, bottom=410 -->
+  <rect x="400" y="338" width="105" height="72" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="452.5" y="361" font-size="12" fill="#b45309" text-anchor="middle">Edit · Expand</text>
+  <text x="452.5" y="379" font-size="10" fill="#b45309" text-anchor="middle">Set · Unset</text>
+  <text x="452.5" y="394" font-size="10" fill="#b45309" text-anchor="middle">ExpandedMap</text>
+  <!-- Render · Save: x=533, y=338, w=105, h=72, right=638, bottom=410 -->
+  <rect x="533" y="338" width="105" height="72" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="585.5" y="361" font-size="12" fill="#b45309" text-anchor="middle">Render · Save</text>
+  <text x="585.5" y="379" font-size="10" fill="#b45309" text-anchor="middle">byte-identical</text>
+  <text x="585.5" y="394" font-size="10" fill="#b45309" text-anchor="middle">atomic rename</text>
+  <!-- library hooks: x=666, y=338, w=105, h=72, right=771, bottom=410 -->
+  <rect x="666" y="338" width="105" height="72" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="718.5" y="361" font-size="12" fill="#6b21a8" text-anchor="middle">Hooks</text>
+  <text x="718.5" y="379" font-size="10" fill="#6b21a8" text-anchor="middle">WithPlugin</text>
+  <text x="718.5" y="394" font-size="10" fill="#6b21a8" text-anchor="middle">Lookuper · Guard</text>
+  <!-- .env files: x=400, y=438, w=238, h=54, right=638, bottom=492 -->
+  <rect x="400" y="438" width="238" height="54" rx="6" fill="#d1fae5" stroke="#22c55e"/>
+  <text x="519" y="460" font-size="12" fill="#166534" text-anchor="middle">.env files on disk</text>
+  <text x="519" y="478" font-size="10" fill="#166534" text-anchor="middle">.env · .env.local · .env.prod</text>
+  <!-- backend CLIs: x=666, y=438, w=240, h=54, right=906, bottom=492 -->
+  <rect x="666" y="438" width="240" height="54" rx="6" fill="#d1fae5" stroke="#22c55e"/>
+  <text x="786" y="460" font-size="12" fill="#166534" text-anchor="middle">gh · vercel CLIs</text>
+  <text x="786" y="478" font-size="10" fill="#166534" text-anchor="middle">GitHub secrets · Vercel env</text>
+  <!-- Colour key and step legend, below the body. -->
+  <path d="M174,518 L 192,518" fill="none" stroke="#3b82f6" stroke-width="3"/>
+  <text x="204" y="522" font-size="10" fill="#64748b" text-anchor="start">request flow, numbered</text>
+  <path d="M364,518 L 382,518" fill="none" stroke="#22c55e" stroke-width="3"/>
+  <text x="394" y="522" font-size="10" fill="#64748b" text-anchor="start">results and reads back up</text>
+  <path d="M574,518 L 592,518" fill="none" stroke="#f59e0b" stroke-width="3"/>
+  <text x="604" y="522" font-size="10" fill="#64748b" text-anchor="start">operations and library</text>
+  <path d="M754,518 L 772,518" fill="none" stroke="#a855f7" stroke-width="3"/>
+  <text x="784" y="522" font-size="10" fill="#64748b" text-anchor="start">plugins and hooks</text>
+  <text x="520" y="542" font-size="10" fill="#64748b" text-anchor="middle">1 run a verb · 2 envkit call · 3 open and parse · 4 edit or expand · 5 render and save · 6 push via gh or vercel</text>
+</svg>

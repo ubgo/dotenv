@@ -1,0 +1,20 @@
+{
+  "_table": "decisions",
+  "_v": 1,
+  "archived_at": null,
+  "body": "The library parses a .env into an ordered list of entries (pairs, comments, blanks, disabled pairs) and renders them back. Two invariants are pinned by tests and fuzzing: parse then render of an untouched file is byte-identical, and setting a key to its current value is a byte-level no-op. Why: a map-based parser (the usual dotenv approach) loses comments, order and formatting, so any tool that edits a .env rewrites the human's file. The package exists so edits never mislead the next person who opens the file. Consequence: Parse must hold the whole file, which is also why streaming was rejected.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:14.773125000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "dec_01a1397d987571f49e1e4296e67c57e0",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "commit bd4cafb; README.md; docsi/proposals/dotenv-streaming.md",
+  "status": "accepted",
+  "superseded_by_id": null,
+  "title": "Core design: a comment-preserving, line-wise document model, not a key/value map",
+  "trust_score": 0.5,
+  "updated_at": "2026-10-14T08:18:14.773125000Z"
+}

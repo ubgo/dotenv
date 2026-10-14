@@ -1,0 +1,14 @@
+func (s *vercelStore) resolveProject() string {
+	raw, err := os.ReadFile(projectLinkFile)
+	if err != nil {
+		return "unlinked directory (vercel CLI will resolve or prompt)"
+	}
+	var link struct {
+		ProjectID string `json:"projectId"`
+		OrgID     string `json:"orgId"`
+	}
+	if err := json.Unmarshal(raw, &link); err != nil || link.ProjectID == "" {
+		return "unlinked directory (vercel CLI will resolve or prompt)"
+	}
+	return link.ProjectID + " (from " + projectLinkFile + ")"
+}

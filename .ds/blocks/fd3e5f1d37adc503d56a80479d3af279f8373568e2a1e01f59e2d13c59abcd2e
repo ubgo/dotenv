@@ -1,0 +1,8 @@
+const (
+	CapLookup           Capability = "Lookuper"
+	CapValueTransformer Capability = "ValueTransformer"
+	CapCommandRunner    Capability = "CommandRunner"
+	CapSaveGuard        Capability = "SaveGuard"
+	CapEntryObserver    Capability = "EntryObserver"
+	CapExpandObserver   Capability = "ExpandObserver"
+)

@@ -1,0 +1,12 @@
+const (
+	// EscapeExtended interprets \n, \r, \t, \" and \\ — what most .env
+	// tooling outside Docker does, and what most application developers
+	// expect. This is the default.
+	EscapeExtended EscapeMode = iota
+
+	// EscapeCompose interprets only \" and \\. Every other backslash sequence
+	// is kept literally, which is how Docker Compose reads a .env. Use it for
+	// files compose consumes, and for values holding Windows paths or regexes
+	// where a backslash means itself.
+	EscapeCompose
+)

@@ -1,0 +1,23 @@
+{
+  "_table": "memories",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Built-in plugins: github (push/list/prune Actions secrets via gh, plus env-create, an idempotent PUT via gh api; scope flags --repo, --environment with --env alias, --org) and vercel (push/list/prune via the vercel CLI, --target multi-value, --sensitive, VERCEL_TOKEN banner labelling). Both put values on stdin, print the target and acting account, and prompt unless --yes.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:19.550047000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "mem_01a1397dab1e70bfa96a65aa52e2c8ee",
+  "kind": "core",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "cli/plugins; commit 25f1d91",
+  "superseded_by_id": null,
+  "trust_score": 0.5,
+  "tx_at": "2026-10-14T08:18:19.550090000Z",
+  "updated_at": "2026-10-14T08:18:19.550047000Z",
+  "valid_at": null,
+  "valid_until": null,
+  "validated_by_actor_id": null
+}

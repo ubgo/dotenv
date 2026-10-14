@@ -1,0 +1,20 @@
+{
+  "_table": "decisions",
+  "_v": 1,
+  "archived_at": null,
+  "body": "gh supplies auth (GH_TOKEN, GITHUB_TOKEN, stored login), libsodium sealed-box encryption and API compatibility; the plugin supplies selection, the confirm gate and the safety rules. Every gh call goes through an injected Runner so tests assert exact argv and stdin with no network. Values go on stdin, never argv, because argv is visible in ps. There is deliberately no --token flag (argv and shell history). Direct-API mode is deferred.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:15.790605000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "dec_01a1397d9c6e7947941b9dce1e308956",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "docsi/cli/GITHUB_PLUGIN_SPEC.md; cli/plugins/githubplugin/github.go",
+  "status": "accepted",
+  "superseded_by_id": null,
+  "title": "The github plugin drives the gh CLI instead of calling the GitHub API",
+  "trust_score": 0.5,
+  "updated_at": "2026-10-14T08:18:15.790605000Z"
+}

@@ -1,0 +1,20 @@
+{
+  "_table": "decisions",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Library module github.com/ubgo/dotenv at the repo root; CLI module github.com/ubgo/dotenv/cli, installed with go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@<version>. Library tags are vX.Y.Z, CLI tags are cli/vX.Y.Z (Go's nested-module tag convention). A go.work at the root lets cli build against the sibling library without a replace directive; the cli's go.mod pins a published library version so go install works.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:16.524714000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "dec_01a1397d9f4c7aecb14d6a01e5135cb9",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "go.mod; cli/go.mod; commits 2e47614 1c4bf15",
+  "status": "accepted",
+  "superseded_by_id": null,
+  "title": "Module paths: github.com/ubgo/dotenv (library) and github.com/ubgo/dotenv/cli (CLI)",
+  "trust_score": 0.5,
+  "updated_at": "2026-10-14T08:18:16.524714000Z"
+}

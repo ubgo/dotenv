@@ -1,0 +1,23 @@
+{
+  "_table": "tasks",
+  "_v": 1,
+  "assigned_to_actor_id": null,
+  "body": "SECRETS_PORT_SPEC.md section 7; after bundle and prune keep-set.",
+  "commitment": "proposed",
+  "completed_at": null,
+  "created_at": "2026-10-14T08:23:37.294808000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "deferred_until": null,
+  "due_at": null,
+  "id": "tsk_01a13982844e7c5c84e69cb2fc6ddfa4",
+  "mission_id": null,
+  "plan_id": null,
+  "priority": "low",
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "started_at": null,
+  "status": "todo",
+  "tasklist_id": "tlt_01a139822b977cc5b0cce771f5d5a40d",
+  "title": "Secrets port: migrate sync_go off secrets_build.go (Taskfile block, stable-name key rotation)",
+  "updated_at": "2026-10-14T08:23:37.294808000Z"
+}

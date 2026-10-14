@@ -1,0 +1,20 @@
+{
+  "_table": "decisions",
+  "_v": 1,
+  "archived_at": null,
+  "body": "cli/envkit takes typed options and returns typed results: no printing, no os.Exit, no cobra, no os.Environ. The cobra layer is a thin translator (flags in, envkit call, formatted output). Why: before this a Go program could only shell out to the binary. It also fixed a real API bug: providerkit.Deps.Printer was typed with an internal package, so an external program could not construct Deps and the embeddable-plugins story did not work. internal/{discover,report,textdiff,outfmt} became exported packages.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:15.591993000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "dec_01a1397d9ba77f328981e8976b85a950",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "commit 6801811",
+  "status": "accepted",
+  "superseded_by_id": null,
+  "title": "Every CLI operation is also an importable Go API (envkit)",
+  "trust_score": 0.5,
+  "updated_at": "2026-10-14T08:18:15.591993000Z"
+}

@@ -1,0 +1,23 @@
+{
+  "_table": "tasks",
+  "_v": 1,
+  "assigned_to_actor_id": null,
+  "body": "Owner approved (NEXT-BRIEF). Agent lint-and-docs-commit.",
+  "commitment": "accepted",
+  "completed_at": null,
+  "created_at": "2026-10-14T08:23:36.156788000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "deferred_until": null,
+  "due_at": null,
+  "id": "tsk_01a139827fdc7c0d9f0b94680f09d48a",
+  "mission_id": "msn_01a139822a4d7128b674f2f291092bec",
+  "plan_id": null,
+  "priority": "medium",
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "started_at": null,
+  "status": "in_progress",
+  "tasklist_id": "tlt_01a139822ae272658b34eda4f307b756",
+  "title": "Commit (owner approval)",
+  "updated_at": "2026-10-14T09:30:10.594765204Z"
+}

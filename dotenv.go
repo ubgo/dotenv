@@ -94,6 +94,8 @@ import (
 	"strings"
 )
 
+// ds:def id=defaultfilemode-jwzcsmwz owner=@maintainers stability=stable
+
 // defaultFileMode is used when creating a file that did not exist.
 //
 // 0600 rather than 0644: these files hold credentials. Restrictive by default
@@ -101,11 +103,15 @@ import (
 // preserves whatever mode an existing file already has.
 const defaultFileMode fs.FileMode = 0o600
 
+// ds:def id=tempsuffix-vba443ms owner=@maintainers stability=stable
+
 // tempSuffix marks the sibling file Save writes before renaming into place.
 const tempSuffix = ".dotenv-tmp"
 
 // Kind classifies a parsed entry. Closed set — the parser produces nothing else.
 type Kind int
+
+// ds:def id=kinds-77m444t8 owner=@maintainers stability=stable
 
 const (
 	// KindPair is a KEY=value entry, possibly multi-line and possibly
@@ -441,6 +447,8 @@ func (f *File) Mode() fs.FileMode { return f.mode }
 // blanks — the view a linear read of the file would give.
 func (f *File) Entries() []*Entry { return f.entries }
 
+// ds:def id=render-c8njbs4p owner=@maintainers stability=stable
+
 // Render produces the file content. For untouched entries this is byte-identical
 // to the source, which is the guarantee the whole package exists to provide.
 func (f *File) Render() string {
@@ -463,6 +471,8 @@ func (f *File) Render() string {
 	return out
 }
 
+// ds:def id=eol-eefm88t3 owner=@maintainers stability=stable
+
 // eol returns the terminator this package appends to lines it writes: the
 // file's dominant style, so an edit does not introduce a stray LF into a CRLF
 // file.
@@ -480,6 +490,8 @@ var chmod = os.Chmod
 // rename is a test seam, for the same reason as chmod.
 var rename = os.Rename
 
+// ds:def id=save-fcetxc66 owner=@maintainers stability=stable
+
 // Save writes the rendered file atomically.
 //
 // A sibling temp file is written at 0600 — never a wider window, even briefly —
@@ -496,6 +508,8 @@ func (f *File) Save() error {
 	}
 	return f.writeTo(f.Path, f.mode)
 }
+
+// ds:def id=saveas-tpakytbt owner=@maintainers stability=stable
 
 // SaveAs writes the file to a different path, leaving f.Path unchanged.
 //
@@ -523,6 +537,8 @@ func (f *File) SaveAs(path string) error {
 	}
 	return f.writeTo(path, mode)
 }
+
+// ds:def id=writeto-eemankjv owner=@maintainers stability=stable
 
 // writeTo renders and writes atomically.
 //

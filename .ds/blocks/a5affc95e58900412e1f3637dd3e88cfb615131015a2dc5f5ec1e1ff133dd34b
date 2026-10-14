@@ -1,0 +1,6 @@
+func (f *File) Save() error {
+	if f.Path == "" {
+		return fmt.Errorf("dotenv: no path set; use Open, or set Path before Save")
+	}
+	return f.writeTo(f.Path, f.mode)
+}

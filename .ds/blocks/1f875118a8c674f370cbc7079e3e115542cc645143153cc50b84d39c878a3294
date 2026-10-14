@@ -1,0 +1,1 @@
+var tokenEnvVars = []string{"GH_TOKEN", "GITHUB_TOKEN"}

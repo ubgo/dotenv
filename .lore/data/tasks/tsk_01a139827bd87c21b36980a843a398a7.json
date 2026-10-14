@@ -1,0 +1,23 @@
+{
+  "_table": "tasks",
+  "_v": 1,
+  "assigned_to_actor_id": null,
+  "body": "Batch 2 running as 6 writer agents (L1 reading/entries, L2 editing/saving, L3 syntax/expansion, L4 plugins/typed-config, C1 CLI pages + dotenvcmd examples, C2 go-api + cli package examples) plus a docs-tooling agent (scripts/docs snippet sync, wrapcheck, task docs:check). Conventions in the coordinator's scratchpad.",
+  "commitment": "accepted",
+  "completed_at": "2026-10-14T09:01:32.335135882Z",
+  "created_at": "2026-10-14T08:23:35.128790000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "deferred_until": null,
+  "due_at": null,
+  "id": "tsk_01a139827bd87c21b36980a843a398a7",
+  "mission_id": "msn_01a139822a4d7128b674f2f291092bec",
+  "plan_id": null,
+  "priority": "high",
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "started_at": "2026-10-14T08:48:53.811028349Z",
+  "status": "done",
+  "tasklist_id": "tlt_01a139822ae272658b34eda4f307b756",
+  "title": "Batch 2: fill the gaps",
+  "updated_at": "2026-10-14T09:01:32.335137252Z"
+}

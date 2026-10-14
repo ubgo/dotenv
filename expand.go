@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+// ds:def id=maxexpanddepth-hr5dfhv2 owner=@maintainers stability=stable
+
 // maxExpandDepth bounds how deep a chain of references may nest.
 //
 // Real chains are one hop deep — a per-service variable pointing at a shared
@@ -20,6 +22,8 @@ const maxExpandDepth = 32
 // visiting tracks the variables currently being expanded, so a reference that
 // re-enters one already on the stack is cut immediately instead of unfolding.
 type visiting map[string]bool
+
+// ds:def id=visitingenter-r4jp8kdd owner=@maintainers stability=stable
 
 // enter marks name as in-progress, reporting false when it was already there.
 func (v visiting) enter(name string) bool {
@@ -62,6 +66,8 @@ func (e *RequiredError) Error() string {
 
 // operator is the modifier following a variable name inside ${...}.
 type operator int
+
+// ds:def id=operators-2jt6akwa owner=@maintainers stability=stable
 
 const (
 	opNone         operator = iota // ${VAR}
@@ -184,6 +190,8 @@ func (f *File) expand(key, s string, depth int, seen visiting) (string, error) {
 	}
 	return b.String(), nil
 }
+
+// ds:def id=expandcommand-a4tbu6wa owner=@maintainers stability=stable
 
 // expandCommand handles a $(command) substitution starting at s[0].
 //

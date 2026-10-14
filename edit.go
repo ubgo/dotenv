@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+// ds:def id=erranchornotfound-7696gb9k owner=@maintainers stability=stable
+
 // ErrAnchorNotFound is returned by SetAfter and SetBefore when the anchor key
 // has no active entry.
 //
@@ -194,6 +196,8 @@ func (f *File) ExpandedMap() (map[string]string, error) {
 	return out, nil
 }
 
+// ds:def id=set-jusdwzq7 owner=@maintainers stability=stable
+
 // Set updates key to value, appending `KEY=value` when the key is absent.
 //
 // Returns created=true when appended. The editing rules exist to keep diffs
@@ -256,6 +260,8 @@ func (f *File) setPositional(anchor, key, value string, after bool) (bool, error
 	}
 	return true, nil
 }
+
+// ds:def id=commentmarker-6gh5ejhx owner=@maintainers stability=stable
 
 // commentMarker is what Unset prepends. Recorded on the entry so Restore
 // removes exactly this and not, say, a "#" the author had already written.
@@ -392,6 +398,8 @@ func (f *File) Inherited() []string {
 	return out
 }
 
+// ds:def id=restore-jyvxum4p owner=@maintainers stability=stable
+
 // Restore re-activates the last disabled entry for key, reporting whether one
 // was found. It is the inverse of Unset with del=false.
 //
@@ -418,6 +426,8 @@ func (f *File) Restore(key string) bool {
 	}
 	return false
 }
+
+// ds:def id=unset-ahj88kj2 owner=@maintainers stability=stable
 
 // Unset deactivates key, returning whether it was found. Like Set, it targets
 // the last occurrence.

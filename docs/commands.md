@@ -1,6 +1,8 @@
 # Command reference
 
-Every verb, with real output. Global flags on every command: `-f/--file PATH` (default `./.env`) and `--json` (machine envelope). Exit codes: `0` ok · `1` operation failed · `2` usage — exceptions noted per command. Mutating verbs all take `--dry-run`.
+Every verb, with real output. Global flags on every command: `-f/--file PATH` (default `./.env`) and `--json` ([machine envelope](ds:block?id=envelope-44255rwu)). [Exit codes](ds:block?id=exitcodes-msf66qpb): `0` ok · `1` operation failed · `2` usage — exceptions noted per command. Mutating verbs all take `--dry-run`.
+
+On this page: [Global flags and `--version`](#global-flags-and---version) · the verbs below · [Selecting keys](#selecting-keys--the-shared-grammar) · [Drive the CLI from Go](#drive-the-cli-from-go) · [Pitfalls](#pitfalls) · [Related](#related)
 
 | Verb | Job |
 |---|---|
@@ -18,6 +20,23 @@ Every verb, with real output. Global flags on every command: `-f/--file PATH` (d
 | [`vercel`](#vercel--vercel-environment-variables) | push/list/prune Vercel env vars |
 | [`plugins`](#plugins--discover-exec-plugins) | list third-party exec plugins on PATH |
 | [`completion`](#completion--shell-completions) | shell completions (bash, zsh, fish, powershell) |
+
+## Global flags and `--version`
+
+Three flags work on every built-in verb, before or after the verb name (`dotenvctl -f .env.prod get X` and `dotenvctl get X -f .env.prod` are the same). For an exec plugin, put `-f` and `--json` before the plugin name: everything after it is passed to the plugin untouched.
+
+| Flag | Meaning |
+|---|---|
+| `-f`, `--file PATH` | the `.env` file to read or edit; default `.env` in the current directory |
+| `--json` | print exactly one `{"ok":…}` envelope on stdout instead of human output |
+| `-v`, `--version` | print the version and exit |
+
+```console
+$ dotenvctl --version
+dotenvctl version (devel)
+```
+
+The version is read from the build itself, so there is no constant to forget at release time. A `go install …@<tag>` binary prints that module version; a binary built from a checkout prints a pseudo-version such as `v0.1.3-0.20261014080958-31847d420e08+dirty`; `go run` prints `(devel)`. `--version` ignores `--json` and always prints the plain line, so scripts that gate on a version should parse that line.
 
 ## get — print one value
 
@@ -72,7 +91,7 @@ Rules worth knowing:
 
 - An existing key updates in place and never moves; only a new key is placed by `--after`/`--before`. A missing anchor exits `1` without writing anything.
 - Setting a key to its current value is a full no-op — same bytes, same mtime, file watchers see nothing.
-- Everything the author wrote around the value survives: `export` prefixes, spacing, inline comments, and the `=` vs `:` delimiter style.
+- What the author wrote around the value survives: `export` prefixes, indentation, spacing before the delimiter, inline comments, and the `=` vs `:` delimiter style. Spacing after the delimiter is not kept (`A = 1` becomes `A =2`), and the value's quoting is chosen afresh for the new value.
 - A missing file is created with `0600` permissions (env files hold credentials — restrictive by default).
 
 ## unset — deactivate a key
@@ -185,23 +204,51 @@ Without selection flags, `list` shows the file as a linear read would: file orde
 
 ## keys — names only, pipe-friendly
 
+`keys` prints the active key names, one per line, with no decoration at all, so its output feeds `grep`, `xargs` and `while read` loops directly. Use it when you need names and not values, for example to check a file defines everything a script expects, or to loop over a subset with `get`. It takes the same five [selection flags](#selecting-keys--the-shared-grammar) as `list`, so a filter you preview with `keys` is the filter a plugin push will use.
+
 ```sh
 dotenvctl keys
+dotenvctl keys --prefix DB_ --strip-prefix       # filtered and renamed
 dotenvctl keys --exclude-prefix GITHUB_SECRET_   # app-config names only
 dotenvctl keys | grep '^DB_'
 dotenvctl keys --json | jq -r '.data.keys[]'
 ```
 
+**Try it.** With this `.env`:
+
+```env
+# local development
+DB_HOST=localhost
+DB_PORT=5432
+API_URL=https://api.${DOMAIN}
+DOMAIN=acme.dev
 ```
+
+```console
 $ dotenvctl keys
 DB_HOST
 DB_PORT
-DB_USER
 API_URL
 DOMAIN
-$ dotenvctl keys --json
-{"ok":true,"data":{"keys":["DB_HOST","DB_PORT","DB_USER","API_URL","DOMAIN"]}}
+$ dotenvctl keys --prefix DB_ --strip-prefix
+HOST
+PORT
+$ dotenvctl keys --exclude-prefix DB_ --json
+{"ok":true,"data":{"keys":["API_URL","DOMAIN"]}}
+$ dotenvctl keys --include NOPE; echo "exit=$?"
+dotenvctl: envkit: --include key "NOPE" not found
+exit=1
 ```
+
+The same runs are pinned by [`ExampleExecute_keys`](../cli/dotenvcmd/example_test.go).
+
+**Pitfalls**
+
+- `keys` lists each name once, in first-seen order, while `list` (without selection flags) prints every line, duplicates included. A file with `A=1`, `B=2`, `A=3` gives `A`, `B` from `keys` and three rows from `list`.
+- Commented-out settings (`# KEY=…`) and name-only lines (`KEY` alone) are not active, so `keys` leaves them out. `list --disabled` and `list --inherited` show them.
+- A missing file is not an error: `dotenvctl -f .env.typo keys` prints nothing and exits `0` (`--json` gives `{"ok":true,"data":{"keys":[]}}`). Check the file exists first when an empty answer would be wrong.
+- `keys` takes no arguments: `dotenvctl keys DB_HOST` is a usage error (exit `2`). Filter with `--prefix` or `--include` instead.
+- Placeholder values never hide a name: `keys --prefix X` lists `X_TOKEN=__YOU__` even though `github push --prefix X` would skip it.
 
 ## run — execute a command with the file's values
 
@@ -250,9 +297,16 @@ $ dotenvctl diff .env.staging .env.prod; echo "exit=$?"
 ~ DOMAIN: staging.acme.io -> acme.io
 exit=1
 
-$ dotenvctl diff .env.staging .env.prod --json
-{"ok":true,"data":{"added":[{"key":"EXTRA","value":"only-here"}],"removed":[{"key":"FEATURE_X","value":"on"},…],"changed":[{"key":"DB_HOST","from":"stag.db.internal","to":"prod.db.internal"},…]}}
 ```
+
+The `--json` payload carries the same three lists plus the inputs. For a staging file with `FEATURE_X=on` and a prod file that adds `SENTRY_DSN` (from [`ExampleExecute_json`](../cli/dotenvcmd/example_test.go)):
+
+```console
+$ dotenvctl diff .env.staging .env.prod --json
+{"ok":true,"data":{"added":[{"key":"SENTRY_DSN","value":"https://key@sentry.example/1"}],"removed":[{"key":"FEATURE_X","value":"on"}],"changed":[{"key":"DB_HOST","from":"stag.db.internal","to":"prod.db.internal"},{"key":"DB_PASS","from":"stag-pass","to":"__YOU__"},{"key":"DOMAIN","from":"staging.acme.io","to":"acme.io"}],"expanded":false,"file_a":".env.staging","file_b":".env.prod"}}
+```
+
+Unlike `matrix --json`, the diff payload contains real values: treat it like the files themselves.
 
 Output: `+ KEY=…` only in the second file · `- KEY=…` only in the first · `~ KEY: a -> b` changed. Exit `0` identical, `1` different (like `diff(1)`), `2` trouble. Comparison is over the effective last-wins view — formatting, comments, and shadowed duplicates are invisible on purpose. `--format human|json|html` and `-o`/`--output PATH` control output; HTML reports are secrets-masked unless `--reveal` — see [HTML reports](multi-env.md#html-reports).
 
@@ -315,6 +369,46 @@ contract: prod is missing 1 key(s): [SENTRY_DSN]
 exit=1
 ```
 
+### Changing what counts as a placeholder: `--placeholder`
+
+By default a value is a placeholder when the whole value matches `^__[A-Z0-9_]+__$` (`__YOU__`, `__FILL_ME__`). If your team marks stand-ins differently, pass your own regular expression. The flag **replaces** the default, so keep the default in an alternation when you want both:
+
+```console
+$ dotenvctl matrix .env.staging .env.prod --placeholder '^https://key@'
+KEY         stag  prod
+DB_HOST     ✓     ✓
+DB_PASS     ✓     ✓
+DOMAIN      ✓     ✓
+FEATURE_X   ✓     #
+SENTRY_DSN  —     !
+
+✓ present · ∅ empty · ! placeholder · # disabled · → inherited · — missing
+$ dotenvctl matrix .env.staging .env.prod --placeholder '^(__[A-Z0-9_]+__|https://key@.*)$' --only-drift
+KEY         stag  prod
+DB_PASS     ✓     !
+FEATURE_X   ✓     #
+SENTRY_DSN  —     !
+
+✓ present · ∅ empty · ! placeholder · # disabled · → inherited · — missing
+```
+
+In the first run `DB_PASS=__YOU__` turned into `✓`, because the new pattern no longer matches it. Both runs are pinned by [`ExampleExecute_matrix_placeholder`](../cli/dotenvcmd/example_test.go). An invalid expression fails before anything is read:
+
+```console
+$ dotenvctl matrix --placeholder '('; echo "exit=$?"
+dotenvctl: envkit: placeholder pattern "(": error parsing regexp: missing closing ): `(`
+exit=1
+```
+
+`--placeholder` exists only on `matrix`. The `envs` PLACEHOLDERS column, the plugin push guards and the `DOTENVCTL_PLACEHOLDER` value handed to exec plugins always use the default pattern.
+
+**Pitfalls**
+
+- `matrix` needs at least two files: `dotenvctl matrix .env.prod` exits `1` with `envkit: matrix needs at least two env files, found 1`. To check one file for placeholders, read the `envs` PLACEHOLDERS column instead (see the [CI recipe](recipes.md#ci-gate-the-build-on-env-completeness)).
+- `--values` masks every value-bearing cell as `••••••`, placeholders included, so the `!` marker disappears. Use the default symbol view when you are looking for placeholders.
+- The legend line itself contains `!`, so `dotenvctl matrix | grep '!'` always matches. Match the PLACEHOLDERS count from `envs`, or the `"state":"placeholder"` cells in `matrix --json`.
+- The contract gate counts presence only: a contract key set to `__YOU__` satisfies `--contract`, and a key that exists only commented out (`#`) does not.
+
 Sharp edges (sparse-column drift, duplicate environment labels, leak-proof JSON) and the HTML report details live in [multi-env tools](multi-env.md#matrix--the-drift-table).
 
 ## github — GitHub Actions secrets
@@ -343,27 +437,185 @@ dotenvctl vercel push --prefix VERCEL_ --strip-prefix --target preview
 dotenvctl vercel prune --target production --yes
 ```
 
-Full guide: [Vercel plugin](plugins/vercel.md).
+The default target is `development`, `--sensitive` is a `push`-only flag, and the project shown in the banner comes from `.vercel/project.json` in the current directory. Full guide, with real output for every verb and the failure cases: [Vercel plugin](plugins/vercel.md).
 
 ## plugins — discover exec plugins
 
-Any executable named `dotenvctl-<name>` on PATH becomes a subcommand, git-style — `dotenvctl acme push` runs `dotenvctl-acme push`. `plugins` lists what was found; built-ins always win, and a PATH binary shadowed by one is reported as `shadowed by built-in`:
+Any executable named `dotenvctl-<name>` on PATH becomes a subcommand, git-style — `dotenvctl acme push` runs `dotenvctl-acme push`. `plugins` lists what was found, so you can see exactly which third-party code a `dotenvctl <name>` would run. Built-ins always win, and a PATH binary shadowed by one is reported as `shadowed by built-in`.
 
+```sh
+dotenvctl plugins
+dotenvctl plugins --json | jq -r '.data.plugins[].name'
 ```
+
+**Try it.** With nothing installed:
+
+```console
 $ dotenvctl plugins
 no exec plugins found on PATH (binaries named dotenvctl-<name>)
+$ dotenvctl plugins --json
+{"ok":true,"data":{"plugins":[]}}
 ```
 
-How to write one (the env-var contract, calling the host back for parsing): [plugins overview](plugins.md#writing-your-own-plugin-exec-plugins).
+With the [`dotenvctl-export` example plugin](plugins.md#a-complete-exec-plugin-dotenvctl-export) installed in `/usr/local/bin`, plus a stray `dotenvctl-github` next to it:
+
+```console
+$ dotenvctl plugins
+NAME    PATH                             STATUS
+export  /usr/local/bin/dotenvctl-export  active
+github  /usr/local/bin/dotenvctl-github  shadowed by built-in
+```
+
+`dotenvctl github` still runs the built-in GitHub plugin; the PATH binary is never executed. The `--json` rows carry `name`, `path` and `shadowed` (a boolean).
+
+**Pitfalls**
+
+- Only files with an execute bit count (on Windows, any matching file). A script you forgot to `chmod +x` is silently left out of the list and is not dispatched either.
+- When the same name appears in two PATH directories, the first one wins, as with any command lookup. The list shows only that first hit.
+- `help` and `completion` are built-ins too, so `dotenvctl-help` and `dotenvctl-completion` are always shadowed.
+- With at least one plugin installed, `plugins --json` currently prints the human table before the JSON envelope, so `jq` fails on the first line. Until that is fixed, filter to the last line: `dotenvctl plugins --json | tail -n 1 | jq …`. With no plugins installed the output is the envelope alone.
+
+How to write one (the env-var contract, calling the host back for parsing, a complete script): [plugins overview](plugins.md#writing-your-own-plugin-exec-plugins).
 
 ## completion — shell completions
 
+`completion` prints a tab-completion script for your shell, so `dotenvctl <TAB>` offers verbs, and `dotenvctl list --<TAB>` offers flags with their help text. Load it once per session to try it, then install it permanently.
+
 ```sh
-dotenvctl completion bash|zsh|fish|powershell    # print the script; see `dotenvctl completion --help` for install lines
+dotenvctl completion bash          # also: zsh, fish, powershell
+dotenvctl completion zsh --help    # the exact install lines for that shell
 ```
 
-Built in via cobra — e.g. `source <(dotenvctl completion zsh)` in `.zshrc`, or write it to your shell's completions directory.
+| Shell | Try in this session | Install for every session |
+|---|---|---|
+| bash (needs the `bash-completion` package) | `source <(dotenvctl completion bash)` | `dotenvctl completion bash > /etc/bash_completion.d/dotenvctl` (Linux) or `dotenvctl completion bash > $(brew --prefix)/etc/bash_completion.d/dotenvctl` (macOS) |
+| zsh | `source <(dotenvctl completion zsh)` | `dotenvctl completion zsh > "${fpath[1]}/_dotenvctl"`, then start a new shell |
+| fish | `dotenvctl completion fish \| source` | `dotenvctl completion fish > ~/.config/fish/completions/dotenvctl.fish` |
+| powershell | `dotenvctl completion powershell \| Out-String \| Invoke-Expression` | add the output of that command to your PowerShell profile |
 
-## Every verb is also a Go function
+```console
+$ dotenvctl completion zsh | head -2
+#compdef dotenvctl
+compdef _dotenvctl dotenvctl
+```
 
-Every verb on this page is also an exported Go function — the CLI is a thin translator over `envkit`. See the [Go API guide](go-api.md).
+Every shell subcommand takes `--no-descriptions` to complete names only, without the help text.
+
+**Pitfalls**
+
+- zsh: if completion is not enabled at all, run `echo "autoload -U compinit; compinit" >> ~/.zshrc` once first, as `dotenvctl completion zsh --help` says.
+- The script completes verbs and flags. It does not complete key names from your `.env`; use `dotenvctl keys` for those.
+- `completion` is a built-in, so an exec plugin named `dotenvctl-completion` can never replace it.
+
+## Drive the CLI from Go
+
+The whole verb tree is importable: `dotenvcmd.Execute(args, stdout, stderr)` parses `args` (without the program name), runs the verb, and returns the exit code instead of calling `os.Exit`. Use it to embed `dotenvctl` in your own tool, or to script it from Go tests without building a binary.
+
+**Before you start**
+
+```sh
+go get github.com/ubgo/dotenv/cli
+```
+
+**Step 1 — run a verb in-process.** Pass any writers: the output lands there exactly as on a terminal, and `--json` works the same way.
+
+<!-- snippet: cli/dotenvcmd/example_test.go#cli_Execute -->
+```go
+// ExampleExecute embeds the whole dotenvctl CLI in a Go program: Execute
+// takes the argument list (without the program name) and two writers, and
+// returns the exit code instead of calling os.Exit.
+func ExampleExecute() {
+	dir, err := os.MkdirTemp("", "dotenvctl-")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer func() {
+		// Cleanup is best-effort; a failure goes to stderr so the example's
+		// checked stdout output is unaffected.
+		if err := os.RemoveAll(dir); err != nil {
+			fmt.Fprintln(os.Stderr, "cleanup:", err)
+		}
+	}()
+
+	// -f takes any path; the file holds one plain and one derived value.
+	envFile := filepath.Join(dir, ".env")
+	// 0600 because env files hold credentials.
+	if err := os.WriteFile(envFile, []byte("HOST=localhost\nURL=http://${HOST}:8080\n"), 0o600); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	code := dotenvcmd.Execute([]string{"-f", envFile, "get", "URL", "--expand"}, os.Stdout, os.Stderr)
+	fmt.Println("exit code:", code)
+
+	// A missing key is an operation failure: exit code 1. Its message names
+	// the temp path, so both writers are discarded here.
+	code = dotenvcmd.Execute([]string{"-f", envFile, "get", "PORT"}, io.Discard, io.Discard)
+	fmt.Println("exit code:", code)
+	// Output:
+	// http://localhost:8080
+	// exit code: 0
+	// exit code: 1
+}
+```
+
+**Step 2 — wrap it for a script of calls.** The examples in the same file use this small helper, which sends both streams to stdout and prints the exit code after each call:
+
+<!-- snippet: cli/dotenvcmd/example_test.go#cli_Run -->
+```go
+// cliRun runs one dotenvctl invocation with both streams on stdout, so the
+// Output block shows errors too, then prints the exit code.
+func cliRun(args ...string) {
+	code := dotenvcmd.Execute(args, os.Stdout, os.Stdout)
+	fmt.Printf("exit=%d\n", code)
+}
+```
+
+**Try it**
+
+```console
+$ cd cli && go test -run '^ExampleExecute$' -v ./dotenvcmd/
+=== RUN   ExampleExecute
+--- PASS: ExampleExecute (0.00s)
+PASS
+ok  	github.com/ubgo/dotenv/cli/dotenvcmd	0.006s
+```
+
+Drop the `$` from the pattern (`-run '^ExampleExecute'`) to run all eleven.
+
+Every verb on this page has a runnable example in [`cli/dotenvcmd/example_test.go`](../cli/dotenvcmd/example_test.go), each over the same four-file family (`.env`, `.env.staging`, `.env.prod`, `.env.example`) in a temp directory:
+
+| Example | Verbs |
+|---|---|
+| `ExampleExecute` | embedding, exit codes |
+| `ExampleExecute_get` | `get`, `get --expand`, a disabled key |
+| `ExampleExecute_set` | `set --dry-run`, `set`, `--after`, a missing anchor |
+| `ExampleExecute_unset` | `unset`, `restore`, `unset --delete --dry-run` |
+| `ExampleExecute_list` | `list`, `list --disabled`, `list --prefix --strip-prefix --json` |
+| `ExampleExecute_keys` | `keys` and its selection flags |
+| `ExampleExecute_envs` | `envs` |
+| `ExampleExecute_matrix` | `matrix --only-drift`, `matrix --contract` |
+| `ExampleExecute_matrix_placeholder` | `matrix --placeholder` |
+| `ExampleExecute_diff` | `diff`, both exit codes |
+| `ExampleExecute_json` | the `--json` envelope for `get`, `diff`, `envs` |
+
+The verbs themselves are thin translators over the `envkit` package, which you can call directly for typed results instead of text. See the [Go API guide](go-api.md).
+
+## Pitfalls
+
+These apply to every verb.
+
+- **Failure messages go to stdout in human mode.** When a verb fails (a missing key, a missing anchor), the `dotenvctl: …` line is written to stdout, not stderr. So `VALUE=$(dotenvctl get NOPE)` sets `VALUE` to the error text, and `2>/dev/null` does not hide it. Always check the exit code before using captured output: `if VALUE=$(dotenvctl get KEY); then …; fi`. Usage errors (unknown flag or verb, exit `2`) do go to stderr.
+- **Flags after `--` belong to the child.** `dotenvctl run -- cmd --json` passes `--json` to `cmd`.
+- **A missing file reads as empty.** `get` reports `not found`, `keys` and `list` print nothing and exit `0`, and `set` creates the file. A typo in `-f` is not reported as a missing file.
+- **`--json` is one envelope per run**, except in two cases that currently print more: `plugins --json` with plugins installed (see [plugins](#plugins--discover-exec-plugins)), and a plugin `push`/`prune` that fails part-way (see [Vercel failure behavior](plugins/vercel.md#failure-behavior)).
+
+## Related
+
+- [Getting started](getting-started.md) — install and the 60-second tour
+- [Multi-environment tools](multi-env.md) — `envs`, `matrix`, HTML reports in depth
+- [Recipes](recipes.md) — complete workflows built from these verbs
+- [Plugins](plugins.md), [GitHub plugin](plugins/github.md), [Vercel plugin](plugins/vercel.md)
+- [Go API guide](go-api.md) — `envkit`, `providerkit` and the helpers behind the verbs
+- [Feature index](reference/features.md) — every feature with its guide and example

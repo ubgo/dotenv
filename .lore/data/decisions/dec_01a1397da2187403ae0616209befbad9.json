@@ -1,0 +1,20 @@
+{
+  "_table": "decisions",
+  "_v": 1,
+  "archived_at": null,
+  "body": "A stream could resolve backward references but not forward ones, so the same bytes would expand differently depending on which API read them. Parse must keep everything (round-trip guarantee); Scan must discard everything (constant memory); one function cannot be both. Measurement showed the saved cost was not real, and it found a quadratic parsing bug instead. ParseReader shipped to address the real cost (one copy instead of two).",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:17.240262000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "dec_01a1397da2187403ae0616209befbad9",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "docsi/roadmap.md; docsi/proposals/dotenv-streaming.md",
+  "status": "accepted",
+  "superseded_by_id": null,
+  "title": "Rejected: a streaming parser (Scan)",
+  "trust_score": 0.5,
+  "updated_at": "2026-10-14T08:18:17.240262000Z"
+}

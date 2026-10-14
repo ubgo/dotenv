@@ -5,3 +5,13 @@
 cli/bin/
 cover.out
 cover.html
+
+# lore
+.lore/lore.db
+.lore/lore.db-shm
+.lore/lore.db-wal
+.lore/state/
+.lore/backups/
+
+# Python bytecode from scripts/docs
+__pycache__/

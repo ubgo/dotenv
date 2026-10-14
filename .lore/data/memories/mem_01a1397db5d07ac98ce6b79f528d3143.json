@@ -1,0 +1,23 @@
+{
+  "_table": "memories",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Install policy history: on 2026-09-06 installs tracked @main with a main pseudo-version pin (9b4aaed) because @latest served the stale v0.1.0 proxy snapshot. From v0.1.1 (2026-09-09) the project tags releases again; the issue #1 reply tells users to install @v0.1.2.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:22.288702000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "mem_01a1397db5d07ac98ce6b79f528d3143",
+  "kind": "episodic",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "commits 9b4aaed 120879b; issue #1",
+  "superseded_by_id": null,
+  "trust_score": 0.5,
+  "tx_at": "2026-10-14T08:18:22.288743000Z",
+  "updated_at": "2026-10-14T08:18:22.288702000Z",
+  "valid_at": null,
+  "valid_until": null,
+  "validated_by_actor_id": null
+}

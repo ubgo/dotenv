@@ -12,13 +12,78 @@
 
 A comment-preserving `.env` parser, editor, and CLI for Go. The library (`github.com/ubgo/dotenv`) is a stdlib-only, zero-dependency package for reading, editing, and writing dotenv files with byte-exact round-tripping and full Docker Compose interpolation; the CLI (`dotenvctl`) adds environment-variable management from the shell — get/set/unset, an environment drift matrix, effective-config diff, `run`, and secrets sync to GitHub Actions and Vercel. Open source, fuzz-tested, and built for the twelve-factor configuration workflow.
 
-```go
-import "github.com/ubgo/dotenv"
+```sh
+go get github.com/ubgo/dotenv                                # the library
+go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@main     # the CLI
 ```
 
-```sh
-go install github.com/ubgo/dotenv/cli/cmd/dotenvctl@main
+**Quickstart** — open a file, read a value raw and expanded, change another, save. The comment and the reference survive byte for byte:
+
+<!-- snippet: example_readme_test.go#readme_Quickstart -->
+```go
+// Example_quickstart is the five-minute tour: open a .env, read one value raw
+// and expanded, change another, and save. Every byte you did not touch,
+// including the comment and the reference, is written back as it was.
+func Example_quickstart() {
+	dir, err := os.MkdirTemp("", "dotenv-quickstart")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer func() {
+		// Cleanup is best-effort; a failure goes to stderr so the example's
+		// checked stdout output is unaffected.
+		if err := os.RemoveAll(dir); err != nil {
+			fmt.Fprintln(os.Stderr, "cleanup:", err)
+		}
+	}()
+
+	path := filepath.Join(dir, ".env")
+	src := "# where the API lives\nDOMAIN=staging.acme.io\nAPI_URL=https://api.${DOMAIN}\n"
+	if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	f, err := dotenv.Open(path) // a missing file is not an error
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	raw, _ := f.Get("API_URL") // the bool reports presence; API_URL is present
+	url, _, err := f.GetExpanded("API_URL")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(raw)
+	fmt.Println(url)
+
+	f.Set("DOMAIN", "acme.io")
+	if err := f.Save(); err != nil { // atomic: temp file at 0600, then rename
+		fmt.Println(err)
+		return
+	}
+
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Print(string(saved))
+	// Output:
+	// https://api.${DOMAIN}
+	// https://api.staging.acme.io
+	// # where the API lives
+	// DOMAIN=acme.io
+	// API_URL=https://api.${DOMAIN}
+}
 ```
+
+![dotenv architecture](docs/assets/architecture.svg)
+
+**Learn it:** [the learning path](docs/README.md#learning-path) takes you in 12 steps from first use to a full production setup · [Choosing guides](docs/choosing/README.md) answer "which call, option or backend do I need?" · [the feature index](docs/reference/features.md) lists all 122 features with their guide and runnable example.
 
 **Two ways in:**
 
@@ -116,34 +181,37 @@ The rest of this page is the **library** documentation.
 
 ## Reading
 
-Just want the values? One call:
-
-```go
-m, err := dotenv.Read(".env")   // map[string]string, references resolved
-```
+Just want the values? One call: `m, err := dotenv.Read(".env")` returns a `map[string]string` with references resolved ([`ExampleRead`](example_read_test.go)).
 
 That is `Open` + `ExpandedMap`, for the common case where you only need the configuration and will never write the file back. Comments, blanks, disabled settings, and unrecognised lines are all skipped; duplicates collapse to last-wins; `${VAR}` references arrive resolved.
 
-Use the full API when you need to edit, inspect structure, or keep references intact:
+Use the full API when you need to edit, inspect structure, or keep references intact. `dotenv.Open(path)` reads from disk (a missing file is not an error); `dotenv.Parse(content)` and `dotenv.ParseReader(r)` take a string or any `io.Reader`, so a pipe, an embedded fixture, or a secret store needs no filesystem. Every accessor then works the same way:
 
+<!-- snippet: example_readme_test.go#readme_Reading -->
 ```go
-f, err := dotenv.Open(".env")     // a missing file is not an error
-if err != nil {
-	return err
+// Example_reading shows what each read accessor returns for a file with a
+// duplicated key and a commented-out setting: duplicates resolve to the last
+// occurrence, and disabled lines are invisible to every accessor.
+func Example_reading() {
+	f := dotenv.Parse("A=1\nB=2\nA=3\n# C=off\n")
+
+	v, ok := f.Get("A")
+	fmt.Println(v, ok)             // last occurrence wins
+	fmt.Println(f.Has("C"))        // disabled lines are not active keys
+	fmt.Println(f.Count("A"))      // how many active A lines exist
+	fmt.Println(f.Keys())          // active keys, file order, deduplicated
+	fmt.Println(len(f.Pairs()))    // active pairs, duplicates included
+	fmt.Println(f.Map()["A"])      // effective view
+	fmt.Println(len(f.Disabled())) // the commented-out setting is still known
+	// Output:
+	// 3 true
+	// false
+	// 2
+	// [A B]
+	// 3
+	// 3
+	// 1
 }
-
-v, ok := f.Get("DATABASE_URL")
-f.Has("DATABASE_URL")
-f.Keys()      // active keys, in file order, deduplicated
-f.Pairs()     // active pairs, in file order, duplicates included
-f.Map()       // effective view: last occurrence wins
-```
-
-No filesystem needed — the same calls handle a pipe, an embedded fixture, or a secret store:
-
-```go
-f := dotenv.Parse(content)                    // from a string
-f, err := dotenv.ParseReader(resp.Body)       // from any io.Reader
 ```
 
 **Prefer `ParseReader` for anything large.** `io.ReadAll` doubles its buffer as it grows, and converting the resulting `[]byte` to a string copies everything again. `ParseReader` copies into a `strings.Builder`, whose buffer becomes the string directly, so both costs disappear:
@@ -153,7 +221,7 @@ BenchmarkParseLarge/ReadAll_then_Parse    13,040,856 B/op    93 allocs/op
 BenchmarkParseLarge/ParseReader            9,845,502 B/op    67 allocs/op
 ```
 
-That is a ~1.4 MB file — realistic once a value holds a PEM block or a base64 certificate. Re-run it with `task dotenv:bench` rather than trusting the numbers.
+That is a ~1.4 MB file — realistic once a value holds a PEM block or a base64 certificate. Re-run it with `task bench` rather than trusting the numbers.
 
 Neither call streams: preserving a file byte for byte means holding every line. `ParseReader` lowers the cost, it does not remove it.
 
@@ -168,29 +236,48 @@ Measured on this machine, a file of many small entries:
 
 Roughly 4× the file size in memory and linear in time. `TestParse_ScalesLinearly` guards the complexity class — it caught a quadratic regression that made the 5 MB case take **23 seconds**, which no unit test noticed because they all run on a handful of lines.
 
-`Open` does not guess a location; you pass the path. Resolving *where* a file lives is a path-resolution library's job, not this package's:
+`Open` does not guess a location; you pass the path. Resolving *where* a file lives (a config directory, the repository root) is a path-resolution library's job, not this package's: resolve the path first, then pass it to `Open`.
 
-```go
-p, _ := dirs.ConfigFile(".env")
-f, _ := dotenv.Open(p)
-```
+Full guide: [Reading a .env file](docs/library/reading.md) · [Entries and kinds](docs/library/entries.md). Not sure which entry point? See [Choosing how to read](docs/choosing/reading.md).
 
 ## Writing
 
-```go
-created := f.Set("API_KEY", "secret")   // updates in place, or appends
-f.Unset("OLD_KEY", false)               // comments it out — reversible
-f.Unset("OLD_KEY", true)                // removes it outright
-err := f.Save()                         // atomic
-```
+`Set` updates a key in place or appends it, [`Unset(key, false)`](ds:block?id=unset-ahj88kj2) comments it out reversibly (`true` removes the line), and [`Save` writes atomically](ds:block?id=writeto-eemankjv).
 
 ### Placing a new key
 
-`Set` appends at the end of the file. To put a new key beside related ones, anchor it on a key already there:
+`Set` appends at the end of the file. To put a new key beside related ones, anchor it on a key already there with `SetAfter(anchor, key, value)` or `SetBefore(anchor, key, value)`:
 
+<!-- snippet: example_readme_test.go#readme_Editing -->
 ```go
-created, err := f.SetAfter("DB_PORT", "DB_PASSWORD", "secret")   // right after DB_PORT
-created, err := f.SetBefore("DB_HOST", "DB_DRIVER", "postgres")  // right before DB_HOST
+// Example_editing covers the upsert family: Set updates in place or appends,
+// SetAfter places a new key next to an anchor, a missing anchor is an error
+// rather than a silent append, and Unset comments a key out reversibly.
+func Example_editing() {
+	f := dotenv.Parse("DB_HOST=localhost\nDB_PORT=5432\nOLD_KEY=x\n")
+
+	created := f.Set("API_KEY", "secret") // appends: the key was new
+	fmt.Println("created:", created)
+
+	if _, err := f.SetAfter("DB_PORT", "DB_PASSWORD", "s3cret"); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	_, err := f.SetAfter("NO_SUCH_KEY", "X", "1")
+	fmt.Println("missing anchor:", errors.Is(err, dotenv.ErrAnchorNotFound))
+
+	f.Unset("OLD_KEY", false) // false: comment it out; true would delete the line
+	fmt.Print(f.Render())
+	// Output:
+	// created: true
+	// missing anchor: true
+	// DB_HOST=localhost
+	// DB_PORT=5432
+	// DB_PASSWORD=s3cret
+	// # OLD_KEY=x
+	// API_KEY=secret
+}
 ```
 
 An **existing** key is updated in place and never moved — relocating it would rewrite two regions of the file for a one-value change. A missing anchor returns `ErrAnchorNotFound` and leaves the file untouched, rather than silently appending at the end while reporting success.
@@ -199,42 +286,51 @@ Inserting by *section name* is designed but deferred: section boundaries are a c
 
 `Set` on a duplicated key updates the **last** occurrence, because that is the one a consumer actually sees.
 
+What `Set` keeps on the line it edits: the `export` prefix, any indentation, the spacing *before* the delimiter, the `=` or `:` delimiter itself, and an inline comment. Spacing *after* the delimiter is not kept (`A = 1` becomes `A =2`), and the value's quoting is chosen afresh for the new value ([`ExampleFile_Set_quoting`](example_edit_test.go)).
+
+Step-by-step guides: [Editing](docs/library/editing.md) · [Saving](docs/library/saving.md). Not sure which method? See [Choosing how to edit](docs/choosing/editing.md).
+
 ## Generating a file
 
-`Set` upserts. To emit content — comments, blank lines, whole sections — build entries and place them literally:
+`Set` upserts. To emit content — comments, blank lines, whole sections — build entries and place them literally. `Append` adds them at the end; `InsertAfter` and `InsertBefore` anchor a block on an existing key, and it lands as a unit. Set `f.Path` and call `Save` (or call `SaveAs`) to write the result:
 
+<!-- snippet: example_readme_test.go#readme_Generating -->
 ```go
-f := dotenv.Parse("")
-f.Append(
-    dotenv.NewComment("------------------", "DATABASE", "------------------"),
-    dotenv.NewPair("DB_HOST", "localhost"),
-    dotenv.NewPair("DB_PORT", "5432"),
-    dotenv.NewBlank(),
-    dotenv.NewComment("------------------", "AUTH", "------------------"),
-    dotenv.NewPair("AUTH_SECRET", "change me"),
-)
-f.Path = ".env.example"
-f.Save()
-```
+// Example_generating builds a file from nothing with the literal family:
+// constructors make entries, Append places them at the end, and InsertAfter
+// places a block next to an anchor as one unit.
+func Example_generating() {
+	// banner is the rule line around each section heading.
+	const banner = "------------------"
 
-```env
-# ------------------
-# DATABASE
-# ------------------
-DB_HOST=localhost
-DB_PORT=5432
-
-# ------------------
-# AUTH
-# ------------------
-AUTH_SECRET="change me"
-```
-
-Blocks can be anchored too, and land as a unit:
-
-```go
-err := f.InsertAfter("DB_PORT", dotenv.NewComment("added by volt"), dotenv.NewPair("DB_PASSWORD", "s"))
-err := f.InsertBefore("DB_HOST", dotenv.NewPair("DB_DRIVER", "postgres"))
+	f := dotenv.Parse("")
+	f.Append(
+		dotenv.NewComment(banner, "DATABASE", banner),
+		dotenv.NewPair("DB_HOST", "localhost"),
+		dotenv.NewPair("DB_PORT", "5432"),
+		dotenv.NewBlank(),
+		dotenv.NewComment(banner, "AUTH", banner),
+		dotenv.NewPair("AUTH_SECRET", "change me"),
+	)
+	err := f.InsertAfter("DB_PORT", dotenv.NewPair("DB_PASSWORD", "s"))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Print(f.Render())
+	// Output:
+	// # ------------------
+	// # DATABASE
+	// # ------------------
+	// DB_HOST=localhost
+	// DB_PORT=5432
+	// DB_PASSWORD=s
+	//
+	// # ------------------
+	// # AUTH
+	// # ------------------
+	// AUTH_SECRET="change me"
+}
 ```
 
 ### Two families, and the difference matters
@@ -244,13 +340,7 @@ err := f.InsertBefore("DB_HOST", dotenv.NewPair("DB_DRIVER", "postgres"))
 | `Set`, `SetAfter`, `SetBefore` | **upsert** — guarantees one active entry; updates in place if the key exists | editing |
 | `Append`, `InsertAfter`, `InsertBefore` | **literal** — places exactly what you pass, duplicates included | generating |
 
-```go
-f := dotenv.Parse("A=1\n")
-f.Set("A", "2")                      // A=2          — one entry
-f.Append(dotenv.NewPair("A", "2"))   // A=1 \n A=2   — two entries, last wins
-```
-
-Blurring them is how a key silently moves.
+On `A=1`, `Set("A", "2")` leaves one entry, `A=2`; `Append(NewPair("A", "2"))` leaves two, `A=1` and `A=2`, and the last wins ([`ExampleFile_Append_vsSet`](example_edit_test.go)). Blurring them is how a key silently moves.
 
 ### Constructors
 
@@ -273,39 +363,48 @@ A commented-out setting is its own kind, not prose:
 # just a note        ← KindComment
 ```
 
-That holds regardless of who commented it out — by hand or via `Unset` — because the two mean the same thing:
+That holds regardless of who commented it out — by hand or via `Unset` — because the two mean the same thing. `f.Entries()` returns every entry with its `Kind` (`KindPair`, `KindDisabledPair`, `KindComment`, `KindBlank`, `KindInherited`, `KindOther`), and `f.Disabled()` lists every commented-out setting as a `Pair`, in file order:
 
+<!-- snippet: example_readme_test.go#readme_Disabled -->
 ```go
-for _, e := range f.Entries() {
-    switch e.Kind {
-    case dotenv.KindPair:         // active
-    case dotenv.KindDisabledPair: // turned off, but Key and Value are readable
-    case dotenv.KindComment:      // prose
-    case dotenv.KindBlank:
-    case dotenv.KindOther:        // unrecognised, preserved verbatim
-    }
-}
+// Example_disabledSettings shows that a commented-out setting is its own kind
+// with a readable key and value, that it stays inactive, and that Restore turns
+// it back on without inventing any bytes.
+func Example_disabledSettings() {
+	f := dotenv.Parse("# DB_USER=admin\n# just a note\nDB_HOST=db\n")
 
-f.Disabled()   // []Pair of every commented-out setting, in file order
+	for _, e := range f.Entries() {
+		fmt.Printf("%-13s %q\n", e.Kind, e.Key)
+	}
+	fmt.Println(f.Has("DB_USER"), f.Disabled()[0].Key)
+
+	f.Restore("DB_USER")
+	fmt.Print(f.Render())
+	// Output:
+	// disabled-pair "DB_USER"
+	// comment       ""
+	// pair          "DB_HOST"
+	// false DB_USER
+	// DB_USER=admin
+	// # just a note
+	// DB_HOST=db
+}
 ```
 
 Disabled entries stay **inactive** — `Get`, `Has`, `Count`, `Map`, and `Keys` all ignore them, exactly as a consumer of the file would. The point is that a tool can now say *"DB_USER is disabled"* rather than *"DB_USER is missing"*, which are different problems with different fixes.
 
-**The trade:** prose shaped like an assignment is misfiled. `# TODO=fix this` reads as a disabled setting — which is also what a human skimming the file would assume. A commented value whose quote does not close on its own line stays prose, since a multi-line block cannot be reassembled from separate comment lines.
+**The trade:** prose shaped like an assignment is misfiled. `# TODO=fix this` reads as a disabled setting — which is also what a human skimming the file would assume. Because `:` is a delimiter too, so do `# Note: rotate monthly` and `# http://example.com` ([`ExampleKind_pitfalls`](example_read_test.go)). A commented value whose quote does not close on its own line stays prose, since a multi-line block cannot be reassembled from separate comment lines.
 
 ### Turning one back on
 
-```go
-f.Unset("DB_USER", false)   // comment it out — reversible
-f.Restore("DB_USER")        // turn it back on
-```
-
-`Restore` removes the exact marker recorded for that entry, so `#DB_USER=admin` comes back without inventing a space, and an indented `   # DB_USER=admin` keeps its indentation. Disable followed by restore returns the file to its **original bytes** — a fuzz property, not just a test case.
+`f.Unset("DB_USER", false)` comments a setting out; `f.Restore("DB_USER")` turns it back on ([`ExampleFile_Restore`](example_edit_test.go)). `Restore` removes the exact marker recorded for that entry, so `#DB_USER=admin` comes back without inventing a space, and an indented `   # DB_USER=admin` keeps its indentation. Disable followed by restore returns the file to its **original bytes** — a fuzz property, not just a test case.
 
 Two limits, both pinned by tests:
 
 - With more than one disabled entry for a key, `Restore` targets the **last** — consistent with `Get`, `Set`, and `Unset`, but not necessarily the one `Unset` just created.
 - A commented-out **multi-line** value cannot be restored from a re-read file: each of its lines parses as a separate comment. Within one session, where `Unset` kept the block together, it reverses completely.
+
+See [Entries and kinds](docs/library/entries.md) for all six kinds and the parsing pitfalls, and [Editing, steps 3-5](docs/library/editing.md#step-3--turn-a-setting-off-with-unset) for `Unset`, `Restore` and `Disabled`.
 
 ## Inherited declarations
 
@@ -321,27 +420,66 @@ To Compose that means *inherit this variable from the process environment* — t
 
 `Inherited` lists the declared names so an application that wants Compose's behaviour applies its own source, with its own precedence:
 
+In a real program the source is usually `os.LookupEnv`; here a map stands in for it:
+
+<!-- snippet: example_readme_test.go#readme_Inherited -->
 ```go
-env := f.Map()
-for _, name := range f.Inherited() {
-    if v, ok := os.LookupEnv(name); ok {   // the caller's decision, not the parser's
-        env[name] = v
-    }
+// Example_inheritedDeclarations reads a Compose-style name-only line. The
+// package lists the name but never resolves it; the application layers its
+// own source on top (a map stands in for os.LookupEnv here).
+func Example_inheritedDeclarations() {
+	f := dotenv.Parse("DATABASE_URL=postgres://localhost/dev\nAWS_REGION\n")
+	host := map[string]string{"AWS_REGION": "eu-west-1"} // stands in for the process environment
+
+	env := f.Map()
+	fmt.Println(f.Inherited(), len(env))
+	for _, name := range f.Inherited() {
+		if v, ok := host[name]; ok { // the caller's decision, not the parser's
+			env[name] = v
+		}
+	}
+	fmt.Println(env["AWS_REGION"])
+	// Output:
+	// [AWS_REGION] 1
+	// eu-west-1
 }
 ```
 
-The same layering the package prescribes for loading in general: the file describes, the application decides.
+The same layering the package prescribes for loading in general: the file describes, the application decides. Full guide: [Editing, step 6](docs/library/editing.md#step-6--handle-inherited-declarations).
 
 ## Cloning between environments
 
 Deriving `.env.prod` from `.env.staging` is the case this package's read/write split was designed for.
 
-```go
-staging, _ := dotenv.Open(".env.staging")
+`Clone` makes an independent copy, `Set` changes only what differs, and `SaveAs(".env.prod")` writes it elsewhere without touching the source's `Path`:
 
-prod := staging.Clone()          // independent copy
-prod.Set("DOMAIN", "acme.io")    // change only what differs
-prod.SaveAs(".env.prod")         // write elsewhere; staging.Path is untouched
+<!-- snippet: example_readme_test.go#readme_Cloning -->
+```go
+// Example_cloning derives production from staging: Clone, change one value,
+// and every reference stays a reference, so the derived values follow the
+// edit. The source file is left untouched.
+func Example_cloning() {
+	staging := dotenv.Parse("DOMAIN=staging.acme.io\nAPI_URL=https://api.${DOMAIN}\nSECRET=${VAULT_TOKEN:?set me}\n")
+
+	prod := staging.Clone() // independent deep copy
+	prod.Set("DOMAIN", "acme.io")
+	fmt.Print(prod.Render())
+
+	url, _, err := prod.GetExpanded("API_URL")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(url)
+	domain, _ := staging.Get("DOMAIN") // present in the source
+	fmt.Println(domain)
+	// Output:
+	// DOMAIN=acme.io
+	// API_URL=https://api.${DOMAIN}
+	// SECRET=${VAULT_TOKEN:?set me}
+	// https://api.acme.io
+	// staging.acme.io
+}
 ```
 
 Given this source:
@@ -371,10 +509,7 @@ SECRET=${VAULT_TOKEN:?set me}          ← still armed
 
 ### Why references survive: `Render` never expands
 
-```go
-f.Get("API_URL")          // "https://api.${DOMAIN}"        ← what is on disk
-f.GetExpanded("API_URL")  // "https://api.staging.acme.io"  ← derived, for consumers
-```
+`f.Get("API_URL")` returns `https://api.${DOMAIN}`, what is on disk; `f.GetExpanded("API_URL")` returns `https://api.staging.acme.io`, the derived value consumers see.
 
 `Render` and `Save` write **only** `Raw`. Expansion happens in exactly one method, and nothing in the write path calls it — so a clone keeps references literal by default. You would have to go out of your way to bake them in.
 
@@ -397,37 +532,23 @@ The baked file is now **wrong and silent**: it still points at staging, nothing 
 
 ### Freezing a value on purpose
 
-Sometimes you *want* a value pinned so it stops following its source — a secret resolved once at deploy time, say. That is a caller decision, so it is a recipe rather than an API:
-
-```go
-v, _, _ := f.GetExpanded("DB_URL")
-f.Set("DB_URL", v)   // now literal; no longer follows DOMAIN
-```
+Sometimes you *want* a value pinned so it stops following its source — a secret resolved once at deploy time, say. That is a caller decision, so it is a recipe rather than an API: read the value with `GetExpanded`, then `Set` it back, and it is literal from then on. [`ExampleFile_Clone_baked`](example_edit_test.go) shows the difference.
 
 ### Several variants from one source
 
-`SaveAs` does not mutate `f.Path`, so a single loaded file can emit as many as you need:
-
-```go
-for env, domain := range map[string]string{"prod": "acme.io", "qa": "qa.acme.io"} {
-    v := staging.Clone()
-    v.Set("DOMAIN", domain)
-    v.SaveAs(".env." + env)
-}
-```
+`SaveAs` does not mutate `f.Path`, so a single loaded file can emit as many as you need: loop over your environments, and for each one `Clone` the source, `Set` what differs and `SaveAs(".env." + name)` ([`ExampleFile_SaveAs`](example_edit_test.go)).
 
 `Clone` is an independent deep copy — editing either side leaves the other alone — and carries the file's line-ending style, mode, and parse options across. It is cheaper and more faithful than `Parse(f.Render())`, which re-parses and can reclassify entries on the second pass.
 
 **Permissions on `SaveAs`:** an existing destination keeps its own mode; a new one gets the source file's. Overwriting must never widen a file somebody deliberately locked down, nor loosen one about to hold secrets.
 
+Full guide: [Editing, step 9 — Clone](docs/library/editing.md#step-9--derive-another-environment-with-clone) · [Saving, step 4 — SaveAs](docs/library/saving.md#step-4--write-a-copy-with-saveas).
+
 ## Plugins
 
 Decryption, secret stores, auditing, and save-time validation live outside this package while running inside its pipeline. A plugin is an object implementing whichever capability interfaces it needs — one plugin may hold several, sharing a client and a cache between them.
 
-```go
-f, err := dotenv.Open(".env", dotenv.WithPlugin(vault.New(client)))
-f.Plugins()   // vault: Lookuper, ValueTransformer
-```
+You install one with `dotenv.Open(path, dotenv.WithPlugin(p))` (or the same option on `Parse`), and `f.Plugins()` reports which capabilities each installed plugin was detected as having ([`ExamplePluginInfo`](example_plugin_test.go)).
 
 ### The six hooks
 
@@ -436,7 +557,7 @@ f.Plugins()   // vault: Lookuper, ValueTransformer
 | `EntryObserver` | once per entry during parse | all, install order | no | no |
 | `Lookuper` | a `${VAR}` the file does not define | **first non-miss wins** | yes | no |
 | `ValueTransformer` | after a value is expanded | **chained**, each sees the last output | yes | no |
-| `CommandRunner` | a `$(cmd)` | **last installed wins** — a replacement, not a chain | yes | no |
+| `CommandRunner` | a `$(cmd)` | **last installed wins** — a replacement, not a chain | no — a runner error expands to `""`, as a shell does | no |
 | `ExpandObserver` | every reference resolution | all, install order | no | no |
 | `SaveGuard` | before `Save` / `SaveAs` writes | all; **first error aborts** | yes | veto only |
 
@@ -446,124 +567,99 @@ f.Plugins()   // vault: Lookuper, ValueTransformer
 
 Every value-changing hook lives in the expansion path, which `Render` and `Save` never call. So round-trip stays byte-exact regardless of which plugins are installed, and a decrypted secret can never be written back in plaintext. `SaveGuard` sits nearest the write path and may only return an error — it cannot rewrite.
 
-That is structural rather than a convention, and it is asserted two ways: an example test rendering one file with every hook and with none, and `FuzzPluginsNeverAffectBytes`, which does the same for arbitrary input.
+That is structural rather than a convention, and it is asserted two ways: `TestPlugins_NeverAffectBytes`, a plain test that renders one file with every hook and with none, and `FuzzPluginsNeverAffectBytes`, which does the same for arbitrary input. Two caveats apply to plugin code you write: a `SaveGuard` receives the live `*File`, so a guard that calls `f.Set` changes what is saved, and an `EntryObserver` receives the live `*Entry`, so mutating it changes the rendered line. Treat both as read-only ([plugins guide, pitfalls](docs/library/plugins.md#pitfalls)).
 
 ### Worked examples
 
-**Environment fallback** — Compose's behaviour, opted into rather than imposed:
+**Environment fallback and decryption** — `WithLookup(os.LookupEnv)` gives Compose's behaviour, opted into rather than imposed; `WithValueTransform` gives `encrypted:` parity as a plugin rather than a feature this package owns. Here a map stands in for each source:
 
+<!-- snippet: example_readme_test.go#readme_Plugins -->
 ```go
-dotenv.Parse(src, dotenv.WithLookup(os.LookupEnv))
+// Example_plugins installs two single-function hooks: a lookup that fills a
+// reference the file does not define, and a value transform that decrypts.
+// Get still returns what is on disk; only GetExpanded sees the plaintext, and
+// the rendered bytes never change.
+func Example_plugins() {
+	// cipherPrefix marks a value the transform must decrypt.
+	const cipherPrefix = "encrypted:"
+	vault := map[string]string{"c2VjcmV0": "hunter2"} // a fake secret store
+	fallback := map[string]string{"REGION": "eu-west-1"}
+
+	src := "DB_PASS=encrypted:c2VjcmV0\nZONE=${REGION}-a\n"
+	f := dotenv.Parse(src,
+		dotenv.WithLookup(func(name string) (string, bool) {
+			v, ok := fallback[name]
+			return v, ok
+		}),
+		dotenv.WithValueTransform(func(key, v string) (string, error) {
+			s, ok := strings.CutPrefix(v, cipherPrefix)
+			if !ok {
+				return v, nil
+			}
+			plain, found := vault[s]
+			if !found {
+				return "", fmt.Errorf("%s: no secret for %q", key, s)
+			}
+			return plain, nil
+		}),
+	)
+
+	raw, _ := f.Get("DB_PASS") // present in the file
+	pass, _, err := f.GetExpanded("DB_PASS")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	zone, _, err := f.GetExpanded("ZONE")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(raw)
+	fmt.Println(pass)
+	fmt.Println(zone)
+	fmt.Println(f.Render() == src)
+	// Output:
+	// encrypted:c2VjcmV0
+	// hunter2
+	// eu-west-1-a
+	// true
+}
 ```
 
-The file always wins; a lookup only fills references the file does not define. A lookup **error aborts** rather than counting as a miss, because an unreachable secret store must not look like an unset variable — otherwise a deploy proceeds with an empty password.
+The file always wins; a lookup only fills references the file does not define. A lookup that returns an **error** (the `Lookuper` interface, or `WithPlugin`) aborts rather than counting as a miss, because an unreachable secret store must not look like an unset variable — otherwise a deploy proceeds with an empty password ([`ExampleWithPlugin_lookupError`](example_plugin_test.go)). `Get` still returns the ciphertext, so that is what gets written back. Only `GetExpanded` sees plaintext.
 
-**Decryption** — `encrypted:` parity as a plugin rather than a feature this package owns:
+**Refusing to save a plaintext secret** — `WithSaveGuard(func(f *dotenv.File) error)` runs before `Save` and `SaveAs` write; returning an error vetoes the write. A refusal leaves the destination exactly as it was — nothing is written, and no temp file is left beside it ([`ExampleWithSaveGuard`](example_plugin_test.go)).
 
-```go
-dotenv.WithValueTransform(func(key, v string) (string, error) {
-    s, ok := strings.CutPrefix(v, "encrypted:")
-    if !ok {
-        return v, nil
-    }
-    return decrypt(s)
-})
-```
-
-`Get` still returns the ciphertext, so that is what gets written back. Only `GetExpanded` sees plaintext.
-
-**Refusing to save a plaintext secret:**
-
-```go
-dotenv.WithSaveGuard(func(f *dotenv.File) error {
-    for _, p := range f.Pairs() {
-        if strings.Contains(p.Key, "PASSWORD") && !strings.HasPrefix(p.Value, "encrypted:") {
-            return fmt.Errorf("%s looks like a plaintext secret", p.Key)
-        }
-    }
-    return nil
-})
-```
-
-A refusal leaves the destination exactly as it was — nothing is written, and no temp file is left beside it.
-
-**Dead-key detection** — which declared variables nothing references:
-
-```go
-func (t *Tracer) ObserveExpand(key, name, resolved string) { t.used[name] = true }
-```
+**Dead-key detection** — an `ExpandObserver` sees every reference resolution, so it can record which declared variables nothing references ([`ExampleExpandObserver`](example_plugin_test.go)).
 
 Observers see **every** entry, including `KindDisabledPair` and unrecognised lines: a commented-out setting is a finding for an auditor, not noise.
 
 ### Writing a plugin
 
-```go
-type Vault struct{ client *api.Client }
+A plugin is a type with a `Name() string` method plus whichever capability methods it needs, for example `Lookup(name string) (string, bool, error)` and `TransformValue(key, val string) (string, error)`. Pair it with compile-time assertions such as `var _ dotenv.Lookuper = (*Vault)(nil)`: an optional interface with a wrong signature compiles, installs, and never runs, and the assertion turns that silence into a build failure. [`ExampleWithPlugin`](example_plugin_test.go) is a complete plugin with several capabilities.
 
-func (v *Vault) Name() string { return "vault" }
-
-func (v *Vault) Lookup(name string) (string, bool, error)       { ... }
-func (v *Vault) TransformValue(key, val string) (string, error) { ... }
-
-// REQUIRED. An optional interface with a wrong signature compiles, installs,
-// and never runs — this turns that silence into a build failure.
-var (
-    _ dotenv.Lookuper         = (*Vault)(nil)
-    _ dotenv.ValueTransformer = (*Vault)(nil)
-)
-```
-
-That last block is not optional style. `func (v *Vault) LookUp(...)` or a missing `error` return compiles fine and leaves the plugin inert. `f.Plugins()` reports what was actually detected, so a missing capability is visible — but a compile-time assertion catches it before it ships.
+That assertion is not optional style. `func (v *Vault) LookUp(...)` or a missing `error` return compiles fine and leaves the plugin inert. `f.Plugins()` reports what was actually detected, so a missing capability is visible — but a compile-time assertion catches it before it ships.
 
 Capabilities are resolved **once at construction** into pre-filtered slices, so a plugin without a capability costs nothing on the expansion path.
+
+Full guide: [Plugins](docs/library/plugins.md). Not sure which hook fits? See [Choosing a plugin hook](docs/choosing/plugins.md).
 
 ## Typed configuration
 
 Every value here is a `string`, deliberately. To get `int`, `bool`, `time.Duration`, or a slice, hand the file to a binder — this package supplies the values, the binder supplies the types.
 
-A `*File` satisfies [`sethvargo/go-envconfig`](https://pkg.go.dev/github.com/sethvargo/go-envconfig)'s `Lookuper` interface with a three-line adapter, so the two compose with no dependency in either direction:
+The standard library alone is enough for a handful of fields: [`Example_typedConfig`](example_plugin_test.go) reads the file with `dotenv.Read` and converts each value with `strconv` and `time`, reporting every bad value.
 
-```go
-type fileLookuper struct{ f *dotenv.File }
+For struct tags, defaults and required fields, use a binder. A `*File` satisfies [`sethvargo/go-envconfig`](https://pkg.go.dev/github.com/sethvargo/go-envconfig)'s `Lookuper` interface with a three-line adapter (`Lookup(key string) (string, bool)` calling `f.GetExpanded`), or you pass it the map from `Read` through `envconfig.MapLookuper(m)`, so the two compose with no dependency in either direction. go-envconfig v1 takes both through its config struct: `envconfig.ProcessWith(ctx, &envconfig.Config{Target: &cfg, Lookuper: fileLookuper{f}})`. The older `ProcessWith(ctx, &cfg, lookuper)` form is pre-v1 and does not compile against v1.
 
-func (l fileLookuper) Lookup(key string) (string, bool) {
-    v, ok, err := l.f.GetExpanded(key)
-    if err != nil {
-        return "", false
-    }
-    return v, ok
-}
-```
+`dotenv` handles comments, references, and round-tripping; the binder handles types, defaults, required fields, slices, and nested prefixes. go-envconfig stops at the first field it cannot decode; [`caarlos0/env`](https://pkg.go.dev/github.com/caarlos0/env/v11) and cfgkit report every binding error at once. caarlos0/env reads from a map: `env.ParseWithOptions(&cfg, env.Options{Environment: m})` with `m` from `dotenv.Read`.
 
-```go
-type Config struct {
-    Port  int           `env:"PORT, default=8080"`
-    Debug bool          `env:"DEBUG"`
-    Hosts []string      `env:"HOSTS, delimiter=;"`
-    Wait  time.Duration `env:"WAIT, default=30s"`
-    Token string        `env:"TOKEN, required"`
-}
-
-f, _ := dotenv.Open(".env")
-err := envconfig.ProcessWith(ctx, &cfg, fileLookuper{f})
-```
-
-`dotenv` handles comments, references, and round-tripping; the binder handles types, defaults, required fields, slices, and nested prefixes — and reports **all** binding errors at once rather than failing on the first.
-
-[`caarlos0/env`](https://pkg.go.dev/github.com/caarlos0/env/v11) works the same way, reading from a map:
-
-```go
-m, _ := dotenv.Read(".env")
-err := env.ParseWithOptions(&cfg, env.Options{Environment: m})
-```
+Complete, compiled programs for each binder are in [Typed configuration](docs/library/typed-config.md): [the standard library](docs/library/typed-config.md#step-2--bind-them-with-the-standard-library), [go-envconfig](docs/library/typed-config.md#step-3--or-bind-them-with-go-envconfig), [caarlos0/env](docs/library/typed-config.md#step-4--or-bind-them-with-caarlos0env), [cfgkit](docs/library/typed-config.md#step-5--or-use-cfgkit-for-layered-configuration).
 
 ### A binder built on this package
 
-`github.com/ubgo/cfgkit` is the same idea taken further, and it reads through this package rather than through a plain map — so quoting, multiline values and `${VAR}` expansion behave in the binder exactly as they do here, including `${VAR:-default}` and `${VAR:?message}`. It uses the `Lookuper` seam to let a later file in a `.env` / `.env.local` chain reference a value an earlier one defined:
-
-```go
-cfg, res, err := cfgkit.Load[Config](cfgkit.DefaultSources())
-```
+`github.com/ubgo/cfgkit` is the same idea taken further, and it reads through this package rather than through a plain map — so quoting, multiline values and `${VAR}` expansion behave in the binder exactly as they do here, including `${VAR:-default}` and `${VAR:?message}`. It uses the `Lookuper` seam to let a later file in a `.env` / `.env.local` chain reference a value an earlier one defined, and loads a whole configuration with one generic call, `cfgkit.Load`, over its default sources ([typed-config guide, step 5](docs/library/typed-config.md#step-5--or-use-cfgkit-for-layered-configuration)).
 
 It adds what a binder alone cannot: it reports **which source set each field** (`.env`, `.env.local`, the environment, a secret store), masks values marked secret so they cannot reach a log, validates a configuration **without booting the application** so a stale file fails CI instead of a container, and generates the `.env.example` contract from the struct so the file and the code cannot drift.
 
@@ -579,9 +675,11 @@ Inferring types from a value's *shape* — `8443` becoming a number because it l
 
 > Note `${VAR:?message}` already covers *required* at the file level, so a missing value can fail during expansion rather than at bind time — useful when the variable is referenced by another value rather than bound directly.
 
+Full guide: [Typed configuration](docs/library/typed-config.md).
+
 ## Feature support
 
-Every `.env` construct in common use, including the full [Docker Compose interpolation spec](https://docs.docker.com/reference/compose-file/interpolation/). Each row is asserted by a test in `conformance_test.go` — this table reflects behaviour, not intent.
+Every `.env` construct in common use, including the full [Docker Compose interpolation spec](https://docs.docker.com/reference/compose-file/interpolation/). Each row is asserted by a test in `conformance_test.go` — this table reflects behaviour, not intent. Full guides: [.env syntax](docs/library/syntax.md) · [Variable expansion](docs/library/expansion.md).
 
 ### Quoting
 
@@ -596,7 +694,7 @@ Every `.env` construct in common use, including the full [Docker Compose interpo
 | Spaces around `=` | `KEY = value` | ✅ |
 | `export` prefix | `export KEY=value` | ✅ |
 | Empty value | `KEY=` | ✅ |
-| `KEY: value` — colon delimiter | `FOO: bar` | ✅ — in the Compose grammar and Node dotenv's parser; the author's delimiter is preserved on edit |
+| `KEY: value` — colon delimiter | `FOO: bar` | ✅ — in the Compose grammar and Node dotenv's parser; the author's delimiter is preserved on edit (spacing after it is not) |
 | Key charset: letters, digits, `_` `.` `-` `[` `]` | `spring.datasource.url=x`, `2FA_SECRET=x` | ✅ — Compose's charset, a superset of Node dotenv's and godotenv's `[\w.-]` |
 
 ### Comments
@@ -621,10 +719,24 @@ Only inside **double** quotes. Single-quoted and backtick values are fully liter
 | `\n` `\r` `\t` | ✅ decoded | ❌ kept literal |
 | anything else (`\d`, `C:\Users`) | kept literal | kept literal |
 
-The two modes are genuinely incompatible — under Compose, `\n` stays two characters; under Extended it becomes a newline — so it is a choice rather than a default to work around:
+The two modes are genuinely incompatible — under Compose, `\n` stays two characters; under Extended it becomes a newline — so it is a choice rather than a default to work around. Pass `dotenv.WithEscapes(dotenv.EscapeCompose)` to `Parse` or `Open`:
 
+<!-- snippet: example_syntax_test.go#syn_EscapeCompose -->
 ```go
-f := dotenv.Parse(content, dotenv.WithEscapes(dotenv.EscapeCompose))
+// ExampleEscapeCompose shows the trap EscapeCompose exists for: a Windows
+// path whose folder starts with n or t. Under the default EscapeExtended the
+// \n and \t become a newline and a tab; under EscapeCompose the path is kept.
+func ExampleEscapeCompose() {
+	const src = `DIR="C:\new\tools"` + "\n"
+
+	extended, _ := dotenv.Parse(src).Get("DIR")
+	compose, _ := dotenv.Parse(src, dotenv.WithEscapes(dotenv.EscapeCompose)).Get("DIR")
+	fmt.Printf("extended: %q\n", extended)
+	fmt.Printf("compose:  %q\n", compose)
+	// Output:
+	// extended: "C:\new\tools"
+	// compose:  "C:\\new\\tools"
+}
 ```
 
 Use `EscapeCompose` for files Docker Compose reads, and for values holding Windows paths or regexes where a backslash means itself.
@@ -645,21 +757,41 @@ Applied to unquoted and double-quoted values only. Covers the full [Docker Compo
 | `$$` | literal `$` — `$${VAR}` yields `${VAR}` | ✅ |
 | Nesting | `${VAR:-${FOO:-default}}` | ✅ |
 | Chained / recursive | `C=${B}` where `B=${A}` | ✅ |
-| Cycles resolve to `""` | `A=${B}`, `B=${A}` | ✅ |
+| Cycles terminate: the re-entering reference resolves to `""` | `A=a${B}`, `B=b${A}` → `A` is `aba` | ✅ |
 | Unresolved → `""`, not an error | `${NOPE}` | ✅ |
-| **Single quotes suppress it** | `B='${A}'` → `${A}` | ✅ |
+| **Single quotes suppress it** when you read that key | `B='${A}'` → `${A}` | ✅ — but see the note below the table |
 | **Backticks suppress it** | ``B=`${A}` `` → `${A}` | ✅ |
 | `${VAR/foo/bar}` shell-style edits | — | ❌ not supported by Compose either |
 
-The two `?` forms exist to fail loudly, so they are the only ones that produce an error:
+A single-quoted or backtick value is literal when you read *that* key. When another value references it (`C=${B}` with `B='${A}'`), the quoted text is expanded during that resolution today, so `C` resolves `${A}`. Keep literal `${…}` text out of values that other values reference ([expansion guide, step 6](docs/library/expansion.md#step-6--quotes-that-turn-expansion-off)).
 
+The two `?` forms exist to fail loudly, so they are the only ones that produce an error, a `*RequiredError` you match with `errors.As`:
+
+<!-- snippet: example_expand_test.go#exp_RequiredError -->
 ```go
-v, ok, err := f.GetExpanded("DATABASE_URL")
+// ExampleRequiredError shows how to catch a required-variable failure with
+// errors.As and read which variable is missing. Empty is true for the ":?"
+// form (unset or empty) and false for "?" (unset only).
+func ExampleRequiredError() {
+	src := "DB_PASSWORD=\n" +
+		"URL=postgres://app:${DB_PASSWORD:?set it in .env}@db\n" +
+		"TOKEN=${API_TOKEN?}\n"
 
-var re *dotenv.RequiredError
-if errors.As(err, &re) {
-	// "dotenv: required variable DB_PASSWORD is not set or is empty: set me in .env"
-	return err
+	f := dotenv.Parse(src)
+	for _, key := range []string{"URL", "TOKEN"} {
+		_, _, err := f.GetExpanded(key)
+
+		var re *dotenv.RequiredError
+		if errors.As(err, &re) {
+			fmt.Printf("key=%s empty=%v message=%q\n", re.Key, re.Empty, re.Message)
+			fmt.Println(" ", err)
+		}
+	}
+	// Output:
+	// key=DB_PASSWORD empty=true message="set it in .env"
+	//   dotenv: required variable DB_PASSWORD is not set or is empty: set it in .env
+	// key=API_TOKEN empty=false message=""
+	//   dotenv: required variable API_TOKEN is not set
 }
 ```
 
@@ -667,7 +799,7 @@ if errors.As(err, &re) {
 
 Expansion is hand-written rather than delegating to `os.Expand`, which cannot express `$$` or nesting — it stops at the first `}`, so the inner default of `${A:-${B:-c}}` swallows the outer one.
 
-A reference that re-enters a variable already being expanded resolves to `""`, the same answer an unset variable gives and the only one that terminates. Two *separate* references to one variable are not a cycle: `K=${A}-${A}` expands both.
+A reference that re-enters a variable already being expanded resolves to `""`, the same answer an unset variable gives and the only one that terminates. The rest of each value is kept, so a cycle can still produce text: with `A=a${B}` and `B=b${A}`, `A` expands to `aba` ([`ExampleFile_GetExpanded_nesting`](example_expand_test.go)). A key also cannot extend itself: `A=1` then `A=${A}2` gives `22`, and `ZONE=${ZONE:-x}` gives `""`, not `x`. Two *separate* references to one variable are not a cycle: `K=${A}-${A}` expands both.
 
 ### How `$` is dispatched
 
@@ -700,14 +832,23 @@ That ordering is the shell's own, and it means `${VAR:?err}` errors and the cycl
 
 **Off by default, deliberately.** With it on, merely *reading* a config file executes arbitrary shell — so a `.env` from a repository, a container image, or a teammate becomes remote code execution. That is a decision the calling application makes about files it trusts, not something a parser should do silently.
 
-```go
-f := dotenv.Parse(content, dotenv.WithCommandSubstitution(true))
+Turn it on with `dotenv.WithCommandSubstitution(true)`, which runs `sh -c`, or pass `dotenv.WithCommandRunner(runner)` to supply a sandboxed or allow-listed runner instead. Installing a runner turns substitution on; `WithCommandRunner(nil)` turns on the real `sh -c`. Off, the `$(…)` text stays literal:
 
-// Or supply a sandboxed / allow-listed runner instead of raw `sh -c`:
-f := dotenv.Parse(content, dotenv.WithCommandRunner(myRunner))
+<!-- snippet: example_expand_test.go#exp_SubstitutionOff -->
+```go
+// ExampleWithCommandSubstitution_off shows the default: $(command) is never
+// run, and the text comes back exactly as written. Reading a file must not
+// execute it.
+func ExampleWithCommandSubstitution_off() {
+	f := dotenv.Parse("WHO=\"user-$(whoami)\"\n")
+	got, _, err := f.GetExpanded("WHO")
+	fmt.Printf("%q %v\n", got, err)
+	// Output:
+	// "user-$(whoami)" <nil>
+}
 ```
 
-A failing command expands to `""`, as a shell would inside a value, rather than failing the whole read.
+A failing command expands to `""`, as a shell would inside a value, rather than failing the whole read. [`ExampleWithCommandRunner_allowList`](example_expand_test.go) shows an allow-listed runner; the [expansion guide, step 9](docs/library/expansion.md#step-9--command-substitution-opt-in) covers the risk in full.
 
 ### Other
 
@@ -723,18 +864,48 @@ A failing command expands to `""`, as a shell would inside a value, rather than 
 
 `Get` returns the raw value. `GetExpanded` resolves references against the other entries in the same file — the interpolation Compose performs when *it* reads the file:
 
+`f.ExpandedMap()` expands every active key at once:
+
+<!-- snippet: example_readme_test.go#readme_Expansion -->
 ```go
-// ADMIN_PASS=${SECRET}
-raw, _ := f.Get("ADMIN_PASS")                   // "${SECRET}"  — what is on disk
-val, ok, err := f.GetExpanded("ADMIN_PASS")     // "hunter2"    — what a consumer sees
-all, err := f.ExpandedMap()
+// Example_expansion contrasts Get with GetExpanded and shows the common
+// operators: a default, a literal dollar, and a single-quoted value read
+// directly, which stays literal.
+func Example_expansion() {
+	f := dotenv.Parse(strings.Join([]string{
+		"SECRET=hunter2",
+		"ADMIN_PASS=${SECRET}",
+		"PORT=${HTTP_PORT:-8080}",
+		"PRICE=5$$",
+		"LITERAL='${SECRET}'",
+	}, "\n") + "\n")
+
+	raw, _ := f.Get("ADMIN_PASS") // present in the file
+	fmt.Println(raw)
+	for _, key := range []string{"ADMIN_PASS", "PORT", "PRICE", "LITERAL"} {
+		v, _, err := f.GetExpanded(key)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Printf("%s=%s\n", key, v)
+	}
+	// Output:
+	// ${SECRET}
+	// ADMIN_PASS=hunter2
+	// PORT=8080
+	// PRICE=5$
+	// LITERAL=${SECRET}
+}
 ```
 
-Single-quoted and backtick values are **never** interpolated — `SECRET='${A}'` means the literal text `${A}`. Expanding it would silently replace a value the author explicitly marked as literal.
+Read directly, single-quoted and backtick values are not interpolated — `SECRET='${A}'` means the literal text `${A}`. Expanding it would silently replace a value the author explicitly marked as literal. (A reference *to* such a value is the exception noted under [Interpolation](#interpolation).)
 
 Expansion is depth-bounded, so a reference cycle terminates instead of hanging the caller.
 
 > **Use `Get`, not `GetExpanded`, for anything you write back.** Expansion must feed what a consumer *reads*, never what gets persisted — otherwise a reference is flattened into a copy of its target and the link is lost.
+
+Full guide: [Variable expansion](docs/library/expansion.md). Not sure which setup? See [Choosing an expansion setup](docs/choosing/expansion.md).
 
 ## Saving safely
 
@@ -747,21 +918,33 @@ A rename within a directory is atomic, so a reader never observes a half-written
 
 Existing file modes are preserved; new files are created `0600`. The explicit `chmod` is necessary because `os.WriteFile`'s mode argument is filtered by the process umask, so it cannot be relied on to reproduce the original permissions.
 
+Full guide: [Saving a .env file](docs/library/saving.md).
+
 ## Line endings and trailing newlines
 
 Terminators are preserved **per line**, not per file. A file with mixed endings round-trips as mixed rather than being normalised into one style, which would be a whole-file diff nobody asked for.
 
-Lines this package *writes* use the file's dominant style, so appending to a CRLF file does not introduce a stray LF:
+Lines this package *writes* [use CRLF as soon as the file contains a single CRLF anywhere](ds:block?id=eol-eefm88t3), otherwise LF — so appending to a CRLF file does not introduce a stray LF. It is not a majority vote: one CRLF line in an otherwise LF file is enough.
 
+<!-- snippet: example_readme_test.go#readme_LineEndings -->
 ```go
-f := dotenv.Parse("A=1\r\n")
-f.Set("B", "2")
-f.Render()   // "A=1\r\nB=2\r\n"
+// Example_lineEndings shows that each existing line keeps its own terminator,
+// and that a line the package writes uses CRLF as soon as the file contains a
+// single CRLF anywhere, not the style most of its lines use.
+func Example_lineEndings() {
+	f := dotenv.Parse("A=1\nB=2\r\nC=3\n") // two LF lines, one CRLF line
+	f.Set("D", "4")
+	fmt.Printf("%q\n", f.Render())
+	// Output:
+	// "A=1\nB=2\r\nC=3\nD=4\r\n"
+}
 ```
 
-A file that ended without a trailing newline still does not. Adding or removing one would be a spurious diff on every save.
+A file that ended without a trailing newline still does not. Adding or removing one would be a spurious diff on every save. Full guide: [Saving, step 3](docs/library/saving.md#step-3--keep-line-endings-and-the-trailing-newline).
 
 ## API
+
+Every symbol below, with the guide section and runnable example for each, is in [the feature index](docs/reference/features.md).
 
 | Symbol | Purpose |
 |---|---|
@@ -801,7 +984,7 @@ Re-measure any of it with `task cover` (both modules) or `task test:uncovered` (
 
 The CLI's remaining fraction is **six statements**, enumerable rather than mystery: the `os.Exit` wrapper in `main`, the Windows arm of `isExecutable` on a non-Windows host, two fallbacks for a host that cannot locate its own working directory or executable, and two expansion-error arms the CLI's own wiring cannot produce — it never attaches a library plugin, and a plugin is the only thing that makes expansion fail with something other than a `RequiredError`. Every one is named, with its reason, in [CONTRIBUTING](CONTRIBUTING.md#coverage-and-the-six-statements-that-are-not-covered).
 
-Conformance is asserted by tests, not claimed — `conformance_test.go` has one assertion per syntax rule in the tables above.
+Conformance is asserted by tests, not claimed — `conformance_test.go` has one assertion per syntax rule in the tables above. Every code block in the docs is a runnable `Example` (compiled and output-checked by `go test`), and `task docs:check` fails if a block drifts from its example.
 
 **Property-based fuzzing** covers what example tests structurally cannot:
 
@@ -817,9 +1000,9 @@ Conformance is asserted by tests, not claimed — `conformance_test.go` has one 
 | `FuzzPluginsNeverAffectBytes` | no plugin can change the rendered bytes, for any input |
 
 ```sh
-task dotenv:fuzz -- FuzzParseRender 30s   # one property
-task dotenv:fuzz:all                      # every property, 30s each
-task dotenv:fuzz:list                     # what is available
+task fuzz -- FuzzParseRender 30s   # one property
+task fuzz:all                      # every property, 30s each
+task fuzz:list                     # what is available
 ```
 
 ### Bugs the property tests found
@@ -845,7 +1028,7 @@ Both failing inputs are checked in under `testdata/fuzz/`, so they run on every 
 
 **Does the library have dependencies?** Zero — stdlib only. The CLI is a separate Go module, so cobra never enters the library's dependency graph.
 
-**How do I get typed values like `int` or `time.Duration`?** Compose with a binder — `sethvargo/go-envconfig` or `caarlos0/env` for the smallest surface, or `ubgo/cfgkit`, which is built on this package and adds layered sources, provenance, secret masking and `.env.example` generation. The file satisfies the first two's lookup interfaces with a three-line adapter. Typed getters were rejected on purpose: `PORT=eighty` silently returning a default is a production incident.
+**How do I get typed values like `int` or `time.Duration`?** Compose with a binder — `sethvargo/go-envconfig` or `caarlos0/env` for the smallest surface, or `ubgo/cfgkit`, which is built on this package and adds layered sources, provenance, secret masking and `.env.example` generation. go-envconfig takes the file through a three-line adapter, and caarlos0/env takes the map from `Read`; [Typed configuration](docs/library/typed-config.md) has compiled programs for each. Typed getters were rejected on purpose: `PORT=eighty` silently returning a default is a production incident.
 
 **Can it manage secrets in GitHub Actions or Vercel?** Yes — `dotenvctl github push` / `vercel push` sync a *selection* of your file (prefix-based, renamed, placeholder-guarded) via the `gh`/`vercel` CLIs. Values travel by stdin, never argv, and output never prints them.
 

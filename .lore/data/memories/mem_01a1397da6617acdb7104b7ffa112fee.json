@@ -1,0 +1,23 @@
+{
+  "_table": "memories",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Unreleased on main after cli/v0.1.2 (as of 2026-10-14): library minimum Go lowered to 1.22 (45e991e) and the TestParse_ScalesLinearly ratio redesign (31847d4). The next library tag would be v0.1.2.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:18.337706000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "mem_01a1397da6617acdb7104b7ffa112fee",
+  "kind": "episodic",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "CHANGELOG.md [Unreleased]",
+  "superseded_by_id": null,
+  "trust_score": 0.5,
+  "tx_at": "2026-10-14T08:18:18.337727000Z",
+  "updated_at": "2026-10-14T08:18:18.337706000Z",
+  "valid_at": null,
+  "valid_until": null,
+  "validated_by_actor_id": null
+}

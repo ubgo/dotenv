@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+// ds:def id=keyclass-46et9zsb owner=@maintainers stability=stable
+
 // keyClass is the set of characters a variable name may contain — Docker
 // Compose's charset (compose-go accepts letters, digits, '_', '.', '-', '[',
 // ']'), which is a superset of Node dotenv's and godotenv's `[\w.-]`. Matching
@@ -22,6 +24,8 @@ import (
 // KindOther and survives verbatim. See KindOther for why an editor must prefer
 // preservation over rejection.
 const keyClass = `[A-Za-z0-9_.\-\[\]]`
+
+// ds:def id=pairre-v3u356bt owner=@maintainers stability=stable
 
 // pairRe matches the head of a KEY=value (or Compose/Node-style KEY: value)
 // line.
@@ -54,6 +58,8 @@ var pairRe = regexp.MustCompile(`^((?:export[ \t]+)?[ \t]*(` + keyClass + `+)[ \
 // it — reading os.Environ is exactly what this package promises not to do.
 // See KindInherited for the contract.
 var inheritedRe = regexp.MustCompile(`^[ \t]*(?:export[ \t]+)?(` + keyClass + `+)[ \t]*$`)
+
+// ds:def id=inlinecommentre-5km4985g owner=@maintainers stability=stable
 
 // inlineCommentRe finds where an unquoted value ends: at whitespace followed by
 // a #. Requiring the whitespace is deliberate — a # inside a value such as
@@ -318,6 +324,8 @@ func scanDoubleQuoted(s string, mode EscapeMode) (value, remainder string, close
 	}
 	return b.String(), "", false
 }
+
+// ds:def id=decodeescape-w7neknhj owner=@maintainers stability=stable
 
 // decodeEscape maps the character following a backslash to its replacement,
 // reporting whether the sequence is recognised in this mode.

@@ -1,0 +1,23 @@
+{
+  "_table": "tasks",
+  "_v": 1,
+  "assigned_to_actor_id": null,
+  "body": "Add a learning path, choosing guides (which API or verb for which job) and indexes across docs/.",
+  "commitment": "accepted",
+  "completed_at": "2026-10-14T09:15:34.213160308Z",
+  "created_at": "2026-10-14T08:23:35.441852000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "deferred_until": null,
+  "due_at": null,
+  "id": "tsk_01a139827d117d0ba404d053bd10bd6e",
+  "mission_id": "msn_01a139822a4d7128b674f2f291092bec",
+  "plan_id": null,
+  "priority": "medium",
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "started_at": "2026-10-14T09:01:32.403673665Z",
+  "status": "done",
+  "tasklist_id": "tlt_01a139822ae272658b34eda4f307b756",
+  "title": "Batch 3: structure (learning path, choosing guides, indexes)",
+  "updated_at": "2026-10-14T09:15:34.213161724Z"
+}

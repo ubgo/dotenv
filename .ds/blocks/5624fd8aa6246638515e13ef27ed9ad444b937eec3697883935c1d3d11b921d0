@@ -1,0 +1,19 @@
+func (f *File) Render() string {
+	var lines []string
+	for _, e := range f.entries {
+		lines = append(lines, e.Raw...)
+	}
+
+	// Joined with "\n" alone: each line already carries its own "\r" when the
+	// source had one, so a file with mixed terminators comes back mixed rather
+	// than normalised to a single style.
+	out := strings.Join(lines, "\n")
+	if f.trailingNewline && out != "" {
+		out += "\n"
+	}
+	// A file of nothing but blank lines still ends in a terminator.
+	if out == "" && f.trailingNewline && len(f.entries) > 0 {
+		out = "\n"
+	}
+	return out
+}

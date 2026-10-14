@@ -1,0 +1,23 @@
+{
+  "_table": "memories",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Release v0.1.0 and cli/v0.1.0 (2026-09-06, commit 1c4bf15): first tags, cli pinned to library v0.1.0 so go install works. Both tags were later deleted from the repo but remain in the Go proxy and checksum DB, so 0.1.0 is never reused.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:17.946802000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "mem_01a1397da4da7c48bd4ff74405f391f0",
+  "kind": "episodic",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "commit 1c4bf15; CHANGELOG.md",
+  "superseded_by_id": null,
+  "trust_score": 0.5,
+  "tx_at": "2026-10-14T08:18:17.946826000Z",
+  "updated_at": "2026-10-14T08:18:17.946802000Z",
+  "valid_at": null,
+  "valid_until": null,
+  "validated_by_actor_id": null
+}

@@ -1,0 +1,1 @@
+var ErrAnchorNotFound = errors.New("dotenv: anchor key not found")

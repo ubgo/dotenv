@@ -1,0 +1,11 @@
+func (f *File) SaveAs(path string) error {
+	if path == "" {
+		return fmt.Errorf("dotenv: SaveAs needs a path")
+	}
+
+	mode := f.mode
+	if info, err := os.Stat(path); err == nil {
+		mode = info.Mode().Perm()
+	}
+	return f.writeTo(path, mode)
+}

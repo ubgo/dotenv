@@ -24,6 +24,8 @@ import (
 // is a breaking change.
 type ErrCode string
 
+// ds:def id=errcodes-tjhb87tm owner=@maintainers stability=stable
+
 const (
 	// CodeNotFound: the named key (or disabled/inherited entry) does not exist
 	// in the file.
@@ -64,6 +66,8 @@ type Printer struct {
 	// human-readable form via Human/Humanf and OK emits nothing.
 	JSON bool
 }
+
+// ds:def id=envelope-44255rwu owner=@maintainers stability=stable
 
 // envelope is the wire shape of every --json response. Kept unexported: the
 // only way to produce one is OK/Fail, which is what keeps the shape uniform.

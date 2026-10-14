@@ -1,0 +1,20 @@
+{
+  "_table": "decisions",
+  "_v": 1,
+  "archived_at": null,
+  "body": "It used a fixed 5 second budget, and the race detector (2-20x slowdown) pushed the unchanged code to about 5.5s, failing the full gate. It now parses 1.25 MB and 5 MB, best of three each, and checks the ratio: linear is about 4x, quadratic about 16x, the limit is 9x. Slowdown from -race or a loaded machine hits both timings alike and cancels out. Break-verified by making Parse quadratic in a scratch copy: the ratio went to 14.7x and the test failed.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:16.688949000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "dec_01a1397d9ff07e82afe2bd120b890c2b",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "commit 31847d4",
+  "status": "accepted",
+  "superseded_by_id": null,
+  "title": "TestParse_ScalesLinearly compares two input sizes instead of a fixed time budget",
+  "trust_score": 0.5,
+  "updated_at": "2026-10-14T08:18:16.688949000Z"
+}

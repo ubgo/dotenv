@@ -1,0 +1,23 @@
+{
+  "_table": "memories",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Pitfall: cobra errors were silenced at root and the fall-through printed nothing, so unknown flags exited 2 with no output. Usage errors now print on stderr.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:21.602753000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "mem_01a1397db3227b8d86124cef2fa3ff2a",
+  "kind": "procedural",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "commit 25f1d91",
+  "superseded_by_id": null,
+  "trust_score": 0.5,
+  "tx_at": "2026-10-14T08:18:21.602780000Z",
+  "updated_at": "2026-10-14T08:18:21.602754000Z",
+  "valid_at": null,
+  "valid_until": null,
+  "validated_by_actor_id": null
+}

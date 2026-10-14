@@ -1,0 +1,24 @@
+# Copy into .github/workflows/docsync.yml
+#
+# Manual only: Actions minutes on this repository are metered, and a workflow
+# that fails for billing teaches everyone to ignore the gate. The local
+# `task docs:sync` is the real gate. When budget is available, replace the
+# `on:` block below with these trigger lines:
+#
+#   on:
+#     pull_request:
+#     push:
+#       branches: [main]
+name: docsync
+on:
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.26" }
+      - run: go install github.com/ubgo/docsync/cli/cmd/ds@latest
+      - run: ds check --json > "$RUNNER_TEMP/docsync.json" || (cat "$RUNNER_TEMP/docsync.json"; exit 1)

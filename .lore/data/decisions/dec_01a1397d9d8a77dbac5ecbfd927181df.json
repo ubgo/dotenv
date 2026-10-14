@@ -1,0 +1,20 @@
+{
+  "_table": "decisions",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Before cli/v0.1.2, push ran gh secret set NAME --body - with the value on stdin. gh has no dash-means-stdin rule: a non-empty --body is the literal value, so every pushed secret was stored as the single character dash. The fix drops --body; with --body absent and stdin not a terminal, gh reads stdin and trims only trailing CR/LF. A test runs the real runner against a fake gh on PATH and pins the argv and exact stdin bytes for values with dollar, space-hash, quotes, a lone dash, a flag-like value and trailing newlines; it fails with the old flag. Fixed and released 2026-10-14; users who pushed with 0.1.0 or 0.1.1 were told to re-push.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:16.074513000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "dec_01a1397d9d8a77dbac5ecbfd927181df",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "commit 3000d77; tag cli/v0.1.2; issue #1",
+  "status": "accepted",
+  "superseded_by_id": null,
+  "title": "v0.1.2 fix: github push sends no --body flag at all (issue #1)",
+  "trust_score": 0.5,
+  "updated_at": "2026-10-14T08:18:16.074513000Z"
+}

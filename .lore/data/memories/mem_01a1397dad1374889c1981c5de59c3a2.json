@@ -1,0 +1,23 @@
+{
+  "_table": "memories",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Placeholder guards: push refuses to send placeholder values (like __YOU__) so they cannot leak into remote secrets.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:20.051296000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "mem_01a1397dad1374889c1981c5de59c3a2",
+  "kind": "core",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "docsi/cli/GITHUB_PLUGIN_SPEC.md; commit 2af7ad1",
+  "superseded_by_id": null,
+  "trust_score": 0.5,
+  "tx_at": "2026-10-14T08:18:20.051315000Z",
+  "updated_at": "2026-10-14T08:18:20.051296000Z",
+  "valid_at": null,
+  "valid_until": null,
+  "validated_by_actor_id": null
+}

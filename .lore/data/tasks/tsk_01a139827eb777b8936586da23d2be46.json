@@ -1,0 +1,23 @@
+{
+  "_table": "tasks",
+  "_v": 1,
+  "assigned_to_actor_id": null,
+  "body": "Run the code-standards pass, the full gates of both modules and the docs checks once at the end of the batch.",
+  "commitment": "accepted",
+  "completed_at": "2026-10-14T09:24:21.427309742Z",
+  "created_at": "2026-10-14T08:23:35.863504000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "deferred_until": null,
+  "due_at": null,
+  "id": "tsk_01a139827eb777b8936586da23d2be46",
+  "mission_id": "msn_01a139822a4d7128b674f2f291092bec",
+  "plan_id": null,
+  "priority": "high",
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "started_at": "2026-10-14T09:21:29.927999940Z",
+  "status": "done",
+  "tasklist_id": "tlt_01a139822ae272658b34eda4f307b756",
+  "title": "Gates: code standards, full gates, docs checks",
+  "updated_at": "2026-10-14T09:24:21.427310906Z"
+}

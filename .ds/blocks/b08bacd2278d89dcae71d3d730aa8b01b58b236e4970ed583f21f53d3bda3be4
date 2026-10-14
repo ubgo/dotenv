@@ -1,0 +1,25 @@
+const (
+	// CodeNotFound: the named key (or disabled/inherited entry) does not exist
+	// in the file.
+	CodeNotFound ErrCode = "not_found"
+
+	// CodeIO: the file could not be read or written.
+	CodeIO ErrCode = "io"
+
+	// CodeRequired: a ${VAR:?msg} / ${VAR?msg} reference failed during
+	// --expand — the library's RequiredError surfaced.
+	CodeRequired ErrCode = "required"
+
+	// CodeUsage: arguments did not parse (bad KEY=VALUE, missing operand).
+	CodeUsage ErrCode = "usage"
+
+	// CodeExec: the child process of `run` could not be started. A child that
+	// starts and exits non-zero is NOT this — its exit code is passed through
+	// verbatim instead.
+	CodeExec ErrCode = "exec"
+
+	// CodeDiff: reserved for `diff` when the files differ. Not an error in the
+	// envelope (diff emits ok:true with the differences); it exists so the
+	// exit-code mapping has a named cause rather than a bare 1.
+	CodeDiff ErrCode = "diff"
+)

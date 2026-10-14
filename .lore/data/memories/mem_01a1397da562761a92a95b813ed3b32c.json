@@ -1,0 +1,23 @@
+{
+  "_table": "memories",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Release v0.1.1 and cli/v0.1.1 (2026-09-09, tags on 120879b and c4f5836): licence MIT to Apache-2.0, README restructure, measured coverage (100.00% library, 99.52% CLI), coverage tasks, docs with real captured output. No behaviour change: every non-test Go file is byte-identical to 0.1.0, hence a patch.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:18.082398000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "mem_01a1397da562761a92a95b813ed3b32c",
+  "kind": "episodic",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "tags v0.1.1 cli/v0.1.1; CHANGELOG.md",
+  "superseded_by_id": null,
+  "trust_score": 0.5,
+  "tx_at": "2026-10-14T08:18:18.082421000Z",
+  "updated_at": "2026-10-14T08:18:18.082398000Z",
+  "valid_at": null,
+  "valid_until": null,
+  "validated_by_actor_id": null
+}

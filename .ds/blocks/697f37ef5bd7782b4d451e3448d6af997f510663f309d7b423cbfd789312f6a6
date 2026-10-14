@@ -1,0 +1,5 @@
+type envelope struct {
+	OK    bool       `json:"ok"`
+	Data  any        `json:"data,omitempty"`
+	Error *wireError `json:"error,omitempty"`
+}

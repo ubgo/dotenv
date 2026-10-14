@@ -1,0 +1,6 @@
+func (f *File) eol() string {
+	if f.crlf {
+		return "\r"
+	}
+	return ""
+}

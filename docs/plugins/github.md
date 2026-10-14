@@ -2,6 +2,8 @@
 
 Pushes env values to **GitHub Actions secrets** through the [`gh` CLI](https://cli.github.com), which supplies authentication and secret encryption. Requires `gh` on your PATH, logged in (`gh auth login`) or overridden by a token (below).
 
+On this page: [Commands](#commands) · [Choosing the target](#choosing-the-target) · [Authentication and token override](#authentication-and-token-override) · [Creating the environment first](#creating-the-environment-first) · [Secret names](#secret-names) · [The prefix workflow](#the-prefix-workflow) · [Keeping remote secrets in sync](#keeping-remote-secrets-in-sync) · [CI usage](#ci-usage) · [Failure behavior](#failure-behavior) · [Pitfalls](#pitfalls) · [Related](#related)
+
 ## Commands
 
 ```sh
@@ -23,7 +25,7 @@ dotenvctl github push --prefix GITHUB_SECRET_ --strip-prefix   --exclude GITHUB_
 
 | Flag | Target |
 |---|---|
-| *(none)* | the repository of your current directory's git remote, exactly as `gh` resolves it |
+| *(none)* | [the repository of your current directory's git remote](ds:block?id=ghresolvetarget-4a2bqvwq), exactly as `gh` resolves it |
 | `--repo owner/name` | that repository |
 | `--environment production` (alias `--env`) | a deployment environment's secrets (combinable with `--repo`) |
 | `--org acme` | organization secrets — mutually exclusive with `--repo`/`--environment` |
@@ -38,7 +40,7 @@ keys   : 10
 proceed? [y/N]
 ```
 
-`--dry-run` prints the banner and the would-push list without prompting or writing. Non-interactive runs (CI, pipes, `--json`) require `--yes`. The banner exists because "wrong directory + inferred repo + irreversible write" must never combine silently.
+`--dry-run` prints the banner and the would-push list without prompting or writing. Non-interactive runs (CI, pipes, `--json`) [require `--yes`](ds:block?id=confirm-wvppa3w3). The banner exists because "wrong directory + inferred repo + irreversible write" must never combine silently.
 
 ## Authentication and token override
 
@@ -48,7 +50,7 @@ The plugin inherits `gh`'s own auth chain: **`GH_TOKEN` → `GITHUB_TOKEN` → y
 GH_TOKEN=ghp_yourtoken dotenvctl github push --repo someorg/private-repo --yes
 ```
 
-The banner labels the source — `account: you (via GH_TOKEN)` — so a token exported yesterday can't act invisibly today. There is deliberately **no `--token` flag**: argv is visible to every process via `ps` and persists in shell history. For the same reason, secret values reach `gh` via stdin, never as arguments.
+[The banner labels the source](ds:block?id=tokenenvvars-egswkuty) — `account: you (via GH_TOKEN)` — so a token exported yesterday can't act invisibly today. There is deliberately **no `--token` flag**: argv is visible to every process via `ps` and persists in shell history. For the same reason, secret values reach `gh` via stdin, never as arguments.
 
 ## Creating the environment first
 
@@ -68,7 +70,7 @@ dotenvctl -f .env.prod github push --prefix GITHUB_SECRET_ --strip-prefix --env 
 
 ## Secret names
 
-GitHub requires `[A-Za-z_][A-Za-z0-9_]*`. Env keys that are legal in `.env` files but not as secret names (dots, hyphens, digit-first) fail the **whole push before any write**, with the offending keys listed — no silent renaming, no partial pushes.
+[GitHub requires](ds:block?id=secretnamere-844cw9m5) `[A-Za-z_][A-Za-z0-9_]*`. Env keys that are legal in `.env` files but not as secret names (dots, hyphens, digit-first) fail the **whole push before any write**, with the offending keys listed — no silent renaming, no partial pushes.
 
 ## The prefix workflow
 
@@ -127,4 +129,24 @@ Every spared name is reported with its reason, so the decision is auditable.
 ## Failure behavior
 
 - `gh` missing or unauthenticated: a clear error pointing at `https://cli.github.com` / `gh auth login`; nothing runs.
-- A push failing mid-way: everything already pushed is reported as `pushed`, the command exits `1`, and re-running completes the rest — pushes are idempotent upserts.
+- A push failing mid-way: everything already pushed is reported as `pushed`, the command exits `1`, and re-running completes the rest — pushes are idempotent upserts. The shape is the same as in the [Vercel example](vercel.md#failure-behavior).
+- `gh secret list` failing: `list` and `prune` fail too, rather than treating the scope as empty.
+
+## Pitfalls
+
+- **Each scope is listed and pruned on its own.** Repository, environment and organization secrets are separate stores. `github list` without `--env` shows repository secrets only, and `github prune` without `--env` compares your file against repository secrets only. Run `prune` with the same `--env`/`--org` you pushed with.
+- **`--org` cannot be combined** with `--repo` or `--environment`; `push` and `prune` stop with a usage error (exit `2`) before anything is written.
+- **Trailing newlines are dropped.** Values reach `gh` on stdin, and `gh` trims a trailing `\r\n` from what it reads, so a multi-line value that ends in a newline is stored without it.
+- **Name checks see the final names.** Validation runs after `--strip-prefix`, so `GITHUB_SECRET_1PASSWORD` fails (it becomes `1PASSWORD`, digit-first) even though the original key would be legal.
+- **`--json` after a mid-way failure prints two envelopes**: the partial `{"ok":true,…}` record, then the `{"ok":false,…}` error. Take the last line as the outcome.
+- **No `--token` flag, on purpose.** Use `GH_TOKEN` for a one-off identity, and read the `account:` line in the banner before you answer `y`.
+
+## Related
+
+- [Plugins overview](../plugins.md) — the shared flags, guards and confirm gate
+- [Vercel plugin](vercel.md) — the same verbs for Vercel environment variables
+- [Selecting keys](../commands.md#selecting-keys--the-shared-grammar) — the selection grammar in full
+- [Recipes](../recipes.md#sync-deploy-secrets-to-github-actions-end-to-end) — the end-to-end sync workflow
+- [Go API guide](../go-api.md) — `githubplugin.New()` and `providerkit`
+- [Feature index](../reference/features.md)
+- Tests that pin this behavior: [`github_test.go`](../../cli/plugins/githubplugin/github_test.go)

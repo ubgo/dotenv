@@ -11,6 +11,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - **The library's minimum Go is now 1.22** (was 1.26.4, the toolchain that happened to be installed). The real floor is range-over-int in `parse.go`; nothing in the standard library newer than 1.20 is used. Three benchmarks that used `b.Loop` (Go 1.24) are back to the classic loop. Build and vet were checked with a real go1.22.0 toolchain, and the full suite passes on 1.23.
 
+### Documentation
+
+- **Step-by-step guides for every feature, with runnable examples.** New library guides under `docs/library/` (reading, entries and kinds, syntax, editing, saving, expansion, plugins, typed configuration); the CLI pages (`commands`, `getting-started`, `multi-env`, `recipes`, `plugins`, the GitHub and Vercel plugin pages) and the Go API page were expanded, and the Vercel page now matches the GitHub one. 148 new `Example` functions with checked output back the guides (94 in the library, 54 in the CLI module): `example_*_test.go` at the repository root and an `example_test.go` in each `cli/` package. All 122 features in the new [feature index](docs/reference/features.md) have a guide section, and 109 have a runnable example.
+- **A learning path and decision guides.** `docs/README.md` opens with a 12-step learning path and a "start from your goal" table; new `docs/choosing/` pages answer which call, option, plugin hook, tool or sync backend to use, and which options suit which kind of app. The README links them, embeds the architecture diagram, and its code blocks are now tested examples too.
+- **Docs gate.** `task docs:check` checks links and anchors, that every Go code block matches a tested `Example` (`task docs:snippets:fix` rewrites drifted blocks), hard-wrapped lines, local paths and banned words, and runs every `Example` in both modules.
+- **Corrected claims.** New lines use CRLF as soon as a file contains any CRLF (not the dominant style); `Set` keeps the spacing before the delimiter but not after it; a failing `CommandRunner` expands to `""` rather than failing; single quotes stop expansion only when that key is read directly; a cycle's re-entering reference resolves to `""` while the rest of the value stays; go-envconfig v1 takes `envconfig.ProcessWith(ctx, &envconfig.Config{Target: &cfg, Lookuper: l})` and stops at its first error. The README's `task dotenv:bench` / `task dotenv:fuzz*` commands are now `task bench` / `task fuzz` / `task fuzz:all` / `task fuzz:list`, and `task fuzz:all` runs all eight properties.
+
 ### Deprecated
 ### Removed
 ### Fixed

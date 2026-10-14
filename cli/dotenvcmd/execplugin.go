@@ -17,6 +17,8 @@ import (
 // serves `dotenvctl foo …`, git/kubectl style (PLUGINS_SPEC §6).
 const execPluginPrefix = "dotenvctl-"
 
+// ds:def id=pluginenv-efwe4fby owner=@maintainers stability=stable
+
 // Context env vars passed to exec plugins — facts only, NEVER secret values;
 // a child that wants values calls the host back (the callback protocol).
 // Closed set: plugin authors program against these names.
@@ -130,6 +132,8 @@ func scanForSubcommand(args []string) (name string, rest []string, file string, 
 	}
 	return "", nil, file, jsonOut
 }
+
+// ds:def id=hasbuiltin-ck96jzwc owner=@maintainers stability=stable
 
 // hasBuiltin reports whether name matches a registered command or alias —
 // the always-wins set that PATH binaries can never shadow.

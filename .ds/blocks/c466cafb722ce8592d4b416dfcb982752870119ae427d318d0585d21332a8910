@@ -1,0 +1,20 @@
+func decodeEscape(c byte, mode EscapeMode) (string, bool) {
+	switch c {
+	case '"':
+		return `"`, true
+	case '\\':
+		return `\`, true
+	}
+	if mode != EscapeExtended {
+		return "", false
+	}
+	switch c {
+	case 'n':
+		return "\n", true
+	case 'r':
+		return "\r", true
+	case 't':
+		return "\t", true
+	}
+	return "", false
+}

@@ -1,0 +1,23 @@
+{
+  "_table": "tasks",
+  "_v": 1,
+  "assigned_to_actor_id": null,
+  "body": "Break-verify. Agent: parse-plugin-fixes.",
+  "commitment": "accepted",
+  "completed_at": null,
+  "created_at": "2026-10-14T09:30:06.916670398Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "deferred_until": null,
+  "due_at": null,
+  "id": "tsk_01a139bf64c47a419c9e473089a98560",
+  "mission_id": "msn_01a139822a4d7128b674f2f291092bec",
+  "plan_id": null,
+  "priority": "high",
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "started_at": null,
+  "status": "todo",
+  "tasklist_id": "tlt_01a139822ae272658b34eda4f307b756",
+  "title": "Fix plugin firewall bugs 9-10 (SaveGuard / EntryObserver read-only views)",
+  "updated_at": "2026-10-14T09:30:06.916670537Z"
+}

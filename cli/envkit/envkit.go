@@ -28,6 +28,8 @@ import (
 	"github.com/ubgo/dotenv"
 )
 
+// ds:def id=placeholderpattern-up25s3m5 owner=@maintainers stability=stable
+
 // DefaultPlaceholderPattern marks values that are stand-ins rather than real
 // configuration — the `__YOU__` / `__CONFIRM__` convention. Exported because
 // callers embedding envkit need the same default the CLI uses, and because a

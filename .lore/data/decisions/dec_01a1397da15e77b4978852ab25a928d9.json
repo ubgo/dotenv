@@ -1,0 +1,20 @@
+{
+  "_table": "decisions",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Type belongs to the destination, not the source: a binder reports PORT=eighty as an error, inference silently yields a string. Real values collide (ZIP=01234 loses its leading zero, DESCRIPTION=Hello, world becomes an array) and both escape hatches of dotenv-parse-variables clash with syntax already supported. Rejected in all three forms (always, behind a flag, sibling module).",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:17.054503000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "dec_01a1397da15e77b4978852ab25a928d9",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "docsi/roadmap.md; docsi/proposals/dotenv-type-inference.md",
+  "status": "accepted",
+  "superseded_by_id": null,
+  "title": "Rejected: inferring value types from their shape",
+  "trust_score": 0.5,
+  "updated_at": "2026-10-14T08:18:17.054503000Z"
+}

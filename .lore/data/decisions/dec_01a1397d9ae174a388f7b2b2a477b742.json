@@ -1,0 +1,20 @@
+{
+  "_table": "decisions",
+  "_v": 1,
+  "archived_at": null,
+  "body": "cli/ is its own module (github.com/ubgo/dotenv/cli) so cobra and x/term stay out of the library's dependency graph. A separate repo (ubgo/dotenvctl) was rejected for now: one repo keeps a library change and the flag that uses it in one commit; it can be extracted later if an umbrella CLI appears. The main package sits at cli/cmd/dotenvctl so go install names the binary dotenvctl. The verbs package is dotenvcmd/ (exported, embeddable).",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:15.393301000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "dec_01a1397d9ae174a388f7b2b2a477b742",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "commit 2af7ad1; docsi/cli/PLAN.md",
+  "status": "accepted",
+  "superseded_by_id": null,
+  "title": "dotenvctl lives in a nested Go module cli/ in the same repo",
+  "trust_score": 0.5,
+  "updated_at": "2026-10-14T08:18:15.393301000Z"
+}

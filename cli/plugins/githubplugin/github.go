@@ -40,11 +40,15 @@ const (
 	flagOrg              = "org"
 )
 
+// ds:def id=secretnamere-844cw9m5 owner=@maintainers stability=stable
+
 // secretNameRe is GitHub's secret-name grammar. Env keys legal under the
 // Compose charset (dots, hyphens, digit-first) are NOT legal here; the
 // plugin fails the whole run before any write rather than silently renaming
 // — tool-invented mangling is how secrets get orphaned (spec §2).
 var secretNameRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// ds:def id=tokenenvvars-egswkuty owner=@maintainers stability=stable
 
 // Auth-source env vars, in gh's own precedence order. Read only to LABEL the
 // confirm banner — the token itself is never touched; gh consumes it from
@@ -284,6 +288,8 @@ func (s *ghStore) meta(ctx context.Context) (map[string]string, error) {
 	}
 	return map[string]string{"target": target, "account": account}, nil
 }
+
+// ds:def id=ghresolvetarget-4a2bqvwq owner=@maintainers stability=stable
 
 // resolveTarget names where writes will land: the explicit flag, or the
 // cwd's repo exactly as gh itself resolves it — the display half of the

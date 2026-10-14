@@ -1,0 +1,23 @@
+{
+  "_table": "memories",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Taskfile tasks include cover, test:cover, test:uncovered and cli:bump (re-pin the cli to the pushed library main, rebuild in module mode, print the version).",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:20.355541000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "mem_01a1397dae437849abbf05101803ce0f",
+  "kind": "core",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "Taskfile.yml; commits c2eae28 bc9b60d",
+  "superseded_by_id": null,
+  "trust_score": 0.5,
+  "tx_at": "2026-10-14T08:18:20.355591000Z",
+  "updated_at": "2026-10-14T08:18:20.355541000Z",
+  "valid_at": null,
+  "valid_until": null,
+  "validated_by_actor_id": null
+}

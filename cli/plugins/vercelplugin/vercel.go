@@ -30,6 +30,8 @@ const (
 	flagSensitive = "sensitive"
 )
 
+// ds:def id=verceldefaulttarget-w4c9y8nf owner=@maintainers stability=stable
+
 // defaultTarget is where values land when --target is not given. Development
 // mirrors the vercel CLI's own default and is the least dangerous place for
 // an accidental push.
@@ -177,6 +179,8 @@ func (s *vercelStore) meta(ctx context.Context) (map[string]string, error) {
 		"targets": strings.Join(s.targets, ","),
 	}, nil
 }
+
+// ds:def id=vercelresolveproject-6w9rnap9 owner=@maintainers stability=stable
 
 // resolveProject names the linked project from .vercel/project.json — display
 // only. An unlinked directory is reported as such rather than guessed at; the

@@ -1,0 +1,20 @@
+{
+  "_table": "decisions",
+  "_v": 1,
+  "archived_at": null,
+  "body": "v0.1.0 and cli/v0.1.0 were published to the Go module proxy and then deleted from the repo. Deleting a tag does not withdraw it: both stay in the checksum database and stay installable, so re-tagging that version would give different code under the same version. Releases skip forward (0.1.1).",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:16.867079000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "dec_01a1397da0a3713c9563e5a1f5b71834",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "CHANGELOG.md (Note on 0.1.0)",
+  "status": "accepted",
+  "superseded_by_id": null,
+  "title": "Deleted v0.1.0 tags are never reused",
+  "trust_score": 0.5,
+  "updated_at": "2026-10-14T08:18:16.867079000Z"
+}

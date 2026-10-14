@@ -1,0 +1,23 @@
+{
+  "_table": "memories",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Pitfall: /dev/null is a character device, so a char-device check misclassified CI stdin as interactive and the CLI prompted into the void. Interactivity is a real isatty check now.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:21.439170000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "mem_01a1397db27f729fb725aa4f755c2de1",
+  "kind": "procedural",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "commit 25f1d91",
+  "superseded_by_id": null,
+  "trust_score": 0.5,
+  "tx_at": "2026-10-14T08:18:21.439192000Z",
+  "updated_at": "2026-10-14T08:18:21.439170000Z",
+  "valid_at": null,
+  "valid_until": null,
+  "validated_by_actor_id": null
+}

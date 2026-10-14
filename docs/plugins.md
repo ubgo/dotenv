@@ -2,6 +2,8 @@
 
 Plugins move env values *outward* — into secret stores and deployment platforms — and each one is a command namespace: `dotenvctl github …`, with its own verbs and flags. Backends genuinely differ (GitHub secrets are write-only, other stores have environments or sensitivity levels), so plugins are not forced into one rigid interface; instead they share the pieces that must be uniform.
 
+On this page: [What every plugin shares](#what-every-plugin-shares) · [Why selection matters](#why-selection-matters-one-file-several-audiences) · [Available plugins](#available-plugins) · [Writing your own plugin](#writing-your-own-plugin-exec-plugins) · [A complete exec plugin](#a-complete-exec-plugin-dotenvctl-export) · [A worked example](#a-worked-example) · [Related](#related)
+
 ## What every plugin shares
 
 **The value pipeline.** Plugins never parse your env file themselves. The host parses once and hands them a resolved selection — the same [core selection grammar](commands.md#selecting-keys--the-shared-grammar) that `list` and `keys` use, so reading a selection and pushing it can never disagree:
@@ -15,9 +17,9 @@ Plugins move env values *outward* — into secret stores and deployment platform
 | `--exclude-prefix P` | drop keys starting with `P` — the inverse selector ("everything except the deploy keys") |
 | `--include KEY` | force-include a key even when the prefix filters would drop it |
 | `--exclude KEY` | drop a specific key from the selection (excluding an absent key is a no-op) |
-
-Both take multiple values — repeat the flag (`--exclude A --exclude B`) or pass a comma list (`--exclude A,B`); the [core selection guide](commands.md#selecting-keys--the-shared-grammar) documents every rule (matching is against pre-strip names, exclude beats include, named keys must exist).
 | `--include-placeholders` / `--include-empty` | lift the default guards (below) |
+
+`--include` and `--exclude` take multiple values — repeat the flag (`--exclude A --exclude B`) or pass a comma list (`--exclude A,B`); the [core selection guide](commands.md#selecting-keys--the-shared-grammar) documents every rule (matching is against pre-strip names, exclude beats include, named keys must exist).
 
 Resolution order is fixed and predictable: explicit `KEY...` args are the selection as given (prefix filters don't second-guess them) — otherwise all keys → `--prefix` keeps → `--exclude-prefix` drops → `--include` force-adds → `--exclude` drops → the guards run last. Any key you *name* (`KEY...` args or `--include`) must exist, or the command fails loudly.
 
@@ -52,7 +54,7 @@ The convention (`GITHUB_SECRET_`, or any other) belongs to *your repo* — the b
 
 **The safety rules.**
 
-- Values matching the placeholder pattern (`__YOU__`-style) are **skipped with a warning**, never pushed silently — a stand-in landing in production secrets is a disaster. Same for empty values.
+- Values matching [the placeholder pattern](ds:block?id=placeholderpattern-up25s3m5) (`__YOU__`-style) are **skipped with a warning**, never pushed silently — a stand-in landing in production secrets is a disaster. Same for empty values.
 - Secret values travel to backend CLIs via **stdin, never argv** — argv is visible to every process via `ps` and lands in shell history.
 - Output prints **names and actions only**, never values: `pushed` · `would-push` · `skipped-placeholder` · `skipped-empty` · `deleted` · `would-delete` · `kept-skipped` · `kept-keep-flag`.
 - Every mutating verb supports `--dry-run`, and prints the resolved target and acting account **before** anything writes.
@@ -78,35 +80,126 @@ Run `dotenvctl plugins` to also see third-party exec plugins discovered on your 
 
 ## Writing your own plugin (exec plugins)
 
-Any executable named `dotenvctl-<name>` on your PATH becomes a subcommand: `dotenvctl acme push` runs `dotenvctl-acme push`, git-style, in any language. Its stdout/stderr stream through and its exit code becomes dotenvctl's. Built-ins always win — a PATH binary can never shadow `github`; `dotenvctl plugins` reports such collisions as `shadowed by built-in`.
+Any executable named `dotenvctl-<name>` on your PATH becomes a subcommand: `dotenvctl acme push` runs `dotenvctl-acme push`, git-style, in any language. Its stdout/stderr stream through and its exit code becomes dotenvctl's. [Built-ins always win](ds:block?id=hasbuiltin-ck96jzwc) — a PATH binary can never shadow `github`; `dotenvctl plugins` reports such collisions as `shadowed by built-in`.
 
-Your plugin receives context as environment variables (facts only — secret values are never passed in the environment):
+Your plugin receives context [as environment variables](ds:block?id=pluginenv-efwe4fby) (facts only — secret values are never passed in the environment):
 
 | Variable | Meaning |
 |---|---|
 | `DOTENVCTL_FILE` | absolute path of the `-f` file the user chose |
 | `DOTENVCTL_JSON` | `1` when the user passed `--json`, else `0` |
-| `DOTENVCTL_PLACEHOLDER` | the active placeholder regexp |
-| `DOTENVCTL_BIN` | absolute path of the running dotenvctl — your callback handle |
-| `DOTENVCTL_VERSION` | host version, for feature gating |
+| `DOTENVCTL_PLACEHOLDER` | the placeholder regexp, always the default `^__[A-Z0-9_]+__$` (`matrix --placeholder` does not change it) |
+| `DOTENVCTL_BIN` | absolute path of the running dotenvctl — your callback handle (empty if the host cannot resolve its own path) |
+| `DOTENVCTL_VERSION` | host version, for feature gating (the same string `dotenvctl --version` prints) |
 
-To read values, call the host back — this inherits dotenvctl's exact parsing, expansion, required-var, and placeholder semantics forever:
+The names are also exported Go constants in `dotenvcmd` (`EnvPluginFile`, `EnvPluginJSON`, `EnvPluginPlaceholder`, `EnvPluginBin`, `EnvPluginVersion`), for plugins written in Go.
 
-```sh
-#!/usr/bin/env bash            # dotenvctl-acme
-set -euo pipefail
-"$DOTENVCTL_BIN" -f "$DOTENVCTL_FILE" list --expand --json |
-  jq -r '.data.pairs[] | "\(.key)\t\(.value)"' |
-  while IFS=$'\t' read -r key value; do
-    [[ $value =~ $DOTENVCTL_PLACEHOLDER ]] && { echo "skip $key (placeholder)"; continue; }
-    acme-cli secret set "$key" "$value"
-    echo "$key: pushed"
-  done
-```
+To read values, call the host back — this inherits dotenvctl's exact parsing, expansion, required-var, and placeholder semantics forever. The next section is a complete plugin built that way.
 
 Trust model, stated plainly: an exec plugin is exactly as trustworthy as anything else on your PATH — dotenvctl adds discovery (`dotenvctl plugins`) and the no-shadowing rule, not a sandbox.
 
-**Writing a plugin in Go instead?** `providerkit` is importable: implement the capability interfaces for your backend and the standard verbs are generated with the shared flags, guards, and confirm gate. See the [Go API guide](go-api.md#providerkit--plugins).
+## A complete exec plugin: `dotenvctl-export`
+
+This plugin prints the selected keys as shell `export` lines, so `eval "$(dotenvctl export)"` loads a file into your current shell. It is small, but it uses the whole contract: it reads the context variables, calls the host back for names and values (so selection flags, expansion and required variables behave exactly as in the built-in verbs), honours the placeholder guard, and passes host failures on with the right exit code. Values only ever travel through pipes, never through arguments of another program.
+
+**Before you start:** `bash` 4 or later, and a directory on your PATH you can write to.
+
+**Step 1 — write the script.** Save it as `dotenvctl-export` (the part after `dotenvctl-` becomes the subcommand name):
+
+```bash
+#!/usr/bin/env bash
+# dotenvctl-export: print the selected keys as shell `export` lines.
+# Usage: dotenvctl [-f FILE] export [selection flags]
+set -euo pipefail
+
+if [ -z "${DOTENVCTL_BIN:-}" ]; then
+  echo "dotenvctl-export: run me as 'dotenvctl export'" >&2
+  exit 2
+fi
+
+# Ask the host for the names, so selection flags work exactly as in `keys`.
+# On failure dotenvctl prints its message on stdout, so pass it to stderr.
+if ! names=$("$DOTENVCTL_BIN" -f "$DOTENVCTL_FILE" keys "$@"); then
+  echo "$names" >&2
+  exit 1
+fi
+
+while IFS= read -r key; do
+  [ -n "$key" ] || continue
+  # Ask the host for each value, expanded with dotenvctl's own rules.
+  if ! value=$("$DOTENVCTL_BIN" -f "$DOTENVCTL_FILE" get "$key" --expand); then
+    echo "$value" >&2
+    exit 1
+  fi
+  if [[ $value =~ $DOTENVCTL_PLACEHOLDER ]]; then
+    echo "skipped $key (placeholder)" >&2
+    continue
+  fi
+  # Single-quote the value; an embedded ' becomes '\''.
+  printf "export %s='%s'\n" "$key" "${value//\'/\'\\\'\'}"
+done <<< "$names"
+```
+
+**Step 2 — install it.** Make it executable and put it on your PATH:
+
+```sh
+chmod +x dotenvctl-export
+mv dotenvctl-export /usr/local/bin/
+```
+
+**Step 3 — check that dotenvctl sees it.**
+
+```console
+$ dotenvctl plugins
+NAME    PATH                             STATUS
+export  /usr/local/bin/dotenvctl-export  active
+```
+
+**Try it.** With this `.env`:
+
+```env
+DB_HOST=db.internal
+DB_URL=postgres://${DB_HOST}/app
+DB_PASS=__YOU__
+GREETING="it's here"
+```
+
+```console
+$ dotenvctl export
+export DB_HOST='db.internal'
+export DB_URL='postgres://db.internal/app'
+skipped DB_PASS (placeholder)
+export GREETING='it'\''s here'
+$ dotenvctl export --prefix DB_ 2>/dev/null
+export DB_HOST='db.internal'
+export DB_URL='postgres://db.internal/app'
+$ eval "$(dotenvctl export --prefix DB_URL)"; echo "$DB_URL"
+postgres://db.internal/app
+$ dotenvctl export --include NOPE; echo "exit=$?"
+dotenvctl: envkit: --include key "NOPE" not found
+exit=1
+$ dotenvctl -f req.env export; echo "exit=$?"      # req.env has NEED=${MISSING:?set MISSING first}
+dotenvctl: dotenv: required variable MISSING is not set or is empty: set MISSING first
+exit=1
+$ dotenvctl-export; echo "exit=$?"
+dotenvctl-export: run me as 'dotenvctl export'
+exit=2
+```
+
+`DB_URL` arrived expanded, the placeholder never left the file, the selection flags came from the host's grammar for free, and the plugin's exit code became `dotenvctl`'s.
+
+To push to a real backend instead of printing, replace the `printf` with your store's CLI and feed the value on **stdin**, never as an argument (`printf '%s' "$value" | acme-cli secret set "$key"`), the same rule the built-in plugins follow.
+
+**Pitfalls**
+
+- **The host prints failures on stdout.** In human mode, `dotenvctl get NOPE` writes `dotenvctl: key "NOPE" not found …` to stdout and exits `1`. Captured with `$(…)`, that text becomes your "value". Always test the exit status, as the script does with `if ! value=$(…)`, and never pipe the host's output straight into a loop: the loop would read the error message as a key name.
+- **Only flags before the plugin name are the host's.** `dotenvctl -f .env.prod export` sets `DOTENVCTL_FILE`; `dotenvctl export -f .env.prod` passes `-f .env.prod` to your script, and `DOTENVCTL_FILE` stays `.env`. The same goes for `--json` and `DOTENVCTL_JSON`.
+- **`DOTENVCTL_PLACEHOLDER` is always the default pattern**, so a team that uses `matrix --placeholder` must pass its own pattern to the plugin some other way.
+- **A built-in name can never be a plugin name.** `dotenvctl-github`, `dotenvctl-keys`, `dotenvctl-help` and `dotenvctl-completion` are never run; `dotenvctl plugins` shows them as `shadowed by built-in`.
+- **No execute bit, no plugin.** A script without `chmod +x` is not listed and not dispatched; `dotenvctl export` then fails as an unknown command with exit `2`.
+- **Calling one `get` per key is simple, not fast.** It starts the host once per key. For large files, call `"$DOTENVCTL_BIN" -f "$DOTENVCTL_FILE" list --expand --json` once and parse the envelope with `jq`, after checking its exit status.
+
+**Writing a plugin in Go instead?** `providerkit` is importable: implement the capability interfaces for your backend and you get the standard verbs, with the shared flags, guards, and confirm gate, ready-made. See the [Go API guide](go-api.md#providerkit--plugins).
 
 ## A worked example
 
@@ -134,3 +227,10 @@ DEPLOY_PATH: pushed
 ```
 
 `DB_HOST` was never considered (no prefix), the placeholder never left your machine, and the repo secrets are now `GHCR_PAT` and `DEPLOY_PATH`.
+
+## Related
+
+- [GitHub plugin](plugins/github.md) and [Vercel plugin](plugins/vercel.md) — the built-in plugins in full
+- [Command reference](commands.md) — the [`plugins` verb](commands.md#plugins--discover-exec-plugins) and the [selection grammar](commands.md#selecting-keys--the-shared-grammar)
+- [Go API guide](go-api.md#providerkit--plugins) — writing a plugin in Go with `providerkit`
+- [Feature index](reference/features.md)

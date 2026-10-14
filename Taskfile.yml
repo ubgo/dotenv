@@ -1,7 +1,7 @@
 # https://taskfile.dev
 #
-# Tasks for the dotenv module. Run them from this directory, or from the repo
-# root as `task dotenv:<task>` — the root Taskfile includes this file.
+# Tasks for the dotenv library module, at the repo root. The CLI module's
+# tasks are included below as `task cli:<task>`.
 #
 # Every module carries the same task names on purpose: `task test` means the
 # same thing everywhere, so moving between modules costs no re-learning.
@@ -16,7 +16,10 @@ includes:
     dir: ./cli
 
 vars:
-  FUZZ_TARGETS: FuzzParseRender FuzzParseIsIdempotent FuzzSetRoundTrip FuzzSetIsIdempotent FuzzExpandTerminates
+  # Derived from the source so a new Fuzz property is never silently skipped
+  # by fuzz:all (a hand-kept list once named 5 of the 8).
+  FUZZ_TARGETS:
+    sh: grep -ho '^func Fuzz[A-Za-z0-9_]*' *_test.go | sed 's/^func //' | tr '\n' ' '
 
 tasks:
   default:
@@ -141,6 +144,36 @@ tasks:
       - task: vet
       - task: test:race
       - task: cli:ci
+
+  docs:check:
+    desc: 'Docs gate: script self-tests, links, snippet sync, hard wraps, local paths/words, and every Example in both modules'
+    cmds:
+      # Every check runs even when an earlier one fails, so one run lists all
+      # problems; the task still exits 1 if any check failed.
+      - |
+        fail=0
+        run() { echo "── $*"; "$@" || { fail=1; echo "!! FAILED: $*"; }; }
+        run python3 -I -B -m unittest discover -s scripts/docs
+        run python3 -I -B scripts/docs/linkcheck.py
+        run python3 -I -B scripts/docs/snippets.py
+        run python3 -I -B scripts/docs/wrapcheck.py
+        run python3 -I -B scripts/docs/words.py
+        run go test -run Example .
+        run sh -c 'cd cli && go test -run Example ./...'
+        exit $fail
+
+  docs:sync:
+    desc: 'docsync: fail when code a doc sentence cites (a ds:block link) changed since the sentence was last acked'
+    cmds:
+      # Checks against the committed .ds/ state and never rewrites it. Needs
+      # `ds` (go install github.com/ubgo/docsync/cli/cmd/ds@latest);
+      # DS_UPDATE=off keeps it from self-updating mid-gate.
+      - DS_UPDATE=off ds check
+
+  docs:snippets:fix:
+    desc: Rewrite every synced ```go block in the docs from its // snippet:start region, then re-check
+    cmds:
+      - python3 -I -B scripts/docs/snippets.py --fix
 
   clean:
     desc: Remove coverage artifacts

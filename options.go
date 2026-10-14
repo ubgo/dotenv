@@ -10,6 +10,8 @@ package dotenv
 // wrote the file.
 type EscapeMode int
 
+// ds:def id=escapemodes-pqfu7w85 owner=@maintainers stability=stable
+
 const (
 	// EscapeExtended interprets \n, \r, \t, \" and \\ — what most .env
 	// tooling outside Docker does, and what most application developers
@@ -106,6 +108,8 @@ func (o *options) pluginNameFor(cap Capability, i int) string {
 	return "unknown"
 }
 
+// ds:def id=hascapability-tcbcz8hy owner=@maintainers stability=stable
+
 // hasCapability reports whether p implements the interface named by cap.
 func hasCapability(p Plugin, cap Capability) bool {
 	switch cap {
@@ -160,6 +164,8 @@ type Option func(*options)
 func WithEscapes(m EscapeMode) Option {
 	return func(o *options) { o.escapes = m }
 }
+
+// ds:def id=withcommandsubstitution-5kmt8q5c owner=@maintainers stability=stable
 
 // WithCommandSubstitution enables $(command) expansion in GetExpanded.
 //

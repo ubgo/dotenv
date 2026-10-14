@@ -1,0 +1,14 @@
+{
+  "_table": "missions",
+  "_v": 1,
+  "body": "Bring the public docs (README, docs/, cli/README) to a world-class bar: complete inventory and feature index, fill gaps, a learning path with choosing guides and indexes, an architecture diagram, then the gates and docsync, and a commit after owner approval.",
+  "completed_at": null,
+  "created_at": "2026-10-14T08:23:14.253072000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "msn_01a139822a4d7128b674f2f291092bec",
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "status": "active",
+  "target_date": null,
+  "title": "World-class GitHub docs",
+  "updated_at": "2026-10-14T08:23:14.253072000Z"
+}

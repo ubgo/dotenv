@@ -1,0 +1,20 @@
+{
+  "_table": "decisions",
+  "_v": 1,
+  "archived_at": null,
+  "body": "GitHub secret names must match [A-Za-z_][A-Za-z0-9_]*. Env keys legal under the Compose charset (dots, hyphens, digit-first) are not. After --strip-prefix, any selected key that violates the pattern fails the whole run, listing the offending keys. Why: partial pushes are worse than loud ones, and tool-invented name mangling is how secrets get orphaned.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:17.405292000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "dec_01a1397da2bd747c906a4e3a35d24f62",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "docsi/cli/GITHUB_PLUGIN_SPEC.md section 2; cli/plugins/githubplugin/github.go secretNameRe",
+  "status": "accepted",
+  "superseded_by_id": null,
+  "title": "Secret names are never renamed: an invalid name fails the whole push before any write",
+  "trust_score": 0.5,
+  "updated_at": "2026-10-14T08:18:17.405292000Z"
+}

@@ -1,0 +1,1 @@
+func (f *File) Plugins() []PluginInfo { return f.opts.pluginInfo() }

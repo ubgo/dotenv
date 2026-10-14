@@ -1,0 +1,23 @@
+func (f *File) expandCommand(key, s string, depth int, seen visiting) (consumed int, out string, err error) {
+	end := matchParen(s[1:])
+	if end < 0 {
+		return 1, "$", nil // unbalanced: a literal dollar
+	}
+	whole := s[:end+2]
+	if !f.opts.allowShell {
+		return len(whole), whole, nil
+	}
+
+	// The command may itself reference variables.
+	cmd, err := f.expand(key, s[2:end+1], depth+1, seen)
+	if err != nil {
+		return 0, "", err
+	}
+	result, runErr := f.opts.runCommand(cmd)
+	if runErr != nil {
+		// A failed substitution yields "", as a shell does inside a value,
+		// rather than failing the entire read.
+		return len(whole), "", nil
+	}
+	return len(whole), result, nil
+}

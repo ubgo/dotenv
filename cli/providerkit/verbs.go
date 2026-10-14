@@ -43,6 +43,8 @@ type GateInfo struct {
 // ever run ungated.
 type Gate func(ctx context.Context, deps Deps, info GateInfo) error
 
+// ds:def id=confirm-wvppa3w3 owner=@maintainers stability=stable
+
 // Confirm enforces the standard proceed contract (PLUGINS_SPEC §4): dry-run
 // never prompts; --yes proceeds; an interactive human is asked; anything
 // else refuses with a usage error demanding --yes. Plugins call this at the

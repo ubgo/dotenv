@@ -1,0 +1,23 @@
+{
+  "_table": "tasks",
+  "_v": 1,
+  "assigned_to_actor_id": null,
+  "body": "Bind the final docs with docsync so drift is caught.",
+  "commitment": "accepted",
+  "completed_at": "2026-10-14T09:21:29.856696504Z",
+  "created_at": "2026-10-14T08:23:36.010313000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "deferred_until": null,
+  "due_at": null,
+  "id": "tsk_01a139827f4a74ce9fae4d4a720ba27b",
+  "mission_id": "msn_01a139822a4d7128b674f2f291092bec",
+  "plan_id": null,
+  "priority": "medium",
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "started_at": "2026-10-14T09:15:34.292636378Z",
+  "status": "done",
+  "tasklist_id": "tlt_01a139822ae272658b34eda4f307b756",
+  "title": "docsync init over the final docs",
+  "updated_at": "2026-10-14T09:21:29.856697946Z"
+}

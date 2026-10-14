@@ -1,0 +1,13 @@
+const (
+	// EnvPluginFile is the absolute path of the -f file the user chose.
+	EnvPluginFile = "DOTENVCTL_FILE"
+	// EnvPluginJSON is "1" when the user passed --json, else "0".
+	EnvPluginJSON = "DOTENVCTL_JSON"
+	// EnvPluginPlaceholder is the active placeholder regexp.
+	EnvPluginPlaceholder = "DOTENVCTL_PLACEHOLDER"
+	// EnvPluginBin is the absolute path of the running dotenvctl — the
+	// callback handle: `"$DOTENVCTL_BIN" -f "$DOTENVCTL_FILE" list --json`.
+	EnvPluginBin = "DOTENVCTL_BIN"
+	// EnvPluginVersion is the host version, so plugins can gate on features.
+	EnvPluginVersion = "DOTENVCTL_VERSION"
+)

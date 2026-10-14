@@ -1,0 +1,24 @@
+func hasCapability(p Plugin, cap Capability) bool {
+	switch cap {
+	case CapLookup:
+		_, ok := p.(Lookuper)
+		return ok
+	case CapValueTransformer:
+		_, ok := p.(ValueTransformer)
+		return ok
+	case CapCommandRunner:
+		_, ok := p.(CommandRunner)
+		return ok
+	case CapSaveGuard:
+		_, ok := p.(SaveGuard)
+		return ok
+	case CapEntryObserver:
+		_, ok := p.(EntryObserver)
+		return ok
+	case CapExpandObserver:
+		_, ok := p.(ExpandObserver)
+		return ok
+	default:
+		return false
+	}
+}

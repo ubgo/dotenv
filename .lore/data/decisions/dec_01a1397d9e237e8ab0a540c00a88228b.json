@@ -1,0 +1,20 @@
+{
+  "_table": "decisions",
+  "_v": 1,
+  "archived_at": null,
+  "body": "The go directive had said 1.26.4, just the installed toolchain. The real floor is range-over-int in parse.go (1.22); nothing in the stdlib newer than 1.20 (errors.Join, strings.CutPrefix) is used. Why: four minor versions is the difference between a service adopting the library without a toolchain upgrade and not. Three benchmarks using b.Loop (1.24) went back to the classic loop. Verified by building and vetting with a real go1.22.0 toolchain, and the full suite passes on 1.23. The cli stays at 1.26.4 because it uses errors.AsType (1.26) and golang.org/x/term floors it at 1.25.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:16.227947000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "dec_01a1397d9e237e8ab0a540c00a88228b",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "commit 45e991e; go.mod; cli/go.mod",
+  "status": "accepted",
+  "superseded_by_id": null,
+  "title": "Library minimum Go is 1.22; the cli module stays at 1.26.4",
+  "trust_score": 0.5,
+  "updated_at": "2026-10-14T08:18:16.227947000Z"
+}

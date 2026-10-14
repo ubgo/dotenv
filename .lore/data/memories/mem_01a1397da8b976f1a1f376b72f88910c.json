@@ -1,0 +1,23 @@
+{
+  "_table": "memories",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Unset is reversible: an unset pair becomes KindDisabledPair (commented out but distinguishable from prose via Disabled()), and Restore brings it back.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:18.937453000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "mem_01a1397da8b976f1a1f376b72f88910c",
+  "kind": "core",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "docsi/roadmap.md Shipped; edit.go",
+  "superseded_by_id": null,
+  "trust_score": 0.5,
+  "tx_at": "2026-10-14T08:18:18.937475000Z",
+  "updated_at": "2026-10-14T08:18:18.937453000Z",
+  "valid_at": null,
+  "valid_until": null,
+  "validated_by_actor_id": null
+}

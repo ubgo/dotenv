@@ -1,0 +1,20 @@
+{
+  "_table": "decisions",
+  "_v": 1,
+  "archived_at": null,
+  "body": "The secrets-pipeline port (to retire the 741-line secrets_build.go copied in sync_go and volt-api) adds only generic primitives: selection flags, bundle, file-valued secrets, export dialects. Nothing about GITHUB_SECRET_, ENV_B64, KEY_FILES or act is hardcoded; each project composes flags in its own Taskfile. Selection lives once in the core Source pipeline so github, vercel and future verbs share identical semantics.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:17.551512000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "dec_01a1397da34f77d79d4b35d56ac0be29",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "docsi/cli/SECRETS_PORT_SPEC.md (RFC-DOTENVCTL-005)",
+  "status": "accepted",
+  "superseded_by_id": null,
+  "title": "Mechanisms in dotenvctl, conventions in the consuming project",
+  "trust_score": 0.5,
+  "updated_at": "2026-10-14T08:18:17.551512000Z"
+}

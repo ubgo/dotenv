@@ -10,7 +10,22 @@ dotenv is open source (ubgo/dotenv, Apache-2.0). The library is stdlib-only and 
 - [Command reference](https://github.com/ubgo/dotenv/blob/main/docs/commands.md): every verb with real output
 - [Multi-env tools](https://github.com/ubgo/dotenv/blob/main/docs/multi-env.md): envs, matrix, diff, HTML reports
 - [Recipes](https://github.com/ubgo/dotenv/blob/main/docs/recipes.md): CI gates, env cloning, secret sync workflows
-- [Go API](https://github.com/ubgo/dotenv/blob/main/docs/go-api.md): envkit — every CLI operation as an importable function
+- [Go API](https://github.com/ubgo/dotenv/blob/main/docs/go-api.md): envkit operations, providerkit plugin kit, mounting the github/vercel plugins, embedding the CLI with dotenvcmd.Execute
+- [Documentation home](https://github.com/ubgo/dotenv/blob/main/docs/README.md): 12-step learning path, start-from-your-goal table, index of every guide
+- [Feature index](https://github.com/ubgo/dotenv/blob/main/docs/reference/features.md): all 122 features, each with its guide section and runnable Example functions
+- [Reading a .env file](https://github.com/ubgo/dotenv/blob/main/docs/library/reading.md): load a .env and query it; what each accessor returns for duplicates and disabled lines
+- [Entries and kinds](https://github.com/ubgo/dotenv/blob/main/docs/library/entries.md): Entry fields, the six Kind values and the exact line that produces each
+- [.env syntax](https://github.com/ubgo/dotenv/blob/main/docs/library/syntax.md): quoting, comments, multi-line values, the : delimiter, key names, escapes, as input → Get → GetExpanded
+- [Editing a .env file](https://github.com/ubgo/dotenv/blob/main/docs/library/editing.md): upsert vs literal edits, disable/restore, cloning between environments
+- [Saving a .env file](https://github.com/ubgo/dotenv/blob/main/docs/library/saving.md): atomic writes, permission rules, line-ending preservation
+- [Variable expansion](https://github.com/ubgo/dotenv/blob/main/docs/library/expansion.md): ${VAR}, every ${…} operator, $$, nesting and cycles, RequiredError, opt-in command substitution
+- [Plugins](https://github.com/ubgo/dotenv/blob/main/docs/library/plugins.md): lookups, value transforms, save guards, command runners, observers, ordering, the firewall
+- [Typed configuration](https://github.com/ubgo/dotenv/blob/main/docs/library/typed-config.md): binding values to typed structs with the standard library, go-envconfig, caarlos0/env or cfgkit
+- [Choosing guides](https://github.com/ubgo/dotenv/blob/main/docs/choosing/README.md): decision tables: which entry point, edit method, expansion setup, plugin hook, CLI vs library vs embedding, sync backend, options per kind of app
+- [Getting started](https://github.com/ubgo/dotenv/blob/main/docs/getting-started.md): install dotenvctl, first commands, -f, --json, exit codes
+- [Plugins overview](https://github.com/ubgo/dotenv/blob/main/docs/plugins.md): plugin namespaces, shared selection and safety flags, writing an exec plugin
+- [GitHub plugin](https://github.com/ubgo/dotenv/blob/main/docs/plugins/github.md): push, list and prune GitHub Actions secrets via gh
+- [Vercel plugin](https://github.com/ubgo/dotenv/blob/main/docs/plugins/vercel.md): push, list and prune Vercel environment variables: targets, --sensitive, VERCEL_TOKEN
 - [CHANGELOG](https://github.com/ubgo/dotenv/blob/main/CHANGELOG.md): release history
 - [CONTRIBUTING](https://github.com/ubgo/dotenv/blob/main/CONTRIBUTING.md): how to contribute
 

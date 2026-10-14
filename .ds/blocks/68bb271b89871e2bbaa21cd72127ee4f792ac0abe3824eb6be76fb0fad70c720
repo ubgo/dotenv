@@ -1,0 +1,9 @@
+const (
+	opNone         operator = iota // ${VAR}
+	opDefault                      // ${VAR-default}   default when unset
+	opDefaultEmpty                 // ${VAR:-default}  default when unset or empty
+	opAlternate                    // ${VAR+alt}       alt when set
+	opAlternateSet                 // ${VAR:+alt}      alt when set and non-empty
+	opRequired                     // ${VAR?err}       error when unset
+	opRequiredSet                  // ${VAR:?err}      error when unset or empty
+)

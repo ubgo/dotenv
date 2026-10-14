@@ -1,0 +1,20 @@
+{
+  "_table": "decisions",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Six injection points: Lookuper, EntryObserver (parse), ValueTransformer, CommandRunner, ExpandObserver (expansion), SaveGuard (save, veto only). Three can change a value, two only watch, one only refuses. Every value-changing hook sits in the expansion path, which Render and Save never call. Why: decrypting, vault references, env fallback and secret auditing are other people's policy, so they live outside the package but run inside its pipeline. The firewall is structural, so byte-exact round-trip holds whatever plugins are loaded, and a decrypted secret can never be written back in plaintext. Set/Append/Unset/Restore are deliberately never hooked. All three phases shipped.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:14.998042000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "dec_01a1397d995670ab89055092590b09b2",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "docsi/proposals/dotenv-plugins.md; plugin.go; commit 25f1d91",
+  "status": "accepted",
+  "superseded_by_id": null,
+  "title": "Plugin model: six hooks with a firewall, change what a value READS as, never what gets WRITTEN",
+  "trust_score": 0.5,
+  "updated_at": "2026-10-14T08:18:14.998042000Z"
+}

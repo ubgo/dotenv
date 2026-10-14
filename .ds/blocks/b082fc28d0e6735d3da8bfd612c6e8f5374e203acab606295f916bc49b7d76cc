@@ -1,0 +1,19 @@
+func (f *File) Unset(key string, del bool) (found bool) {
+	for i := len(f.entries) - 1; i >= 0; i-- {
+		e := f.entries[i]
+		if e.Kind != KindPair || e.Key != key {
+			continue
+		}
+		if del {
+			f.entries = append(f.entries[:i], f.entries[i+1:]...)
+			return true
+		}
+		for j, line := range e.Raw {
+			e.Raw[j] = commentMarker + line
+		}
+		e.Kind = KindDisabledPair
+		e.commentPrefix = commentMarker
+		return true
+	}
+	return false
+}

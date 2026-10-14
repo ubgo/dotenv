@@ -1,0 +1,23 @@
+{
+  "_table": "memories",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Prune keep-set safety: names skipped by guards (for example a local placeholder value) count as kept, so a placeholder never deletes a real remote secret; --keep spares out-of-band names; every spare is reported with its reason. Prune requires --yes.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:19.924392000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "mem_01a1397dac947603adfea12def9a8adc",
+  "kind": "core",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "commit 25f1d91",
+  "superseded_by_id": null,
+  "trust_score": 0.5,
+  "tx_at": "2026-10-14T08:18:19.924419000Z",
+  "updated_at": "2026-10-14T08:18:19.924392000Z",
+  "valid_at": null,
+  "valid_until": null,
+  "validated_by_actor_id": null
+}

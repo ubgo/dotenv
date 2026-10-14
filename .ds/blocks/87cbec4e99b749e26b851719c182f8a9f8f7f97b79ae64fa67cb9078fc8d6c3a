@@ -1,0 +1,13 @@
+const (
+	// ExitOK: the operation succeeded (for diff: the files are identical).
+	ExitOK = 0
+
+	// ExitFailure: the operation ran and failed — missing key, required-var
+	// error, diff found differences. Mirrors diff(1)'s "1 = differences".
+	ExitFailure = 1
+
+	// ExitUsage: the invocation itself was malformed (unknown flag, missing
+	// operand). Mirrors the BSD EX_USAGE convention of 2-for-usage that
+	// grep/diff follow.
+	ExitUsage = 2
+)

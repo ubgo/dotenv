@@ -1,0 +1,20 @@
+{
+  "_table": "decisions",
+  "_v": 1,
+  "archived_at": null,
+  "body": "Apache-2.0 adds an explicit patent grant and a clearer contribution clause and restricts nothing MIT permitted. Done in one commit for every place the license is named (LICENSE, README badge and footer, brand.json, llms.txt), because a half-applied relicense is worse than either state. Copies obtained as 0.1.0 remain MIT. Shipped in v0.1.1 on 2026-09-09 (commit dated 2026-09-09). Copyright line: 2026 khanakia.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:16.354391000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "dec_01a1397d9ea275fb91aa4784d3cdcfd3",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "commit dcce8bd; CHANGELOG.md 0.1.1",
+  "status": "accepted",
+  "superseded_by_id": null,
+  "title": "Relicensed from MIT to Apache-2.0",
+  "trust_score": 0.5,
+  "updated_at": "2026-10-14T08:18:16.354391000Z"
+}

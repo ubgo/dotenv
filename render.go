@@ -38,6 +38,8 @@ func renderScalar(value string) string {
 	return value
 }
 
+// ds:def id=quotingtriggers-xsur5zum owner=@maintainers stability=stable
+
 // quotingTriggers are the characters whose presence makes a bare rendering parse
 // back as something else: whitespace and `#` end the value early, the three
 // quote characters would be read as delimiters, and a backslash would be read as

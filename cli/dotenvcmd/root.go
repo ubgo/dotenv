@@ -27,6 +27,8 @@ import (
 	"github.com/ubgo/dotenv/cli/providerkit"
 )
 
+// ds:def id=exitcodes-msf66qpb owner=@maintainers stability=stable
+
 // Exit codes — the CLI's contract with shells and CI. Closed set; scripts
 // branch on these, so the values are frozen API.
 const (

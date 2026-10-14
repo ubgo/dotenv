@@ -1,0 +1,3 @@
+func WithCommandSubstitution(enabled bool) Option {
+	return func(o *options) { o.allowShell = enabled }
+}

@@ -61,6 +61,10 @@ The last two were previously written down here as *reachable gaps a fixture plug
 
 The rule the list follows: *unreachable* and *untested* are different words, and a coverage note that blurs them is worse than no note. Anything genuinely reachable gets a test instead of a table row — `root.go:184` was in this table until it turned out to need only a printer whose writes fail, which is entirely testable in-process.
 
+## Docs bound to code (docsync)
+
+Key claims in the guides are bound to the code they describe with [docsync](https://github.com/ubgo/docsync): the code carries a `// ds:def id=… owner=@maintainers` comment, and the sentence cites it with a `[text](ds:block?id=…)` link (GitHub shows only the text). `task docs:sync` runs `ds check` and fails when a cited block changed since its sentence was last approved, printing the diff. If the sentence is still true, approve it with the `ds ack <id> --doc <file> --line <n> --note '…'` command it prints; otherwise edit the sentence, then ack. After adding or moving defs or citations, run `ds scan` and commit `.ds/` with the change. Install `ds` with `go install github.com/ubgo/docsync/cli/cmd/ds@latest`.
+
 ## Branches & commits
 
 - Branch off `main`. Use a short descriptive branch name (`fix/...`, `feat/...`, `docs/...`).
@@ -73,7 +77,7 @@ The rule the list follows: *unreachable* and *untested* are different words, and
 - [ ] New behavior has a pinning test; round-trip-affecting changes also ran the fuzz targets.
 - [ ] The library stays stdlib-only (dependencies belong in the `cli/` module, if anywhere).
 - [ ] Library changes ran `task cli:bump` (after the library commit is pushed) so `go install …@main` builds the CLI against the new library — the workspace hides a stale pin locally.
-- [ ] Docs/README/CHANGELOG updated if the change is user-facing.
+- [ ] Docs/README/CHANGELOG updated if the change is user-facing, and `task docs:check` and `task docs:sync` pass.
 - [ ] No unrelated files or formatting churn.
 
 ## Changelog

@@ -79,7 +79,7 @@ $ dotenvctl run -- sh -c 'echo "child sees: $DB_HOST"'
 child sees: localhost                     # the child gets the file's values; YOUR shell env is untouched
 ```
 
-Built for scripts as much as humans — every command takes `--json` and returns one stable envelope:
+Built for scripts as much as humans — every command takes `--json` and returns [one stable envelope](ds:block?id=envelope-44255rwu):
 
 ```sh
 $ dotenvctl get DB_HOST --json
@@ -170,15 +170,57 @@ And one boring advantage: the name `dotenvctl` collides with nothing on npm, PyP
 
 ## Use it as a Go library
 
-Every verb is an exported function — the CLI is a thin translator over `envkit`:
+Every verb is an exported function — the CLI is a thin translator over `envkit`: `envkit.SelectFile` applies the selection grammar that `list`, `keys` and the plugin `push` verbs share, `envkit.BuildMatrix` is `matrix`, `envkit.Diff` is `diff`, `envkit.Run` is `run`, and `envkit.Set`/`Unset`/`Restore` are the edit verbs. Here is `matrix --contract` from Go:
 
+<!-- snippet: cli/envkit/example_test.go#api_envkit_BuildMatrix -->
 ```go
-import "github.com/ubgo/dotenv/cli/envkit"
+// ExampleBuildMatrix compares every env file in a directory key by key and
+// checks them against a contract. Values stay out of the result unless you
+// pass Reveal.
+func ExampleBuildMatrix() {
+	dir, err := apiEnvkitDir(map[string]string{
+		".env.example": "DB_URL=\nAPI_KEY=\nSENTRY_DSN=\n",
+		".env.stag":    "DB_URL=postgres://stag\nAPI_KEY=__FILL_ME__\n# SENTRY_DSN=x\n",
+		".env.prod":    "DB_URL=postgres://prod\nAPI_KEY=k-123\n",
+	})
+	if err != nil {
+		fmt.Println("setup:", err)
+		return
+	}
+	defer func() {
+		// Cleanup is best-effort; a failure goes to stderr so the example's
+		// checked stdout output is unaffected.
+		if err := os.RemoveAll(dir); err != nil {
+			fmt.Fprintln(os.Stderr, "cleanup:", err)
+		}
+	}()
 
-sel, err := envkit.SelectFile(".env.prod", envkit.SelectOptions{Prefix: "GITHUB_SECRET_", StripPrefix: true, Expand: true})
-m, err := envkit.BuildMatrix(envkit.MatrixOptions{Dir: ".", ContractPath: ".env.example"})
-d, err := envkit.Diff(".env.staging", ".env.prod", envkit.DiffOptions{Expand: true})
-code, err := envkit.Run(ctx, ".env.test", []string{"go", "test", "./..."}, envkit.RunOptions{Base: os.Environ()})
+	m, err := envkit.BuildMatrix(envkit.MatrixOptions{
+		Dir:          dir, // contract files are never columns
+		ContractPath: filepath.Join(dir, ".env.example"),
+	})
+	if err != nil {
+		fmt.Println("matrix:", err)
+		return
+	}
+	fmt.Println("columns:", m.Envs)
+	for _, row := range m.Rows {
+		fmt.Printf("%-10s", row.Key)
+		for _, c := range row.Cells {
+			fmt.Printf(" %s=%s%s", c.Env, envkit.StateSymbols[c.State], c.State)
+		}
+		fmt.Println()
+	}
+	fmt.Println("value hidden:", m.Rows[1].Cells[0].Value == "")
+	fmt.Println("contract gaps:", m.HasContractGaps(), m.ContractMissing["prod"])
+	// Output:
+	// columns: [stag prod]
+	// API_KEY    stag=!placeholder prod=✓present
+	// DB_URL     stag=✓present prod=✓present
+	// SENTRY_DSN stag=#disabled prod=—missing
+	// value hidden: true
+	// contract gaps: true [SENTRY_DSN]
+}
 ```
 
 Plugins are importable too — mount ours in your own binary, or build one for your backend with `providerkit`. Full reference: [Go API](../docs/go-api.md).

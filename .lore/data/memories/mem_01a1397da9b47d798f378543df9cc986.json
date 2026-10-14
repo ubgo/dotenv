@@ -1,0 +1,23 @@
+{
+  "_table": "memories",
+  "_v": 1,
+  "archived_at": null,
+  "body": "dotenvctl core verbs: get, set, unset, restore, list, keys, run, diff, plus multi-env verbs envs and matrix, and plugins (PATH discovery). Global flags: -f/--file (default ./.env) and --json. Exit codes 0 ok, 1 failed, 2 usage; run passes the child's exit code through. Every mutating verb takes --dry-run.",
+  "confidence": null,
+  "created_at": "2026-10-14T08:18:19.188880000Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "id": "mem_01a1397da9b47d798f378543df9cc986",
+  "kind": "core",
+  "last_validated_at": null,
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "source_kind": "manual",
+  "source_ref": "cli/dotenvcmd/*.go; docs/commands.md",
+  "superseded_by_id": null,
+  "trust_score": 0.5,
+  "tx_at": "2026-10-14T08:18:19.188904000Z",
+  "updated_at": "2026-10-14T08:18:19.188880000Z",
+  "valid_at": null,
+  "valid_until": null,
+  "validated_by_actor_id": null
+}

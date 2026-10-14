@@ -105,6 +105,8 @@ type ExpandObserver interface {
 // difference between a one-line fix and an hour of debugging.
 type Capability string
 
+// ds:def id=capabilities-kmsggtyr owner=@maintainers stability=stable
+
 const (
 	CapLookup           Capability = "Lookuper"
 	CapValueTransformer Capability = "ValueTransformer"
@@ -135,6 +137,8 @@ func (p PluginInfo) String() string {
 	}
 	return out
 }
+
+// ds:def id=plugins-upbxam5w owner=@maintainers stability=stable
 
 // Plugins reports every installed plugin and what it was detected as.
 //
