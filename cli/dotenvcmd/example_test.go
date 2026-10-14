@@ -143,6 +143,26 @@ func ExampleExecute() {
 
 // snippet:end cli_Execute
 
+// snippet:start cli_ExecuteProgramName
+
+// ExampleExecute_programName mounts the CLI inside a host program under the
+// words its users type, "myapp env": WithProgramName puts that name in the
+// lines the CLI prints about itself, so a failure never names a dotenvctl
+// binary the user does not have.
+func ExampleExecute_programName() {
+	// No such verb: a usage failure, exit code 2, with the host's name in the
+	// message and in the hint. Stderr goes to stdout here so it is checked.
+	code := dotenvcmd.Execute([]string{"nosuchverb"}, os.Stdout, os.Stdout,
+		dotenvcmd.WithProgramName("myapp env"))
+	fmt.Println("exit code:", code)
+	// Output:
+	// myapp env: unknown command "nosuchverb" for "myapp env"
+	// Run 'myapp env --help' for usage.
+	// exit code: 2
+}
+
+// snippet:end cli_ExecuteProgramName
+
 // snippet:start cli_Get
 
 // ExampleExecute_get reads one value: raw by default, resolved with

@@ -11,6 +11,7 @@ Release prerequisite: `cli/go.mod` still requires `github.com/ubgo/dotenv v0.1.1
 ### Added
 
 - **`outfmt.Printer` fields `Err` and `Program`, plus `ProgramName`, `DefaultProgram` and `FailWith`.** `Err` is where human-mode failures go (nil means `os.Stderr`), `Program` sets the failure-line prefix (default `dotenvctl`), and `FailWith(code, msg, data)` prints one failure envelope that still carries partial data.
+- **`dotenvcmd.WithProgramName`, an option for `dotenvcmd.Execute`.** A program that embeds the CLI passes `Execute(args, stdout, stderr, dotenvcmd.WithProgramName("myapp env"))` to put its own name in failure lines, the `Run '<name> --help'` hint, the help Usage lines and `--version`; without it they still say `dotenvctl`. `Execute` takes the option variadically, so existing calls compile unchanged (`ExampleExecute_programName`).
 - **`providerkit.EmptyListHinter` and `providerkit.DefaultEmptyListHint`.** A plugin's lister can supply its own hint for an empty `list`; the GitHub plugin keeps its `--environment` / `--org` hint and the Vercel plugin names its targets.
 
 ### Changed

@@ -77,7 +77,7 @@ func newMatrixCmd(a *app) *cobra.Command {
 			if onlyDrift {
 				m.Rows = envkit.DriftRows(m.Rows)
 				if env, missing, ok := envkit.SparseColumn(m, rowsBefore); ok {
-					driftHint = sparseColumnHint(rowsBefore-len(m.Rows), env, missing, len(m.Rows))
+					driftHint = sparseColumnHint(a.printer.ProgramName(), rowsBefore-len(m.Rows), env, missing, len(m.Rows))
 				}
 			}
 
@@ -112,10 +112,11 @@ func newMatrixCmd(a *app) *cobra.Command {
 }
 
 // sparseColumnHint phrases envkit's sparse-column diagnosis for a human —
-// the message a user needs when --only-drift appears to do nothing.
-func sparseColumnHint(hidden int, env string, missing, rows int) string {
-	return fmt.Sprintf("\nhint: --only-drift hid %d row(s) — %q is missing %d of %d keys, so almost every row counts as drift. Compare just the files you mean: dotenvctl matrix FILE_A FILE_B --only-drift",
-		hidden, env, missing, rows)
+// the message a user needs when --only-drift appears to do nothing. program
+// is the name the suggested command line starts with (WithProgramName).
+func sparseColumnHint(program string, hidden int, env string, missing, rows int) string {
+	return fmt.Sprintf("\nhint: --only-drift hid %d row(s) — %q is missing %d of %d keys, so almost every row counts as drift. Compare just the files you mean: %s matrix FILE_A FILE_B --only-drift",
+		hidden, env, missing, rows, program)
 }
 
 // renderMatrixHuman prints the aligned table. Cell content: symbols, or —

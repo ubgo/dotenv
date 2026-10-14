@@ -1,0 +1,23 @@
+{
+  "_table": "tasks",
+  "_v": 1,
+  "assigned_to_actor_id": null,
+  "body": "Since the bug 7 fix (6e5c11e), Set and NewPair store any value containing $ literally (single quotes), so Set cannot write a reference such as ${HOST}/v1; today the way is to Append a parsed line. Proposal: an explicit opt-in (e.g. SetReference(key, value) or a Set option) that writes the value unquoted or double-quoted so it expands, with the same round-trip guarantee (GetExpanded before and after save agree). Deferred by the owner in NEXT-BRIEF-3 item 3 (2026-10-14).",
+  "commitment": "someday",
+  "completed_at": null,
+  "created_at": "2026-10-14T09:59:22.635329792Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "deferred_until": null,
+  "due_at": null,
+  "id": "tsk_01a139da2f0b750d9c8d371dea98ca33",
+  "mission_id": "msn_01a139822a4d7128b674f2f291092bec",
+  "plan_id": null,
+  "priority": "low",
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_id": null,
+  "started_at": null,
+  "status": "todo",
+  "tasklist_id": "tlt_01a139822ae272658b34eda4f307b756",
+  "title": "Library API for writing a ${…} reference through Set",
+  "updated_at": "2026-10-14T09:59:22.635329941Z"
+}

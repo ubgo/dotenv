@@ -1343,7 +1343,11 @@ Examples: [`githubplugin.ExampleNew`](../cli/plugins/githubplugin/example_test.g
 ```go
 // Execute runs dotenvctl in-process and returns its exit code:
 // 0 ok, 1 operation failed, 2 usage error.
-func Execute(args []string, stdout, stderr io.Writer) int
+func Execute(args []string, stdout, stderr io.Writer, opts ...ExecuteOption) int
+
+// WithProgramName sets the name the CLI prints for itself (failure
+// prefix, --help hint, help Usage lines, --version). Empty means "dotenvctl".
+func WithProgramName(name string) ExecuteOption
 
 // Exit codes, frozen API.
 const (
@@ -1406,6 +1410,29 @@ func ExampleExecute() {
 }
 ```
 
+**Under your own program name.** Embedded, failure lines and the usage hint say `dotenvctl` unless you pass `WithProgramName` with the words your users type to reach the verbs:
+
+<!-- snippet: cli/dotenvcmd/example_test.go#cli_ExecuteProgramName -->
+```go
+// ExampleExecute_programName mounts the CLI inside a host program under the
+// words its users type, "myapp env": WithProgramName puts that name in the
+// lines the CLI prints about itself, so a failure never names a dotenvctl
+// binary the user does not have.
+func ExampleExecute_programName() {
+	// No such verb: a usage failure, exit code 2, with the host's name in the
+	// message and in the hint. Stderr goes to stdout here so it is checked.
+	code := dotenvcmd.Execute([]string{"nosuchverb"}, os.Stdout, os.Stdout,
+		dotenvcmd.WithProgramName("myapp env"))
+	fmt.Println("exit code:", code)
+	// Output:
+	// myapp env: unknown command "nosuchverb" for "myapp env"
+	// Run 'myapp env --help' for usage.
+	// exit code: 2
+}
+```
+
+The name reaches the failure prefix, the `Run '<name> --help'` hint, the help Usage lines and the `--version` line. It does not reach the command examples inside `--help` (fixed text written for the `dotenvctl` binary), the JSON envelope (which carries no program name), or the exec-plugin lookup (still `dotenvctl-<name>` on `PATH`). The option is variadic, in the same functional-option style as the library's `dotenv.Option`, so every existing three-argument call compiles unchanged.
+
 There is one in-process example of `Execute` per verb in [`cli/dotenvcmd/example_test.go`](../cli/dotenvcmd/example_test.go) (`ExampleExecute_get`, `ExampleExecute_set`, …).
 
 The `EnvPlugin*` constants are the names of the variables an exec plugin gets. A Go program that *is* an exec plugin can read them with `os.Getenv(dotenvcmd.EnvPluginFile)` instead of repeating the strings.
@@ -1439,7 +1466,7 @@ API_KEY
 - Any first word that is not a built-in verb is looked up on `PATH` as `dotenvctl-<word>` and run. Built-ins always win, so a PATH binary cannot shadow `github`.
 - `DOTENVCTL_BIN` is `os.Executable()`: inside your program that is *your* binary. A plugin's callback (`"$DOTENVCTL_BIN" -f … list --json`) then runs your program, so route those arguments to `Execute`.
 - `DOTENVCTL_VERSION` and `--version` report the version of `github.com/ubgo/dotenv/cli` itself, read from your binary's dependency list, not your module's version. With a `replace` to a local directory they report `devel`. In cli v0.1.2 and earlier, they reported your main module's version.
-- Messages say `dotenvctl:` no matter what your binary is called.
+- Messages say `dotenvctl:` unless you pass `WithProgramName`; the command examples in `--help` always say `dotenvctl`. In cli v0.1.2 and earlier there was no option and the prefix was fixed.
 
 Related: [Plugins](plugins.md) for the exec-plugin protocol, [Commands](commands.md) for every verb.
 

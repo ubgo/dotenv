@@ -122,7 +122,7 @@ $ dotenvctl get --json; echo "exit=$?"
 exit=2
 ```
 
-In human mode every failure message goes to stderr; under `--json` the envelope, success or failure, is the only thing on stdout.
+In human mode every failure message goes to stderr; under `--json` the envelope, success or failure, is the only thing on stdout. A few things are never envelopes: `--version`, `help` (and `--help`) and `completion` print plain text even with `--json`, and `run` and exec plugins own their output (`run` passes the child's stdout through).
 
 [Error `code` values](ds:block?id=errcodes-tjhb87tm) are stable API: `not_found` · `io` · `required` · `usage` · `exec`. The envelope for every verb is pinned by [`ExampleExecute_json`](../cli/dotenvcmd/example_test.go).
 

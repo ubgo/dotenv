@@ -135,11 +135,44 @@ type app struct {
 	stdin io.Reader
 }
 
+// ExecuteOption configures one Execute call. Functional options, like the
+// library's dotenv.Option, so Execute keeps its three-argument form: every
+// existing call compiles unchanged and a new setting never breaks a caller.
+type ExecuteOption func(*executeConfig)
+
+// executeConfig is what ExecuteOptions write into. Its zero value is the
+// standalone dotenvctl binary's behaviour.
+type executeConfig struct {
+	// program names the CLI in the lines it prints about itself; empty means
+	// outfmt.DefaultProgram.
+	program string
+}
+
+// WithProgramName sets the name the CLI prints for itself when a host
+// program embeds it: the "<name>: " prefix on failure lines, the
+// "Run '<name> --help' for usage." hint, the help Usage line and the
+// --version line. Use the words a user types to reach the verbs, e.g.
+// "myapp env" for a host that mounts them under "myapp env". An empty name
+// keeps the default, "dotenvctl".
+//
+// The name does not reach the command examples in --help, which are
+// fixed text written for the dotenvctl binary, the JSON envelope, which
+// carries no program name, or exec plugins, which are still found as
+// dotenvctl-<name> binaries on PATH.
+func WithProgramName(name string) ExecuteOption {
+	return func(c *executeConfig) { c.program = name }
+}
+
 // Execute parses args, runs the selected verb, and returns the process exit
 // code. It never calls os.Exit itself — main does — so tests drive the full
-// CLI in-process with buffers for both streams.
-func Execute(args []string, stdout, stderr io.Writer) int {
-	a := &app{printer: &outfmt.Printer{Out: stdout, Err: stderr}, errOut: stderr}
+// CLI in-process with buffers for both streams. opts are optional; with none
+// the CLI behaves exactly as the dotenvctl binary.
+func Execute(args []string, stdout, stderr io.Writer, opts ...ExecuteOption) int {
+	var cfg executeConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	a := &app{printer: &outfmt.Printer{Out: stdout, Err: stderr, Program: cfg.program}, errOut: stderr}
 	return executeApp(a, args, stdout, stderr)
 }
 
@@ -238,8 +271,13 @@ func jsonRequested(args []string) bool {
 // app so every verb sees the same -f/--json without redeclaring them.
 func newRootCmd(a *app) *cobra.Command {
 	root := &cobra.Command{
-		Use:   "dotenvctl",
-		Short: "Comment-preserving .env control — get, set, diff, run without disturbing a byte you didn't touch",
+		Use: outfmt.DefaultProgram,
+		// The display name, not Use, carries the program name: cobra builds
+		// the help Usage lines, the --version line and its own "unknown
+		// command ... for X" text from it, and it may hold spaces ("myapp
+		// env"), which Use cannot — cobra takes Use's first word as the name.
+		Annotations: map[string]string{cobra.CommandDisplayNameAnnotation: a.printer.ProgramName()},
+		Short:       "Comment-preserving .env control — get, set, diff, run without disturbing a byte you didn't touch",
 		Long: "dotenvctl edits .env files through the ubgo/dotenv library: every byte outside\n" +
 			"the entry you touch survives verbatim — comments, blank lines, ordering, and\n" +
 			"quoting style included. It never modifies its own process environment.",

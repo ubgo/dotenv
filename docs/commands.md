@@ -36,7 +36,7 @@ $ dotenvctl --version
 dotenvctl version (devel)
 ```
 
-The version is read from the build itself, so there is no constant to forget at release time. A `go install …@<tag>` binary prints that module version; a binary built from a checkout prints a pseudo-version such as `v0.1.3-0.20261014080958-31847d420e08+dirty`; `go run` prints `(devel)`. A program that embeds the CLI with `dotenvcmd.Execute` prints the version of the `github.com/ubgo/dotenv/cli` module it was built with, not its own. `--version` ignores `--json` and always prints the plain line, so scripts that gate on a version should parse that line.
+The version is read from the build itself, so there is no constant to forget at release time. A `go install …@<tag>` binary prints that module version; a binary built from a checkout prints a pseudo-version such as `v0.1.3-0.20261014080958-31847d420e08+dirty`; `go run` prints `(devel)`. A program that embeds the CLI with `dotenvcmd.Execute` prints the version of the `github.com/ubgo/dotenv/cli` module it was built with, not its own, after the name set with `dotenvcmd.WithProgramName` (default `dotenvctl`). `--version` ignores `--json` and always prints the plain line, so scripts that gate on a version should parse that line.
 
 ## get — print one value
 
@@ -515,7 +515,7 @@ Every shell subcommand takes `--no-descriptions` to complete names only, without
 
 ## Drive the CLI from Go
 
-The whole verb tree is importable: `dotenvcmd.Execute(args, stdout, stderr)` parses `args` (without the program name), runs the verb, and returns the exit code instead of calling `os.Exit`. Use it to embed `dotenvctl` in your own tool, or to script it from Go tests without building a binary.
+The whole verb tree is importable: `dotenvcmd.Execute(args, stdout, stderr, opts...)` parses `args` (without the program name), runs the verb, and returns the exit code instead of calling `os.Exit`. Use it to embed `dotenvctl` in your own tool, or to script it from Go tests without building a binary. With no options it behaves exactly like the `dotenvctl` binary; when you embed it under your own name, pass `dotenvcmd.WithProgramName` (Step 3).
 
 **Before you start**
 
@@ -578,6 +578,29 @@ func cliRun(args ...string) {
 }
 ```
 
+**Step 3 — print your own program name.** Embedded, the CLI still calls itself `dotenvctl` in its failure lines, unless you pass `WithProgramName` with the words your users type:
+
+<!-- snippet: cli/dotenvcmd/example_test.go#cli_ExecuteProgramName -->
+```go
+// ExampleExecute_programName mounts the CLI inside a host program under the
+// words its users type, "myapp env": WithProgramName puts that name in the
+// lines the CLI prints about itself, so a failure never names a dotenvctl
+// binary the user does not have.
+func ExampleExecute_programName() {
+	// No such verb: a usage failure, exit code 2, with the host's name in the
+	// message and in the hint. Stderr goes to stdout here so it is checked.
+	code := dotenvcmd.Execute([]string{"nosuchverb"}, os.Stdout, os.Stdout,
+		dotenvcmd.WithProgramName("myapp env"))
+	fmt.Println("exit code:", code)
+	// Output:
+	// myapp env: unknown command "nosuchverb" for "myapp env"
+	// Run 'myapp env --help' for usage.
+	// exit code: 2
+}
+```
+
+The name reaches the `<name>: ` failure prefix, the `Run '<name> --help'` hint, the help Usage lines and the `--version` line. The command examples inside `--help` still say `dotenvctl`, and exec plugins are still found as `dotenvctl-<name>` binaries. In cli v0.1.2 and earlier there was no option and the prefix was always `dotenvctl:`.
+
 **Try it**
 
 ```console
@@ -588,13 +611,14 @@ PASS
 ok  	github.com/ubgo/dotenv/cli/dotenvcmd	0.006s
 ```
 
-Drop the `$` from the pattern (`-run '^ExampleExecute'`) to run all eleven.
+Drop the `$` from the pattern (`-run '^ExampleExecute'`) to run all twelve.
 
 Every verb on this page has a runnable example in [`cli/dotenvcmd/example_test.go`](../cli/dotenvcmd/example_test.go), each over the same four-file family (`.env`, `.env.staging`, `.env.prod`, `.env.example`) in a temp directory:
 
 | Example | Verbs |
 |---|---|
 | `ExampleExecute` | embedding, exit codes |
+| `ExampleExecute_programName` | embedding under your own program name |
 | `ExampleExecute_get` | `get`, `get --expand`, a disabled key |
 | `ExampleExecute_set` | `set --dry-run`, `set`, `--after`, a missing anchor |
 | `ExampleExecute_unset` | `unset`, `restore`, `unset --delete --dry-run` |
@@ -615,7 +639,7 @@ These apply to every verb.
 - **Failure messages go to stderr in human mode.** When a verb fails (a missing key, a missing anchor), the `dotenvctl: …` line is written to stderr and stdout stays empty, so `VALUE=$(dotenvctl get NOPE)` leaves `VALUE` empty. An empty value is also a valid value, so check the exit code before using captured output: `if VALUE=$(dotenvctl get KEY); then …; fi`. In cli v0.1.2 and earlier, human-mode failures (but not usage errors) went to stdout.
 - **Flags after `--` belong to the child.** `dotenvctl run -- cmd --json` passes `--json` to `cmd`.
 - **A missing file reads as empty.** `get` reports `not found`, `keys` and `list` print nothing and exit `0`, and `set` creates the file. A typo in `-f` is not reported as a missing file.
-- **`--json` is exactly one envelope per run**, on stdout, including usage errors (`{"ok":false,"error":{"code":"usage",…}}`, exit `2`) and a plugin `push`/`prune` that fails part-way (an `ok:false` envelope whose `data` holds the partial record, see [Vercel failure behavior](plugins/vercel.md#failure-behavior)). The exceptions are output that is not dotenvctl's: `run` passes the child's stdout through, and an exec plugin prints whatever it prints. In cli v0.1.2 and earlier, usage errors printed plain text on stderr, and the two cases above printed more than one line.
+- **`--json` is exactly one envelope per run**, on stdout, including usage errors (`{"ok":false,"error":{"code":"usage",…}}`, exit `2`) and a plugin `push`/`prune` that fails part-way (an `ok:false` envelope whose `data` holds the partial record, see [Vercel failure behavior](plugins/vercel.md#failure-behavior)). Two kinds of output are not envelopes. `--version`, `help` (and `--help` on any verb) and `completion` print plain text even with `--json`, because their output is the version line, the help text or a shell script. `run` and exec plugins own their output: `run` passes the child's stdout through, and an exec plugin prints whatever it prints. In cli v0.1.2 and earlier, usage errors printed plain text on stderr, and the two cases above printed more than one line.
 
 ## Related
 
