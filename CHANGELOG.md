@@ -11,10 +11,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
+
+## [0.1.2] - 2026-10-14
+
+CLI-only release, tagged `cli/v0.1.2`. There is no new library release; the CLI still pins `github.com/ubgo/dotenv v0.1.1`.
+
+### Fixed
 
 - **`dotenvctl github push` stored every secret as the single character `-`.** It ran `gh secret set NAME --body -`, but gh has no "`-` means stdin" convention: a non-empty `--body` is the literal value. The flag is gone; with no `--body` and stdin not a terminal, gh reads the value from stdin and trims only trailing `\r\n`. A new test drives the real runner against a fake `gh` on `PATH` and pins the argv and the exact stdin bytes. `--dry-run` never calls gh, so it could not show the problem. Anyone who pushed with 0.1.0 or 0.1.1 should re-push (#1).
-
-### Security
 
 ## [0.1.1] - 2026-09-09
 
@@ -46,5 +51,6 @@ Release process:
   3. Tag the release (e.g. v1.2.0) and update the link refs at the bottom.
 -->
 
-[Unreleased]: https://github.com/ubgo/dotenv/compare/v0.1.1...main
+[Unreleased]: https://github.com/ubgo/dotenv/compare/cli/v0.1.2...main
+[0.1.2]: https://github.com/ubgo/dotenv/releases/tag/cli/v0.1.2
 [0.1.1]: https://github.com/ubgo/dotenv/releases/tag/v0.1.1
