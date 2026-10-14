@@ -575,7 +575,8 @@ func ExampleKind() {
 func ExampleKind_pitfalls() {
 	const content = `# TODO=fix this
 # Note: rotate monthly
-# Note - rotate monthly
+# Owner: alice
+# http://example.com
 http://example.com
 MY KEY=value
 `
@@ -587,7 +588,8 @@ MY KEY=value
 	fmt.Println("round trip:", f.Render() == content)
 	// Output:
 	// disabled-pair key="TODO" value="fix this"
-	// disabled-pair key="Note" value="rotate monthly"
+	// comment       key="" value=""
+	// disabled-pair key="Owner" value="alice"
 	// comment       key="" value=""
 	// pair          key="http" value="//example.com"
 	// other         key="" value=""

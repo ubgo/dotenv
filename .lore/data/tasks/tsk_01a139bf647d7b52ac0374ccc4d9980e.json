@@ -4,7 +4,7 @@
   "assigned_to_actor_id": null,
   "body": "Agent: parse-plugin-fixes.",
   "commitment": "accepted",
-  "completed_at": null,
+  "completed_at": "2026-10-14T09:44:10.343573209Z",
   "created_at": "2026-10-14T09:30:06.845738598Z",
   "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
   "deferred_until": null,
@@ -16,8 +16,8 @@
   "project_id": "prj_01a1397c42717315be667a3133d26336",
   "repo_id": null,
   "started_at": "2026-10-14T09:38:06.582806119Z",
-  "status": "in_progress",
+  "status": "done",
   "tasklist_id": "tlt_01a139822ae272658b34eda4f307b756",
   "title": "Fix bug 5 (prose comment with colon parsed as disabled pair)",
-  "updated_at": "2026-10-14T09:38:06.582807567Z"
+  "updated_at": "2026-10-14T09:44:10.343574399Z"
 }

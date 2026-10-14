@@ -38,7 +38,7 @@ You need a `*dotenv.File` from `Open`, `Parse` or `ParseReader` (see [reading.md
 | `KindComment` | `comment` | `# a note` (first non-space character is `#`, and the body is not a pair) | no | empty | empty |
 | `KindBlank` | `blank` | an empty or whitespace-only line | no | empty | empty |
 | `KindOther` | `other` | `not a setting!`, `MY KEY=value` — anything not recognised | no | empty | empty |
-| `KindDisabledPair` | `disabled-pair` | `# DEBUG=true` — a comment whose body parses as a pair on one line | no | set | decoded value |
+| `KindDisabledPair` | `disabled-pair` | `# DEBUG=true` — a comment whose body parses as a pair on one line (a `:` pair only when its value is one token; see [Pitfalls](#pitfalls)) | no | set | decoded value |
 | `KindInherited` | `inherited` | `export AWS_REGION` or `HOME` — a name with no delimiter and no value | no | set | empty |
 
 "Active" means `Get`, `Has`, `Count`, `Keys`, `Pairs` and `Map` see it. Only `KindPair` is active.
@@ -78,7 +78,7 @@ What each kind is for:
 - **`KindComment`** is prose, kept verbatim.
 - **`KindBlank`** is kept verbatim, whitespace included.
 - **`KindOther`** is a line the parser does not understand. It is preserved rather than rejected, so one stray line never makes a file unopenable. The cost is that a malformed pair is invisible to `Get` and friends instead of reported; see [Pitfalls](#pitfalls).
-- **`KindDisabledPair`** is a setting somebody turned off. A line commented out by hand and one commented out by `Unset` parse the same way. `f.Disabled()` lists them and `f.Restore(key)` turns one back on (see [editing.md](editing.md)).
+- **`KindDisabledPair`** is a setting somebody turned off. A line commented out by hand and one commented out by `Unset` parse the same way, with one exception for an unquoted `:` value containing a space (see [Pitfalls](#pitfalls)). `f.Disabled()` lists them and `f.Restore(key)` turns one back on (see [editing.md](editing.md)).
 - **`KindInherited`** is the Compose way to say "take this variable from the process environment". The library records the name but never reads the environment; `f.Inherited()` lists the names so your program can decide.
 
 Example: [`ExampleKind`](../../example_read_test.go).
@@ -241,7 +241,8 @@ Each of these lines is parsed as documented, and each still renders back byte fo
 func ExampleKind_pitfalls() {
 	const content = `# TODO=fix this
 # Note: rotate monthly
-# Note - rotate monthly
+# Owner: alice
+# http://example.com
 http://example.com
 MY KEY=value
 `
@@ -253,7 +254,8 @@ MY KEY=value
 	fmt.Println("round trip:", f.Render() == content)
 	// Output:
 	// disabled-pair key="TODO" value="fix this"
-	// disabled-pair key="Note" value="rotate monthly"
+	// comment       key="" value=""
+	// disabled-pair key="Owner" value="alice"
 	// comment       key="" value=""
 	// pair          key="http" value="//example.com"
 	// other         key="" value=""
@@ -262,7 +264,7 @@ MY KEY=value
 ```
 
 - **Prose shaped like an assignment is a disabled setting.** `# TODO=fix this` becomes `KindDisabledPair` with key `TODO`. This is deliberate: a human skimming the file reads it the same way. It shows up in `f.Disabled()`, and `f.Restore("TODO")` would turn it into a live pair.
-- **The colon delimiter widens this.** Because `KEY: value` is a pair, `# Note: rotate monthly` is a disabled pair with key `Note`, and a commented URL such as `# http://example.com` is a disabled pair with key `http`. Prose with a space before the colon (`# See https://…`) or a non-key character is still a comment.
+- **A commented colon line is a setting only when its value is one token.** `KEY: value` is a pair, but a colon is also ordinary punctuation, so inside a comment the `:` form [counts as a disabled pair](ds:block?id=colonprose-cthvdumn) only when the value is quoted or a single word, and does not start with `//`. `# Note: rotate monthly` (a sentence after the colon) and `# http://example.com` (a URL) are comments; `# KEY: value`, `# KEY:value`, `# KEY: "a b"` and `# DB_URL: postgres://db/app` are disabled pairs. The `=` form is not judged this way, which is why `# TODO=fix this` above is still a setting. Two consequences follow. A one-word heading such as `# Owner: alice` still reads as a disabled pair. And an unquoted colon value with a space, `KEY: two words`, cannot be told apart from prose: after `Unset`, `Save` and a reload it is a plain comment that `Restore` cannot find (within one `File`, `Unset` then `Restore` still works). Quote such a value, or write it with `=`, if it must survive being commented out. Before the next release, every commented colon line was a disabled pair, so `Restore("Note")` could turn a sentence into a live key.
 - **A bare URL line is a pair.** `http://example.com` on its own line parses as key `http`, value `//example.com`. Docker Compose reads it the same way, so the library does not special-case it (pinned by `TestColonDelimiter`).
 - **A key with a space is not an error.** `MY KEY=value` is `KindOther`: kept, but invisible to `Get`, `Keys` and `Map`. If you want strict parsing, walk `Entries()` and treat `KindOther` as an error yourself.
 - **A commented-out multi-line value is several comments.** Only a disabled pair whose quote closes on the same line is `KindDisabledPair`; `# KEY="one` followed by `# two"` is two `KindComment` entries, so it cannot be restored from a re-read file.

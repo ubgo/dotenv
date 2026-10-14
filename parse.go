@@ -46,7 +46,8 @@ const keyClass = `[A-Za-z0-9_.\-\[\]]`
 // (`http://example.com`) parses as key `http`, value `//example.com`. That
 // looks surprising but is Compose's own reading, and the line still
 // round-trips verbatim — do NOT special-case it. Pinned by
-// TestColonDelimiter.
+// TestColonDelimiter. The same line inside a comment is prose, not a disabled
+// pair: see colonProse.
 var pairRe = regexp.MustCompile(`^((?:export[ \t]+)?[ \t]*(` + keyClass + `+)[ \t]*[=:])(.*)$`)
 
 // inheritedRe matches a name-only line: `HOME`, or `export HOME` — no
@@ -169,7 +170,7 @@ func (f *File) parseComment(line, raw string) *Entry {
 	body = body[spaces:]
 
 	m := pairRe.FindStringSubmatch(body)
-	if m == nil || !valueEndsOnThisLine(m[3]) {
+	if m == nil || !valueEndsOnThisLine(m[3]) || colonProse(m[1], m[3]) {
 		return &Entry{Kind: KindComment, Raw: []string{raw}, attached: true}
 	}
 
@@ -183,6 +184,47 @@ func (f *File) parseComment(line, raw string) *Entry {
 	}
 	parseValue(m[3], nil, e, f.opts)
 	return e
+}
+
+// ds:def id=colonprose-cthvdumn owner=@maintainers stability=stable
+
+// colonProse reports whether a commented `KEY: value` line is prose rather than
+// a disabled setting. head is pairRe's prefix group (ending in the delimiter)
+// and rhs is everything after the delimiter.
+//
+// Only the `:` form is judged, and only inside a comment. An active line keeps
+// Compose's reading whatever it says, and the `=` form is left alone: a colon
+// is ordinary punctuation in prose ("# Note: rotate monthly") and in URLs
+// ("# http://example.com"), where `=` rarely is, so treating every commented
+// colon line as a setting made Restore able to activate a sentence.
+//
+// The rule: a commented colon assignment is a disabled pair only when its
+// value is one token — quoted, or unquoted with no space or tab before an
+// inline comment — and does not begin with `//`, the tail of a URL scheme.
+// That keeps Unset round-tripping through a reload for every colon pair whose
+// value is quoted or a single word, which is what Unset produces for nearly
+// every real setting. The trade-off, pinned by TestCommentColon_TradeOff: an
+// unquoted colon value WITH a space ("KEY: two words") cannot be told apart
+// from prose, so after Unset, Save and a reload it is a plain comment. A
+// single-word heading ("# Owner: alice") still reads as a disabled pair, for
+// the same reason in reverse.
+func colonProse(head, rhs string) bool {
+	if !strings.HasSuffix(head, ":") {
+		return false
+	}
+	if strings.HasPrefix(rhs, "//") {
+		return true
+	}
+	v := strings.TrimLeft(rhs, " \t")
+	if v == "" || strings.ContainsAny(v[:1], "\"'`") {
+		// Empty, or quoted: valueEndsOnThisLine has already required the quote
+		// to close, so the value is one token however many spaces it holds.
+		return false
+	}
+	if loc := inlineCommentRe.FindStringIndex(v); loc != nil {
+		v = v[:loc[0]]
+	}
+	return strings.ContainsAny(strings.TrimRight(v, " \t"), " \t")
 }
 
 // valueEndsOnThisLine reports whether a quoted value closes on the line it opens.
