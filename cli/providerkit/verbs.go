@@ -2,6 +2,8 @@ package providerkit
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"slices"
 
 	"github.com/spf13/cobra"
@@ -123,13 +125,10 @@ func NewPushCmd(deps Deps, store SecretWriter, cfg VerbConfig) *cobra.Command {
 					continue
 				}
 				if err := store.Set(cmd.Context(), p.Key, p.Value); err != nil {
-					// Report what already succeeded, then fail: the partial
-					// record is what makes an idempotent re-run reasonable.
-					// The emit's own error (a broken pipe) is deliberately
-					// dropped — the backend failure is the one the caller
-					// must see, and it carries the exit code.
-					_ = emitResults(deps, cfg, cmd.Context(), results, dryRun)
-					return Fail(deps.Printer, outfmt.CodeExec, "push %s: %v", p.Key, err)
+					// Report what already succeeded together with the
+					// failure: the partial record is what makes an
+					// idempotent re-run reasonable.
+					return failResults(deps, cfg, cmd.Context(), results, dryRun, "push %s: %v", p.Key, err)
 				}
 				results = append(results, Result{Name: p.Key, Action: ActionPushed})
 			}
@@ -240,10 +239,9 @@ func NewPruneCmd(deps Deps, lister SecretLister, deleter SecretDeleter, cfg Verb
 					continue
 				}
 				if err := deleter.Delete(cmd.Context(), n); err != nil {
-					// Same deliberate drop as push: the partial record prints,
-					// the backend failure carries the exit code.
-					_ = emitResults(deps, cfg, cmd.Context(), results, dryRun)
-					return Fail(deps.Printer, outfmt.CodeExec, "delete %s: %v", n, err)
+					// Same as push: the partial record and the failure
+					// travel together.
+					return failResults(deps, cfg, cmd.Context(), results, dryRun, "delete %s: %v", n, err)
 				}
 				results = append(results, Result{Name: n, Action: ActionDeleted})
 			}
@@ -303,9 +301,32 @@ func runGate(ctx context.Context, deps Deps, cfg VerbConfig, info GateInfo) erro
 // plugin meta — the single tail shared by push and prune so the two can't
 // drift in shape.
 func emitResults(deps Deps, cfg VerbConfig, ctx context.Context, results []Result, dryRun bool) error {
+	printResults(deps, results)
+	return deps.Printer.OK(resultsPayload(cfg, ctx, results, dryRun))
+}
+
+// failResults is emitResults for a verb that failed part-way: the human form
+// prints the partial record on Out and the failure on Err; --json prints ONE
+// ok:false envelope that carries the partial record as data. Exit 1, via the
+// same quiet CmdError as Fail.
+func failResults(deps Deps, cfg VerbConfig, ctx context.Context, results []Result, dryRun bool, format string, args ...any) error {
+	printResults(deps, results)
+	msg := fmt.Sprintf(format, args...)
+	if err := deps.Printer.FailWith(outfmt.CodeExec, msg, resultsPayload(cfg, ctx, results, dryRun)); err != nil {
+		return &CmdError{Code: exitFailure, Err: err}
+	}
+	return &CmdError{Code: exitFailure, Quiet: true, Err: errors.New(msg)}
+}
+
+// printResults is the human form of a results list; a no-op under --json.
+func printResults(deps Deps, results []Result) {
 	for _, r := range results {
 		deps.Printer.Humanf("%s: %s", r.Name, r.Action)
 	}
+}
+
+// resultsPayload builds the --json data for push and prune, with plugin meta.
+func resultsPayload(cfg VerbConfig, ctx context.Context, results []Result, dryRun bool) pushPayload {
 	payload := pushPayload{Results: results, DryRun: dryRun}
 	if cfg.Meta != nil {
 		// Meta failure downgrades to omission: the actions already happened
@@ -314,5 +335,5 @@ func emitResults(deps Deps, cfg VerbConfig, ctx context.Context, results []Resul
 			payload.Meta = m
 		}
 	}
-	return deps.Printer.OK(payload)
+	return payload
 }

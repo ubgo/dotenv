@@ -18,6 +18,8 @@ import (
 	"io"
 	"os"
 	"runtime/debug"
+	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -193,11 +195,43 @@ func executeApp(a *app, args []string, stdout, stderr io.Writer) int {
 		// anything yet. Silent exit-2 was a real failure mode: `list --env x`
 		// before the alias existed produced no output at all, reading exactly
 		// like "no secrets". Errors must be loud.
+		if a.jsonOut || jsonRequested(args) {
+			// Under --json the usage failure is an envelope like every other
+			// failure, so a script piping into jq always gets one object.
+			// PersistentPreRun never ran for a usage error, so the mode is
+			// set here.
+			a.printer.JSON = true
+			if a.printer.Fail(outfmt.CodeUsage, err.Error()) == nil {
+				return ExitUsage
+			}
+		}
 		prog := a.printer.ProgramName()
 		_, _ = fmt.Fprintf(stderr, "%s: %v\nRun '%s --help' for usage.\n", prog, err, prog)
 		return ExitUsage
 	}
 	return ExitOK
+}
+
+// jsonRequested reports whether args ask for --json before any "--"
+// terminator. It exists for usage errors: cobra may reject the command line
+// (unknown verb or flag) before it binds --json, and the failure must still
+// be an envelope when the caller asked for one. The last occurrence wins, as
+// in flag parsing; a malformed value such as --json=maybe counts as off.
+func jsonRequested(args []string) bool {
+	requested := false
+	for _, arg := range args {
+		if arg == "--" {
+			break
+		}
+		if arg == "--"+flagJSON {
+			requested = true
+		}
+		if v, ok := strings.CutPrefix(arg, "--"+flagJSON+"="); ok {
+			on, err := strconv.ParseBool(v)
+			requested = err == nil && on
+		}
+	}
+	return requested
 }
 
 // newRootCmd assembles the verb tree. Persistent flags bind into the shared

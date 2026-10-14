@@ -181,6 +181,11 @@ func newPluginsCmd(a *app, root *cobra.Command) *cobra.Command {
 				return a.printer.OK(pluginsPayload{Plugins: []discoveredPlugin{}})
 			}
 
+			if a.printer.JSON {
+				// The envelope is the whole --json output; the table below
+				// is the human form only.
+				return a.printer.OK(pluginsPayload{Plugins: found})
+			}
 			w := tabwriter.NewWriter(a.printer.Out, 0, 0, tabPadding, ' ', 0)
 			writeTabRow(w, "NAME", "PATH", "STATUS")
 			for _, p := range found {
@@ -193,7 +198,7 @@ func newPluginsCmd(a *app, root *cobra.Command) *cobra.Command {
 			// Terminal output; same deliberate flush-error drop as the other
 			// tables.
 			_ = w.Flush()
-			return a.printer.OK(pluginsPayload{Plugins: found})
+			return nil
 		},
 	}
 }

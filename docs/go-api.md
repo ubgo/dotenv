@@ -1710,6 +1710,7 @@ func ExampleErrCode() {
 
 - In human mode `Fail` writes to `Err`, and a nil `Err` means `os.Stderr`, so a test that only sets `Out` sees no failure line; set `Err` too. Under `--json` the failure envelope goes to `Out`. The human line starts with `Program` (default `dotenvctl`, see `ProgramName`). Before cli v0.1.3, `Fail` wrote to `Out` in both modes and the prefix was fixed.
 - `Fail` only prints. Return an exit code yourself, or use `providerkit.Fail`, which also builds the `*CmdError`.
+- One invocation, one envelope. When an operation fails part-way, use `FailWith(code, message, data)` rather than `OK` followed by `Fail`: under `--json` it prints a single `ok:false` envelope that carries `data` (the partial record) next to `error`. The kit's `push` and `prune` do this.
 - Pass a named struct to `OK`, not a map, so the JSON shape is visible where it is produced.
 - `Human` / `Humanf` drop write errors on purpose; `OK` and `Fail` return them.
 
@@ -1777,7 +1778,7 @@ Methods worth knowing: `Selection.Names()` / `SkippedNames()` / `Map()`, `Matrix
 | `discover` | `Scan(dir)`, `Classify(filename)`, `EnvFile`, `EnvDefault` |
 | `report` | `MatrixHTML(Matrix)`, `DiffHTML(Diff)`, types `Matrix`/`MatrixRow`/`MatrixCell`/`Diff`/`DiffPair`/`DiffChange`, `MaskGlyph` |
 | `textdiff` | `Lines(before, after)` |
-| `outfmt` | `Printer` (fields `Out`, `Err`, `Program`, `JSON`) with `OK`/`Fail`/`Human`/`Humanf`/`ProgramName`, `DefaultProgram`, `ErrCode` and its constants (`CodeNotFound`, `CodeIO`, `CodeRequired`, `CodeUsage`, `CodeExec`, `CodeDiff`) |
+| `outfmt` | `Printer` (fields `Out`, `Err`, `Program`, `JSON`) with `OK`/`Fail`/`FailWith`/`Human`/`Humanf`/`ProgramName`, `DefaultProgram`, `ErrCode` and its constants (`CodeNotFound`, `CodeIO`, `CodeRequired`, `CodeUsage`, `CodeExec`, `CodeDiff`) |
 
 ## CLI ↔ Go equivalence
 

@@ -214,7 +214,13 @@ Every failure exits non-zero and names what failed. Nothing is written before th
   exit=1
   ```
 
-  Re-running completes the rest: every push is `vercel env add --force`, an upsert. `VERCEL_ANALYTICS_ID` was never attempted, and is not listed.
+  Re-running completes the rest: every push is `vercel env add --force`, an upsert. `VERCEL_ANALYTICS_ID` was never attempted, and is not listed. The per-key lines are on stdout and the `dotenvctl:` line is on stderr. With `--json` the same run prints one `ok:false` envelope whose `data` is the partial record:
+
+  ```console
+  $ dotenvctl vercel push --target production --yes --json; echo "exit=$?"
+  {"ok":false,"data":{"meta":{"account":"you (stored vercel auth)","project":"unlinked directory (vercel CLI will resolve or prompt)","targets":"production"},"results":[{"name":"API_KEY","action":"skipped-placeholder"},{"name":"EMPTY","action":"skipped-empty"},{"name":"DB_URL","action":"pushed"}],"dry_run":false},"error":{"code":"exec","message":"push DB_HOST: target production: vercel [env add DB_HOST production --force]: exit status 1: Error: The Environment Variable already exists (simulated)"}}
+  exit=1
+  ```
 - **`list` failing.** If `vercel env ls` fails, `list` and `prune` fail too, rather than treating the store as empty (an empty answer would make prune mark every remote name stale).
 
 ## Pitfalls
@@ -227,7 +233,7 @@ Every failure exits non-zero and names what failed. Nothing is written before th
 - **The default target is `development`.** A forgotten `--target production` writes to development, not production. That is deliberate, but check the `targets:` line in the banner.
 - **The project line comes from the current directory, not from `-f`.** Run `dotenvctl -f app/.env vercel push` from the repo root and the banner reads the root's `.vercel/project.json` (or says `unlinked directory`), even if `app/` is linked. `cd app` first, so the banner and the `vercel` CLI agree.
 - **Names are not checked locally.** Unlike the [GitHub plugin](github.md#secret-names), this plugin does not validate key names before writing. A name Vercel rejects fails at that key, after the earlier keys were pushed.
-- **`--json` after a mid-way failure prints two envelopes.** The partial `{"ok":true,…}` record comes first, then the `{"ok":false,…}` error, on separate lines. Take the last line as the outcome and the first as the record of what was written.
+- **A mid-way failure under `--json` is one `ok:false` envelope that still has `data`.** Read `.data.results` for what was written and `.error` for what stopped the run. Before cli v0.1.3 it printed two envelopes, the partial `{"ok":true,…}` record and then the error.
 - **Values are expanded before pushing.** `--expand` is on by default, so `DB_URL=postgres://${DB_HOST}/app` arrives in Vercel resolved. Pass `--expand=false` only if you really want the literal `${…}` stored.
 
 ## A note on `list`/`prune` parsing

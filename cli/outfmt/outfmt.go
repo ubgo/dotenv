@@ -8,6 +8,9 @@
 //
 //	{"ok":true,"data":<verb-specific>}
 //	{"ok":false,"error":{"code":"<ErrCode>","message":"..."}}
+//	{"ok":false,"data":<partial record>,"error":{...}}   (FailWith: failed part-way)
+//
+// Every invocation prints exactly one envelope.
 //
 // Changing a field name here is a breaking change for every consumer piping
 // dotenvctl --json into jq — treat it with library-API discipline.
@@ -145,6 +148,22 @@ func (p *Printer) Fail(code ErrCode, message string) error {
 		return err
 	}
 	return p.emit(envelope{OK: false, Error: &wireError{Code: code, Message: message}})
+}
+
+// FailWith is Fail for an operation that failed part-way: under --json it
+// emits ONE envelope carrying both the error and data (what already
+// happened, e.g. the secrets pushed before the failure), so a script never
+// has to parse two objects. In human mode it behaves exactly like Fail; the
+// caller prints the human form of data itself, on Out, before calling it.
+//
+// The wire shape is the failure envelope plus a "data" field:
+//
+//	{"ok":false,"data":<verb-specific>,"error":{"code":"...","message":"..."}}
+func (p *Printer) FailWith(code ErrCode, message string, data any) error {
+	if !p.JSON {
+		return p.Fail(code, message)
+	}
+	return p.emit(envelope{OK: false, Data: data, Error: &wireError{Code: code, Message: message}})
 }
 
 // Human prints a line of human-mode output; a no-op under --json so verbs can
