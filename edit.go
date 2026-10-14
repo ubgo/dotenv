@@ -186,10 +186,22 @@ func (f *File) transform(key, value string) (string, error) {
 
 // ExpandedMap is Map with every value expanded. It stops at the first
 // RequiredError rather than returning a half-expanded map.
+//
+// Only the effective (last) entry for each key is expanded, so every value
+// equals what GetExpanded returns for that key. Expanding an overridden
+// duplicate as well would let a dead line fail the whole map — `B=${NOPE:?x}`
+// followed by `B=ok` must read as "ok", not as an error.
 func (f *File) ExpandedMap() (map[string]string, error) {
-	out := make(map[string]string, len(f.entries))
+	last := make(map[string]int, len(f.entries))
 	for i, e := range f.entries {
-		if e.Kind != KindPair {
+		if e.Kind == KindPair {
+			last[e.Key] = i
+		}
+	}
+
+	out := make(map[string]string, len(last))
+	for i, e := range f.entries {
+		if e.Kind != KindPair || last[e.Key] != i {
 			continue
 		}
 		v, err := f.expandEntry(i)

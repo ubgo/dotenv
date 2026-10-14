@@ -342,7 +342,7 @@ This holds everywhere, including when another key refers to the literal one: `RE
 
 ## Step 7 — Expand the whole file with `ExpandedMap`
 
-`ExpandedMap()` returns every active pair expanded, as a `map[string]string`, with the last duplicate winning like `Map`. Literal values come back as written. The package-level `Read(path)` is `Open` followed by `ExpandedMap`, except that a missing file is an error.
+`ExpandedMap()` returns every active pair expanded, as a `map[string]string`, with the last duplicate winning like `Map`. Only that last duplicate is expanded, so each value is exactly what `GetExpanded` returns for its key, and an overridden line cannot fail the map. Literal values come back as written. The package-level `Read(path)` is `Open` followed by `ExpandedMap`, except that a missing file is an error.
 
 It stops at the first error, in file order, and returns a `nil` map with it. A half-expanded map would leave you unable to tell which values are trustworthy, so you get all or nothing. In the second file below, both `B` and `C` are unsatisfied, but only the first one is reported.
 
@@ -519,7 +519,7 @@ A pass means each example printed exactly its `// Output:` block above. Edit `sr
 
 - **Before v0.1.3, a single-quoted value was expanded when another key referred to it.** With `A='${B}'`, `B=x`, `C=${A}`, `GetExpanded("C")` returned `x`; it now returns `${B}`, as described in [Step 6](#step-6--quotes-that-turn-expansion-off).
 - **Before v0.1.3, a key could not extend itself and cycles went round once more.** `A=1` then `A=${A}2` gave `22`, `A=${A:-x}` gave `""` without asking the Lookuper, and the two-key cycle above gave `aba`. See [Step 4](#step-4--nesting-chains-and-cycles) for the current rule.
-- **`ExpandedMap` also expands overridden duplicates.** If an earlier `B=${NOPE:?x}` is overridden by a later `B=ok`, `GetExpanded("B")` returns `ok`, but `ExpandedMap` (and `Read`) still fail on the earlier line. Remove dead duplicates (`Count` finds them).
+- **Before v0.1.3, `ExpandedMap` also expanded overridden duplicates.** An earlier `B=${NOPE:?x}` failed the whole map (and `Read`) even though a later `B=ok` won. Only the effective line is expanded now.
 - **Dashed keys cannot be referenced.** `${MY-KEY}` is the `-` default operator. See [Step 5](#step-5--which-names-a-reference-can-reach).
 - **A bare reference stops at `.`.** `$spring.url` is `$spring` followed by `.url`. Use `${spring.url}`.
 - **Use `Get`, not `GetExpanded`, for anything you write back.** Writing an expanded value replaces the reference with a copy of its current target, and the link is lost.

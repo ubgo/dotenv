@@ -109,3 +109,28 @@ func TestExpand_LiteralThroughReference(t *testing.T) {
 		{name: "double-quoted value is still expanded", src: "A=\"${B}\"\nB=x\nC=${A}\n", key: "C", want: "x"},
 	})
 }
+
+// TestExpandedMap_SkipsOverriddenDuplicates pins that ExpandedMap expands only
+// the effective (last) entry for each key, so it agrees with GetExpanded: a
+// dead earlier line can no longer fail the whole map.
+func TestExpandedMap_SkipsOverriddenDuplicates(t *testing.T) {
+	f := Parse("B=${NOPE:?x}\nB=ok\nC=${B}\n")
+	m, err := f.ExpandedMap()
+	if err != nil {
+		t.Fatalf("ExpandedMap: %v", err)
+	}
+	for _, key := range []string{"B", "C"} {
+		want, _, err := f.GetExpanded(key)
+		if err != nil {
+			t.Fatalf("GetExpanded(%q): %v", key, err)
+		}
+		if m[key] != want {
+			t.Errorf("ExpandedMap[%q] = %q, GetExpanded = %q", key, m[key], want)
+		}
+	}
+
+	// The effective line still fails, and the error is reported in file order.
+	if _, err := Parse("B=ok\nB=${NOPE:?x}\n").ExpandedMap(); err == nil {
+		t.Error("ExpandedMap = nil error for an unsatisfied effective line")
+	}
+}
