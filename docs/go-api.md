@@ -1178,7 +1178,7 @@ func ExampleAddSelectionFlags() {
 - `Deps.Interactive` and `Deps.Ask` must be non-nil: `Confirm` calls `Interactive()` whenever a write is neither a dry run nor `--yes` and the printer is not in JSON mode.
 - JSON mode never prompts. `--json` without `--yes` is always refused, even at a terminal, so the envelope cannot be mixed with a prompt.
 - A nil `Gate` still runs `Confirm`. No mutating kit verb runs ungated.
-- `Meta` runs at the end of every push and prune, in human mode too, so a backend lookup inside it costs one extra call per run. A `Meta` error drops the metadata and keeps the results.
+- `Meta` runs once at the end of a push or prune, and only under `--json`. If your `Gate` already looked up the same values (the account for the banner), cache them for the run, for example in a field you clear in the verb's `PreRun`, so the backend is asked once; the GitHub and Vercel plugins do this. A `Meta` error drops the metadata and keeps the results. Before cli v0.1.3 `Meta` also ran in human mode.
 - When a write fails half-way, the kit fails with exit 1 and keeps the results so far: in human mode as lines on stdout before the failure line on stderr, under `--json` as the `data` of the one `ok:false` envelope. Re-running is safe as long as your `Set` is an upsert.
 - `NewListCmd` with an empty store prints `DefaultEmptyListHint` (`no secrets found for this scope`) in human mode. If your backend splits names across scopes, implement `EmptyListHint() string` (the optional `EmptyListHinter` interface) on the lister to name your own scope flag; the GitHub and Vercel plugins do. Under `--json` an empty store is `{"names":[]}`. Before cli v0.1.3 the hint named GitHub's `--environment` and `--org` for every plugin, and a lister that returned nil printed `"names":null` in JSON.
 - `AddSelectionFlags` adds only the five selection flags. `--expand`, `--include-placeholders` and `--include-empty` exist only on the kit's store verbs, where they default to expand-on and guards-on.
@@ -1194,7 +1194,7 @@ Examples: [`ExampleSecretWriter`](../cli/providerkit/example_test.go), [`Example
 ```go
 // ExampleNew mounts the github plugin under your own cobra root. All gh calls
 // go through Deps.Runner — here a fake — and the secret value reaches gh on
-// stdin, never in argv.
+// stdin, never in argv. The account is looked up once per run.
 func ExampleNew() {
 	var out bytes.Buffer
 	runner := &apiGhRunner{}
@@ -1225,7 +1225,6 @@ func ExampleNew() {
 	// exit: 0
 	// gh api user --jq .login  stdin=""
 	// gh secret set DB_URL --repo acme/api  stdin="postgres://db/app"
-	// gh api user --jq .login  stdin=""
 }
 ```
 
@@ -1331,7 +1330,7 @@ The examples share a small fake runner and a run helper, `apiGhRun` / `apiVercel
 - In production pass `providerkit.ExecRunner{}`; `gh` or `vercel` must be installed and logged in. A missing binary fails the gate with `resolve account: …` before anything is written.
 - The `account:` banner line reads `GH_TOKEN` / `GITHUB_TOKEN` (github) or `VERCEL_TOKEN` (vercel) from your process environment to label the auth source. The token itself is passed to the backend CLI only through the inherited environment.
 - The vercel plugin reads `.vercel/project.json` relative to your process's working directory, not to `Deps.File`. In any other directory the banner says `unlinked directory`.
-- The github plugin resolves the account again for the `--json` metadata, so a push calls `gh api user` twice (see the last line of `ExampleNew`).
+- Each push or prune looks up the target and the account once, for the banner, and reuses them for the `--json` metadata (`ExampleNew` shows the single `gh api user`). Before cli v0.1.3 a push called `gh api user` twice.
 - Use `--repo` (github) when your process does not run inside the target repository; without it the plugin asks `gh repo view` for the working directory's repo.
 
 Examples: [`githubplugin.ExampleNew`](../cli/plugins/githubplugin/example_test.go), [`githubplugin.ExamplePlugin_Command`](../cli/plugins/githubplugin/example_test.go), [`vercelplugin.ExampleNew`](../cli/plugins/vercelplugin/example_test.go), [`vercelplugin.ExamplePlugin_Command`](../cli/plugins/vercelplugin/example_test.go). Flag-level docs: [github plugin](plugins/github.md), [vercel plugin](plugins/vercel.md).

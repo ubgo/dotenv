@@ -70,7 +70,10 @@ type VerbConfig struct {
 	// resolution + banner + Confirm here.
 	Gate Gate
 	// Meta contributes plugin fields (target, account) to the --json payload
-	// so scripts see resolution context, not just actions.
+	// so scripts see resolution context, not just actions. It runs once per
+	// push or prune under --json and never in human mode. When the Gate
+	// already resolved the same values, cache them for the run rather than
+	// asking the backend twice.
 	Meta func(ctx context.Context) (map[string]string, error)
 }
 
@@ -318,7 +321,7 @@ func runGate(ctx context.Context, deps Deps, cfg VerbConfig, info GateInfo) erro
 // drift in shape.
 func emitResults(deps Deps, cfg VerbConfig, ctx context.Context, results []Result, dryRun bool) error {
 	printResults(deps, results)
-	return deps.Printer.OK(resultsPayload(cfg, ctx, results, dryRun))
+	return deps.Printer.OK(resultsPayload(deps, cfg, ctx, results, dryRun))
 }
 
 // failResults is emitResults for a verb that failed part-way: the human form
@@ -328,7 +331,7 @@ func emitResults(deps Deps, cfg VerbConfig, ctx context.Context, results []Resul
 func failResults(deps Deps, cfg VerbConfig, ctx context.Context, results []Result, dryRun bool, format string, args ...any) error {
 	printResults(deps, results)
 	msg := fmt.Sprintf(format, args...)
-	if err := deps.Printer.FailWith(outfmt.CodeExec, msg, resultsPayload(cfg, ctx, results, dryRun)); err != nil {
+	if err := deps.Printer.FailWith(outfmt.CodeExec, msg, resultsPayload(deps, cfg, ctx, results, dryRun)); err != nil {
 		return &CmdError{Code: exitFailure, Err: err}
 	}
 	return &CmdError{Code: exitFailure, Quiet: true, Err: errors.New(msg)}
@@ -342,9 +345,11 @@ func printResults(deps Deps, results []Result) {
 }
 
 // resultsPayload builds the --json data for push and prune, with plugin meta.
-func resultsPayload(cfg VerbConfig, ctx context.Context, results []Result, dryRun bool) pushPayload {
+// Meta runs only under --json: the human form never prints it, and each call
+// can be a backend lookup (`gh api user`), so human mode must not pay for it.
+func resultsPayload(deps Deps, cfg VerbConfig, ctx context.Context, results []Result, dryRun bool) pushPayload {
 	payload := pushPayload{Results: results, DryRun: dryRun}
-	if cfg.Meta != nil {
+	if cfg.Meta != nil && deps.Printer.JSON {
 		// Meta failure downgrades to omission: the actions already happened
 		// and MUST be reported; missing context beats a lost record.
 		if m, err := cfg.Meta(ctx); err == nil {

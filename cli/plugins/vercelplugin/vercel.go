@@ -81,6 +81,9 @@ func (p *Plugin) Command(deps providerkit.Deps) *cobra.Command {
 	list := providerkit.NewListCmd(deps, store)
 
 	for _, c := range []*cobra.Command{push, prune, list} {
+		// One `vercel whoami` per invocation: the banner and the --json meta
+		// share it, and a second Execute of the same tree starts fresh.
+		c.PreRun = func(*cobra.Command, []string) { store.account = "" }
 		c.Flags().StringSliceVar(&store.targets, flagTarget, []string{defaultTarget}, "Vercel environment(s): production, preview, development (repeatable)")
 	}
 	// Sensitivity only applies when writing.
@@ -96,6 +99,11 @@ type vercelStore struct {
 	deps      providerkit.Deps
 	targets   []string
 	sensitive bool
+
+	// account caches resolveAccount for one invocation (cleared in each
+	// verb's PreRun), so the gate's banner and the --json meta cost one
+	// `vercel whoami`. Empty means not resolved yet; only successes cache.
+	account string
 }
 
 // Set implements providerkit.SecretWriter: one `vercel env add NAME TARGET`
@@ -210,15 +218,20 @@ func (s *vercelStore) resolveProject() string {
 // resolveAccount names who is writing via `vercel whoami`, labeled with the
 // auth source so an exported token is visible before it acts.
 func (s *vercelStore) resolveAccount(ctx context.Context) (string, error) {
+	if s.account != "" {
+		return s.account, nil
+	}
 	out, err := s.deps.Runner.Run(ctx, "", vercelBinary, "whoami")
 	if err != nil {
 		return "", err
 	}
 	login := strings.TrimSpace(string(out))
 	if os.Getenv(tokenEnvVar) != "" {
-		return login + " (via " + tokenEnvVar + ")", nil
+		s.account = login + " (via " + tokenEnvVar + ")"
+	} else {
+		s.account = login + " (stored vercel auth)"
 	}
-	return login + " (stored vercel auth)", nil
+	return s.account, nil
 }
 
 // parseEnvLs extracts variable names from `vercel env ls` table output: the

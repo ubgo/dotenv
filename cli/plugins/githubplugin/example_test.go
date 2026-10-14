@@ -70,7 +70,7 @@ func apiGhRun(root *cobra.Command, out *bytes.Buffer, args ...string) {
 
 // ExampleNew mounts the github plugin under your own cobra root. All gh calls
 // go through Deps.Runner — here a fake — and the secret value reaches gh on
-// stdin, never in argv.
+// stdin, never in argv. The account is looked up once per run.
 func ExampleNew() {
 	var out bytes.Buffer
 	runner := &apiGhRunner{}
@@ -101,7 +101,6 @@ func ExampleNew() {
 	// exit: 0
 	// gh api user --jq .login  stdin=""
 	// gh secret set DB_URL --repo acme/api  stdin="postgres://db/app"
-	// gh api user --jq .login  stdin=""
 }
 
 // snippet:end api_githubplugin_New

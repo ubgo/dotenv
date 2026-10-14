@@ -88,6 +88,9 @@ func (p *Plugin) Command(deps providerkit.Deps) *cobra.Command {
 	list := providerkit.NewListCmd(deps, store)
 
 	for _, c := range []*cobra.Command{push, prune, list} {
+		// One resolution per invocation: the banner and the --json meta
+		// share it, and a second Execute of the same tree starts fresh.
+		c.PreRun = func(*cobra.Command, []string) { store.resetResolution() }
 		c.Flags().StringVarP(&store.repo, flagRepo, "R", "", "target repository (owner/name); default: the cwd's git remote")
 		c.Flags().StringVar(&store.environment, flagEnvironment, "", "target a deployment environment's secrets (alias: --env)")
 		c.Flags().StringVar(&store.org, flagOrg, "", "target organization secrets (mutually exclusive with --repo/--environment)")
@@ -177,6 +180,20 @@ type ghStore struct {
 	repo        string
 	environment string
 	org         string
+
+	// target and account cache resolveTarget / resolveAccount for one
+	// invocation (cleared by resetResolution in each verb's PreRun), so the
+	// gate's banner and the --json meta cost one `gh repo view` and one
+	// `gh api user`, not two of each. Empty means not resolved yet; only
+	// successful resolutions are cached.
+	target  string
+	account string
+}
+
+// resetResolution forgets the cached target and account; called at the
+// start of every verb run.
+func (s *ghStore) resetResolution() {
+	s.target, s.account = "", ""
 }
 
 // scopeArgs translates the scope flags into gh's own flags — passed through
@@ -302,6 +319,19 @@ func (s *ghStore) meta(ctx context.Context) (map[string]string, error) {
 // cwd's repo exactly as gh itself resolves it — the display half of the
 // "never write to an inferred target silently" rule.
 func (s *ghStore) resolveTarget(ctx context.Context) (string, error) {
+	if s.target != "" {
+		return s.target, nil
+	}
+	target, err := s.lookupTarget(ctx)
+	if err != nil {
+		return "", err
+	}
+	s.target = target
+	return target, nil
+}
+
+// lookupTarget is resolveTarget without the per-run cache.
+func (s *ghStore) lookupTarget(ctx context.Context) (string, error) {
 	switch {
 	case s.org != "":
 		return "org:" + s.org, nil
@@ -324,6 +354,19 @@ func (s *ghStore) resolveTarget(ctx context.Context) (string, error) {
 // resolveAccount names who is writing, labeled with the auth source so a
 // forgotten exported token is visible before it acts (spec §4).
 func (s *ghStore) resolveAccount(ctx context.Context) (string, error) {
+	if s.account != "" {
+		return s.account, nil
+	}
+	account, err := s.lookupAccount(ctx)
+	if err != nil {
+		return "", err
+	}
+	s.account = account
+	return account, nil
+}
+
+// lookupAccount is resolveAccount without the per-run cache.
+func (s *ghStore) lookupAccount(ctx context.Context) (string, error) {
 	out, err := s.deps.Runner.Run(ctx, "", ghBinary, "api", "user", "--jq", ".login")
 	if err != nil {
 		return "", err
