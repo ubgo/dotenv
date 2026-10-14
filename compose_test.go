@@ -542,29 +542,57 @@ func TestDisabledPair_EveryQuoteStyle(t *testing.T) {
 // seconds; trimming lazily brought it to 0.14. Nothing in the unit tests noticed,
 // because they all operate on a handful of lines.
 //
-// The bound is deliberately loose — this asserts the right complexity class, not
-// a performance target, so it stays meaningful on a loaded CI machine.
+// The check is a RATIO between two input sizes, not a wall-clock budget. An
+// absolute budget is meaningless across build modes: the race detector slows
+// code 2-20x, so a bound that holds normally fails under -race with the code
+// unchanged. Slowdown multiplies both timings alike and cancels out of the
+// ratio. Quadrupling the input should cost about 4x for linear parsing and
+// about 16x for quadratic; the limit sits between them, loose enough for
+// scheduler noise, and each size takes its best of several runs to shed GC and
+// load spikes.
 func TestParse_ScalesLinearly(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds a multi-megabyte input")
 	}
 
-	var b strings.Builder
-	for i := 0; b.Len() < 5*1024*1024; i++ {
-		fmt.Fprintf(&b, "KEY_%d=QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=\n", i)
-	}
-	src := b.String()
+	const (
+		smallBytes = 5 * 1024 * 1024 / 4
+		largeBytes = 5 * 1024 * 1024
+		// linear = 4x, quadratic = 16x; 9 is the geometric midpoint, rounded.
+		maxRatio = 9.0
+		runs     = 3
+	)
 
-	start := time.Now()
+	build := func(size int) string {
+		var b strings.Builder
+		for i := 0; b.Len() < size; i++ {
+			fmt.Fprintf(&b, "KEY_%d=QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=\n", i)
+		}
+		return b.String()
+	}
+	best := func(src string) time.Duration {
+		var min time.Duration
+		for i := 0; i < runs; i++ {
+			start := time.Now()
+			_ = Parse(src)
+			if d := time.Since(start); i == 0 || d < min {
+				min = d
+			}
+		}
+		return min
+	}
+
+	small, src := build(smallBytes), build(largeBytes)
+	tSmall, tLarge := best(small), best(src)
+	ratio := float64(tLarge) / float64(tSmall)
+	t.Logf("small %v, large %v, ratio %.1f (linear ~%.0f, quadratic ~%.0f)",
+		tSmall, tLarge, ratio, float64(len(src))/float64(len(small)), 16.0)
+	if ratio > maxRatio {
+		t.Errorf("4x the input took %.1fx as long (small %v, large %v), over the %.0fx limit — parsing has likely gone quadratic again",
+			ratio, tSmall, tLarge, maxRatio)
+	}
+
 	f := Parse(src)
-	elapsed := time.Since(start)
-
-	// Quadratic parsing took ~24s here; linear takes ~0.15s.
-	const budget = 5 * time.Second
-	if elapsed > budget {
-		t.Errorf("parsing %d entries took %v, over the %v budget — parsing has likely gone quadratic again",
-			len(f.Entries()), elapsed.Round(time.Millisecond), budget)
-	}
 	if len(f.Keys()) < 100_000 {
 		t.Errorf("parsed %d keys, want the whole file", len(f.Keys()))
 	}

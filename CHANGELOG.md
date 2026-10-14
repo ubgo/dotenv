@@ -8,9 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 ### Changed
+
+- **The library's minimum Go is now 1.22** (was 1.26.4, the toolchain that happened to be installed). The real floor is range-over-int in `parse.go`; nothing in the standard library newer than 1.20 is used. Three benchmarks that used `b.Loop` (Go 1.24) are back to the classic loop. Build and vet were checked with a real go1.22.0 toolchain, and the full suite passes on 1.23.
+
 ### Deprecated
 ### Removed
 ### Fixed
+
+- **`TestParse_ScalesLinearly` no longer fails under `-race`.** It used a fixed 5 second budget, which the race detector's slowdown exceeds with the code unchanged. It now compares parse time at two input sizes (4x the input should cost about 4x, quadratic would cost about 16x), a ratio the slowdown cancels out of.
+
 ### Security
 
 ## [0.1.2] - 2026-10-14
