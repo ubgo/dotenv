@@ -1439,7 +1439,7 @@ API_KEY
 - `Execute` builds a fresh command tree per call, so calls do not share state. It does use process-wide things: confirmation prompts read `os.Stdin`, interactivity is a terminal check on `os.Stdin`, and exec plugins inherit `os.Environ()` and `os.Stdin`.
 - Any first word that is not a built-in verb is looked up on `PATH` as `dotenvctl-<word>` and run. Built-ins always win, so a PATH binary cannot shadow `github`.
 - `DOTENVCTL_BIN` is `os.Executable()`: inside your program that is *your* binary. A plugin's callback (`"$DOTENVCTL_BIN" -f … list --json`) then runs your program, so route those arguments to `Execute`.
-- `DOTENVCTL_VERSION` and `--version` come from the main module's build info. Inside your program they report your module's version, not the dotenv CLI's.
+- `DOTENVCTL_VERSION` and `--version` report the version of `github.com/ubgo/dotenv/cli` itself, read from your binary's dependency list, not your module's version. With a `replace` to a local directory they report `devel`. Before cli v0.1.3 they reported your main module's version.
 - Messages say `dotenvctl:` no matter what your binary is called.
 
 Related: [Plugins](plugins.md) for the exec-plugin protocol, [Commands](commands.md) for every verb.

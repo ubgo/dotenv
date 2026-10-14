@@ -279,13 +279,42 @@ func newRootCmd(a *app) *cobra.Command {
 	return root
 }
 
-// versionString reads the module version stamped by `go install` — no
-// hand-maintained constant to forget at release time. "devel" for source
-// builds. The reader is a parameter so the fallback arm is testable;
-// production always passes debug.ReadBuildInfo.
+// cliModulePath is this module's import path: the module whose version
+// --version and DOTENVCTL_VERSION report, whether dotenvctl is the main
+// module or a dependency of a host binary that embeds dotenvcmd.
+const cliModulePath = "github.com/ubgo/dotenv/cli"
+
+// devVersion is reported when no module version is stamped (a source build,
+// or the module replaced by a local directory).
+const devVersion = "devel"
+
+// versionString reads the version of THIS module (cliModulePath) stamped by
+// the Go toolchain — no hand-maintained constant to forget at release time.
+// When dotenvctl is the main module that is Main.Version; when a host binary
+// embeds dotenvcmd, Main is the host, so the version comes from the matching
+// entry in Deps (its Replace, when replaced). devVersion when nothing is
+// stamped. The reader is a parameter so every arm is testable; production
+// always passes debug.ReadBuildInfo.
 func versionString(read func() (*debug.BuildInfo, bool)) string {
-	if info, ok := read(); ok && info.Main.Version != "" {
-		return info.Main.Version
+	info, ok := read()
+	if !ok || info == nil {
+		return devVersion
 	}
-	return "devel"
+	mod := &info.Main
+	if mod.Path != cliModulePath && mod.Path != "" {
+		mod = nil
+		for _, dep := range info.Deps {
+			if dep.Path == cliModulePath {
+				mod = dep
+				if dep.Replace != nil {
+					mod = dep.Replace
+				}
+				break
+			}
+		}
+	}
+	if mod == nil || mod.Version == "" {
+		return devVersion
+	}
+	return mod.Version
 }

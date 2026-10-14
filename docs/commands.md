@@ -36,7 +36,7 @@ $ dotenvctl --version
 dotenvctl version (devel)
 ```
 
-The version is read from the build itself, so there is no constant to forget at release time. A `go install …@<tag>` binary prints that module version; a binary built from a checkout prints a pseudo-version such as `v0.1.3-0.20261014080958-31847d420e08+dirty`; `go run` prints `(devel)`. `--version` ignores `--json` and always prints the plain line, so scripts that gate on a version should parse that line.
+The version is read from the build itself, so there is no constant to forget at release time. A `go install …@<tag>` binary prints that module version; a binary built from a checkout prints a pseudo-version such as `v0.1.3-0.20261014080958-31847d420e08+dirty`; `go run` prints `(devel)`. A program that embeds the CLI with `dotenvcmd.Execute` prints the version of the `github.com/ubgo/dotenv/cli` module it was built with, not its own. `--version` ignores `--json` and always prints the plain line, so scripts that gate on a version should parse that line.
 
 ## get — print one value
 
