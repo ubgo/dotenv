@@ -26,3 +26,8 @@ cli/**/testdata/** -text
 # Generated/vendored — collapse in diffs and exclude from language stats.
 go.sum linguist-generated=true
 vendor/** linguist-vendored
+# >>> lore-sync >>>
+.lore/data/**/*.json text eol=lf merge=lore linguist-generated=true
+.lore/data/*.json text eol=lf merge=lore linguist-generated=true
+.lore/LORE.md text eol=lf merge=lore-keep-ours linguist-generated=true
+# <<< lore-sync <<<
