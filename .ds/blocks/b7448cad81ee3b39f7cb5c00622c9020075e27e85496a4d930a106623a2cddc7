@@ -1,0 +1,11 @@
+func (v visiting) enter(name string, at int) (leave func()) {
+	prev, had := v[name]
+	v[name] = at
+	return func() {
+		if had {
+			v[name] = prev
+		} else {
+			delete(v, name)
+		}
+	}
+}

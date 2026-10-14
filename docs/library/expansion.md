@@ -188,16 +188,54 @@ func ExampleFile_GetExpanded_dollar() {
 
 References can nest inside operator arguments to any practical depth, and a referenced value is expanded in turn, so `C=${B}` where `B=${A}` resolves all the way through. Order in the file does not matter: a reference can point at a key defined further down. With duplicate keys, a reference sees the last one.
 
-A cycle cannot hang the caller. While a variable is being expanded, [a reference back into it resolves to `""`](ds:block?id=visitingenter-r4jp8kdd), which is what an unset variable gives. Two separate references to the same variable in one value are not a cycle and both resolve. As a backstop, chains stop after [32 levels](ds:block?id=maxexpanddepth-hr5dfhv2).
+A key that refers to itself is the exception, and it follows Docker Compose. Compose reads a `.env` file from top to bottom and expands each line against what it has read so far, so a self-reference sees the definition **above** it: `A=1` then `A=${A}2` gives `12`, and `PATH_EXTRA=${PATH_EXTRA}:/opt/bin` appends to an earlier line. With nothing above, the reference asks your [Lookuper](plugins.md) and is otherwise unset, so `ZONE=${ZONE:-eu-west}` gives the Lookuper's `ZONE` if it has one, else `eu-west`. The file still wins over the Lookuper when there is an earlier line. Compose source for this rule: compose-go v2.16.1, `dotenv/parser.go` (each value is expanded against the map of lines read so far), and the fixture `dotenv/fixtures/substitutions-default.env`, whose first line is `OPTION_A=${OPTION_A:-1}`: `TestSubstitutionsWithUnsetVarEnvFileDefaultValuePrecedence` expects `1`, and `TestSubstitutionsWithEnvFileDefaultValuePrecedence` expects the lookup's value.
+
+<!-- snippet: example_expand_test.go#exp_SelfReference -->
+```go
+// ExampleFile_GetExpanded_selfReference shows a key that refers to itself.
+// As in Docker Compose, the reference sees the definition above the line, so
+// a value can extend an earlier one. With nothing above, it asks the Lookuper
+// and otherwise takes the default.
+func ExampleFile_GetExpanded_selfReference() {
+	src := "PATH_EXTRA=/usr/local/bin\n" +
+		"PATH_EXTRA=${PATH_EXTRA}:/opt/bin\n" +
+		"ZONE=${ZONE:-eu-west}\n" +
+		"REGION=${REGION:-us-east}\n"
+
+	lookup := dotenv.WithLookup(func(name string) (string, bool) {
+		if name == "REGION" {
+			return "ap-south", true
+		}
+		return "", false
+	})
+
+	f := dotenv.Parse(src, lookup)
+	for _, key := range []string{"PATH_EXTRA", "ZONE", "REGION"} {
+		got, _, err := f.GetExpanded(key)
+		if err != nil {
+			fmt.Println(key, "error:", err)
+			continue
+		}
+		fmt.Printf("%s=%q\n", key, got)
+	}
+	// Output:
+	// PATH_EXTRA="/usr/local/bin:/opt/bin"
+	// ZONE="eu-west"
+	// REGION="ap-south"
+}
+```
+
+A cycle cannot hang the caller, and it ends the same way. While a variable is being expanded, [a reference back into it](ds:block?id=visitingenter-r4jp8kdd) sees only the definitions above the line being expanded, then the Lookuper, then nothing. The key you asked for is on that stack from the start, so `CYCLE_A=a${CYCLE_B}` with `CYCLE_B=b${CYCLE_A}` gives `ab` for `CYCLE_A` and `ba` for `CYCLE_B`. Compose gives `ba` for `CYCLE_B` too; for `CYCLE_A` it gives `a`, because it never looks ahead to a later line. Two separate references to the same variable in one value are not a cycle and both resolve. As a backstop, chains stop after [32 levels](ds:block?id=maxexpanddepth-hr5dfhv2).
 
 <!-- snippet: example_expand_test.go#exp_Nesting -->
 ```go
 // ExampleFile_GetExpanded_nesting shows nested defaults, chains of references
 // (in any order in the file), and the cycle guard: a reference back into a
-// variable that is still being expanded resolves to "" so expansion always
-// terminates. The guard tracks referenced names, not the key you asked for,
-// so CYCLE_A goes round once more ("a", "b", "a") before the cut. Two
-// separate references to one variable are not a cycle.
+// variable that is still being expanded sees only what is defined above it
+// (nothing here), so it resolves to "" and expansion always terminates. The
+// key you asked for is on the stack from the start, so CYCLE_A is cut on its
+// first return: "a", then "b", then nothing. Two separate references to one
+// variable are not a cycle.
 func ExampleFile_GetExpanded_nesting() {
 	src := "NESTED=${NOPE:-${ALSO_NOPE:-fallback}}\n" +
 		"INNER=${NOPE:-${LATER}}\n" +
@@ -223,11 +261,11 @@ func ExampleFile_GetExpanded_nesting() {
 	// INNER="defined below"
 	// CHAIN="https://example.com/v1"
 	// TWICE="example.com|example.com"
-	// CYCLE_A="aba"
+	// CYCLE_A="ab"
 }
 ```
 
-The guard tracks the names that references point at, not the key you asked `GetExpanded` for. So a cycle back to the starting key goes round once more before it is cut, which is why `CYCLE_A` above is `aba` rather than `ab`. The same rule applies to a key that refers to itself (see [Pitfalls](#pitfalls)).
+The only place this package and Compose part ways is a reference to a key defined further down: Compose leaves it unset, this package resolves it. Everything Compose resolves, this package resolves to the same value.
 
 ## Step 5 — Which names a reference can reach
 
@@ -477,7 +515,7 @@ A pass means each example printed exactly its `// Output:` block above. Edit `sr
 ## Pitfalls
 
 - **A single-quoted value is expanded again when another key refers to it.** Reading `A` directly keeps it literal, but a reference to `A` expands its text. With `A='${B}'`, `B=x`, `C=${A}`, `GetExpanded("C")` returns `x`, not `${B}`; with `A='$$'`, `C=${A}` gives `$`. Until this changes, do not point references at literal values that contain `$`.
-- **A key cannot extend itself.** `A=1` then `A=${A}2` does not give `12` as it would in Compose, which reads line by line. The reference sees the last `A`, which is `${A}2`, so the result is `22`. Likewise `A=${A:-x}` gives `""`, not `x`. Give the base value its own name: `A_BASE=1`, `A=${A_BASE}2`.
+- **Before v0.1.3, a key could not extend itself and cycles went round once more.** `A=1` then `A=${A}2` gave `22`, `A=${A:-x}` gave `""` without asking the Lookuper, and the two-key cycle above gave `aba`. See [Step 4](#step-4--nesting-chains-and-cycles) for the current rule.
 - **`ExpandedMap` also expands overridden duplicates.** If an earlier `B=${NOPE:?x}` is overridden by a later `B=ok`, `GetExpanded("B")` returns `ok`, but `ExpandedMap` (and `Read`) still fail on the earlier line. Remove dead duplicates (`Count` finds them).
 - **Dashed keys cannot be referenced.** `${MY-KEY}` is the `-` default operator. See [Step 5](#step-5--which-names-a-reference-can-reach).
 - **A bare reference stops at `.`.** `$spring.url` is `$spring` followed by `.url`. Use `${spring.url}`.

@@ -106,10 +106,11 @@ func TestEdgeCases_Expansion(t *testing.T) {
 		{"mutual cycle", "A=${B}\nB=${A}\n", "A", ""},
 		// Two SEPARATE references to one variable are not a cycle.
 		{"same variable referenced twice", "A=x\nK=${A}-${A}\n", "K", "x-x"},
-		// The case fuzzing found. Each of the two $A references expands once
-		// and is then cut on re-entry, so this terminates with a deterministic
-		// result; without cycle detection it is 2^depth expansions and hangs.
-		{"branching self reference terminates", "A=$A$A{\n", "A", "{{{"},
+		// The case fuzzing found: without cycle detection it is 2^depth
+		// expansions and hangs. The key is on the stack from the start, so
+		// both $A references are self-references with nothing defined above
+		// them and expand to "" — Compose's answer too.
+		{"branching self reference terminates", "A=$A$A{\n", "A", "{"},
 		{"forward reference to a later key", "A=${B}\nB=later\n", "A", "later"},
 		{"reference to a commented-out key uses the default", "# B=x\nK=${B:-fb}\n", "K", "fb"},
 		{"reference to a duplicated key takes the last", "B=one\nB=two\nK=${B}\n", "K", "two"},

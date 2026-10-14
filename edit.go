@@ -132,7 +132,7 @@ func (f *File) GetExpanded(key string) (string, bool, error) {
 		if e.Kind != KindPair || e.Key != key {
 			continue
 		}
-		v, err := f.expandEntry(e)
+		v, err := f.expandEntry(i)
 		return v, true, err
 	}
 	return "", false, nil
@@ -144,11 +144,16 @@ func (f *File) GetExpanded(key string) (string, bool, error) {
 // This is why quoteStyle is retained: SECRET='${A}' means the literal text
 // ${A}, and expanding it would silently replace a value the author explicitly
 // marked as literal — a data-corrupting bug, not a formatting one.
-func (f *File) expandEntry(e *Entry) (string, error) {
+//
+// It takes the entry's INDEX, not the entry: the key goes on the expansion stack
+// at that position, so a reference back to it sees only the definitions above
+// it — Compose's reading of `A=1` then `A=${A}2` as "12". See visiting.
+func (f *File) expandEntry(i int) (string, error) {
+	e := f.entries[i]
 	v := e.Value
 	if e.quote.interpolates() {
 		var err error
-		v, err = f.expandFor(e.Key, e.Value, 0, visiting{})
+		v, err = f.expandFor(e.Key, e.Value, 0, visiting{e.Key: i})
 		if err != nil {
 			return "", err
 		}
@@ -183,11 +188,11 @@ func (f *File) transform(key, value string) (string, error) {
 // RequiredError rather than returning a half-expanded map.
 func (f *File) ExpandedMap() (map[string]string, error) {
 	out := make(map[string]string, len(f.entries))
-	for _, e := range f.entries {
+	for i, e := range f.entries {
 		if e.Kind != KindPair {
 			continue
 		}
-		v, err := f.expandEntry(e)
+		v, err := f.expandEntry(i)
 		if err != nil {
 			return nil, err
 		}

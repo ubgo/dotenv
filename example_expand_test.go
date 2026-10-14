@@ -123,10 +123,11 @@ func ExampleFile_GetExpanded_dollar() {
 
 // ExampleFile_GetExpanded_nesting shows nested defaults, chains of references
 // (in any order in the file), and the cycle guard: a reference back into a
-// variable that is still being expanded resolves to "" so expansion always
-// terminates. The guard tracks referenced names, not the key you asked for,
-// so CYCLE_A goes round once more ("a", "b", "a") before the cut. Two
-// separate references to one variable are not a cycle.
+// variable that is still being expanded sees only what is defined above it
+// (nothing here), so it resolves to "" and expansion always terminates. The
+// key you asked for is on the stack from the start, so CYCLE_A is cut on its
+// first return: "a", then "b", then nothing. Two separate references to one
+// variable are not a cycle.
 func ExampleFile_GetExpanded_nesting() {
 	src := "NESTED=${NOPE:-${ALSO_NOPE:-fallback}}\n" +
 		"INNER=${NOPE:-${LATER}}\n" +
@@ -152,10 +153,46 @@ func ExampleFile_GetExpanded_nesting() {
 	// INNER="defined below"
 	// CHAIN="https://example.com/v1"
 	// TWICE="example.com|example.com"
-	// CYCLE_A="aba"
+	// CYCLE_A="ab"
 }
 
 // snippet:end exp_Nesting
+
+// snippet:start exp_SelfReference
+
+// ExampleFile_GetExpanded_selfReference shows a key that refers to itself.
+// As in Docker Compose, the reference sees the definition above the line, so
+// a value can extend an earlier one. With nothing above, it asks the Lookuper
+// and otherwise takes the default.
+func ExampleFile_GetExpanded_selfReference() {
+	src := "PATH_EXTRA=/usr/local/bin\n" +
+		"PATH_EXTRA=${PATH_EXTRA}:/opt/bin\n" +
+		"ZONE=${ZONE:-eu-west}\n" +
+		"REGION=${REGION:-us-east}\n"
+
+	lookup := dotenv.WithLookup(func(name string) (string, bool) {
+		if name == "REGION" {
+			return "ap-south", true
+		}
+		return "", false
+	})
+
+	f := dotenv.Parse(src, lookup)
+	for _, key := range []string{"PATH_EXTRA", "ZONE", "REGION"} {
+		got, _, err := f.GetExpanded(key)
+		if err != nil {
+			fmt.Println(key, "error:", err)
+			continue
+		}
+		fmt.Printf("%s=%q\n", key, got)
+	}
+	// Output:
+	// PATH_EXTRA="/usr/local/bin:/opt/bin"
+	// ZONE="eu-west"
+	// REGION="ap-south"
+}
+
+// snippet:end exp_SelfReference
 
 // snippet:start exp_Literal
 
