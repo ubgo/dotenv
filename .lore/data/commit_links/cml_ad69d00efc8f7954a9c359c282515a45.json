@@ -1,0 +1,16 @@
+{
+  "_table": "commit_links",
+  "_v": 1,
+  "author": null,
+  "committed_at": null,
+  "created_at": "2026-10-14T12:10:55.626705723Z",
+  "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
+  "entity_id": "tsk_01a139bf6553701eb582e571a07fb94d",
+  "entity_table": "tasks",
+  "id": "cml_ad69d00efc8f7954a9c359c282515a45",
+  "message": "Release cli/v0.1.3",
+  "project_id": "prj_01a1397c42717315be667a3133d26336",
+  "repo_path": null,
+  "sha": "ba976d85d6fe3c979019d23d4b4bceb8480767c6",
+  "updated_at": "2026-10-14T12:10:55.626705977Z"
+}
