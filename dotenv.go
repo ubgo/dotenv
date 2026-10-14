@@ -552,8 +552,15 @@ func (f *File) SaveAs(path string) error {
 func (f *File) writeTo(path string, mode fs.FileMode) error {
 	// Guards run before anything is written, so a rejected file leaves the
 	// destination exactly as it was — not half-replaced by a temp file.
+	//
+	// Each guard is handed its OWN Clone, never f. A SaveGuard may veto only;
+	// given the live *File it could call Set or rewrite an entry's Raw and so
+	// change the bytes written below, or keep the pointer and change f later.
+	// A fresh clone per guard also stops one guard's scribbling from changing
+	// what the next guard sees. The cost is one O(entries) copy per guard per
+	// save, which the render below pays anyway.
 	for i, g := range f.opts.guards {
-		if err := g.GuardSave(f); err != nil {
+		if err := g.GuardSave(f.Clone()); err != nil {
 			return pluginError(f.opts.pluginNameFor(CapSaveGuard, i), "guard save "+path, err)
 		}
 	}
@@ -586,9 +593,17 @@ func (f *File) Clone() *File {
 	out := *f
 	out.entries = make([]*Entry, len(f.entries))
 	for i, e := range f.entries {
-		clone := *e
-		clone.Raw = append([]string(nil), e.Raw...)
-		out.entries[i] = &clone
+		out.entries[i] = e.clone()
 	}
 	return &out
+}
+
+// clone returns a deep copy of e. Raw is the only field that shares memory
+// (a slice), so copying it is what makes the copy independent: writing
+// clone.Raw[0] must not reach e.Raw[0]. Used by Clone and to hand plugins a
+// copy they cannot write through (see EntryObserver).
+func (e *Entry) clone() *Entry {
+	c := *e
+	c.Raw = append([]string(nil), e.Raw...)
+	return &c
 }

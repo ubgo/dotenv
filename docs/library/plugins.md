@@ -192,7 +192,7 @@ Example: [`ExampleWithValueTransform`](../../example_plugin_test.go).
 
 ## Step 3 — Refuse bad writes with WithSaveGuard
 
-`WithSaveGuard` takes a `func(*File) error`. It runs before `Save` or `SaveAs` writes anything. Returning an error refuses the write: no temp file is created and the destination keeps its old content. The error wraps yours, so `errors.Is` and `errors.Unwrap` reach it; the full message also names the plugin and the path (`dotenv: plugin "save-guard": guard save <path>: <your error>`).
+`WithSaveGuard` takes a `func(*File) error`. It runs before `Save` or `SaveAs` writes anything. The `*File` it receives is a copy made for that call, so the guard can read anything but cannot change what is written. Returning an error refuses the write: no temp file is created and the destination keeps its old content. The error wraps yours, so `errors.Is` and `errors.Unwrap` reach it; the full message also names the plugin and the path (`dotenv: plugin "save-guard": guard save <path>: <your error>`).
 
 <!-- snippet: example_plugin_test.go#plug_WithSaveGuard -->
 ```go
@@ -441,8 +441,8 @@ type plugRequireKeys struct {
 
 func (plugRequireKeys) Name() string { return "require-keys" }
 
-// GuardSave only reads the file. It must not edit it: see the Pitfalls in
-// docs/library/plugins.md.
+// GuardSave only reads the file. It is handed a copy, so an edit here would
+// change nothing that is saved; see the firewall in docs/library/plugins.md.
 func (g plugRequireKeys) GuardSave(f *dotenv.File) error {
 	var missing []string
 	for _, k := range g.keys {
@@ -542,7 +542,7 @@ Example: [`ExampleCommandRunner`](../../example_plugin_test.go).
 
 ## Step 9 — Audit every entry with an EntryObserver
 
-An `EntryObserver` sees every entry as it is parsed: comments, blank lines, pairs, commented-out pairs (`KindDisabledPair`), name-only declarations (`KindInherited`) and unrecognised lines (`KindOther`). A commented-out setting is a finding for an auditor, so nothing is filtered. A multi-line value is one entry. It cannot fail; to reject a file, use a `SaveGuard` or inspect the parsed `File`.
+An `EntryObserver` sees every entry as it is parsed: comments, blank lines, pairs, commented-out pairs (`KindDisabledPair`), name-only declarations (`KindInherited`) and unrecognised lines (`KindOther`). A commented-out setting is a finding for an auditor, so nothing is filtered. A multi-line value is one entry. Each call gets a copy of the entry, so the observer can read it or keep it but cannot change the parsed file. It cannot fail; to reject a file, use a `SaveGuard` or inspect the parsed `File`.
 
 It fires from `Parse`, `ParseReader` and `Open`, not from `Set`, `Append` or other edits.
 
@@ -720,7 +720,7 @@ Example: [`ExampleFile_Plugins_ordering`](../../example_plugin_test.go).
 
 > A hook may change what a value **reads** as. It may never change what gets **written**.
 
-Lookups, runners, transformers and expand observers all live in the expansion path, which [`Render`](ds:block?id=render-c8njbs4p) and `Save` never call. So a file round-trips byte for byte whatever is installed, and a decrypted secret cannot be written back in plaintext. A `SaveGuard` sits next to the write path but can only return an error.
+Lookups, runners, transformers and expand observers all live in the expansion path, which [`Render`](ds:block?id=render-c8njbs4p) and `Save` never call, and they are handed only strings. So a file round-trips byte for byte whatever is installed, and a decrypted secret cannot be written back in plaintext. The two hooks that receive structured state get copies: a `SaveGuard` is handed a clone of the file made for that call, and an `EntryObserver` a copy of each entry. A guard that calls `Set`, or an observer that rewrites `e.Raw`, changes only its copy, during the call or later through a kept pointer, so a guard can refuse a write but never alter it.
 
 <!-- snippet: example_plugin_test.go#plug_firewall -->
 ```go
@@ -749,7 +749,7 @@ func ExampleFile_Plugins_firewall() {
 }
 ```
 
-Example: [`ExampleFile_Plugins_firewall`](../../example_plugin_test.go). The rule is also asserted by the plain test `TestPlugins_NeverAffectBytes` in [`plugin_test.go`](../../plugin_test.go), which renders and edits one file with every value-changing hook and with none, and by the fuzz target `FuzzPluginsNeverAffectBytes` in [`fuzz_test.go`](../../fuzz_test.go), which does the same for arbitrary input. Two hooks receive pointers they could misuse; see [Pitfalls](#pitfalls).
+Example: [`ExampleFile_Plugins_firewall`](../../example_plugin_test.go). The rule is also asserted by the plain test `TestPlugins_NeverAffectBytes` in [`plugin_test.go`](../../plugin_test.go), which renders and edits one file with every value-changing hook and with none, and by the fuzz target `FuzzPluginsNeverAffectBytes` in [`fuzz_test.go`](../../fuzz_test.go), which does the same for arbitrary input. Its subtest also installs a plugin that edits everything a `SaveGuard` and an `EntryObserver` are handed, and checks that the parsed file and the saved bytes are unchanged.
 
 ## Compile-time assertions
 
@@ -897,8 +897,7 @@ Each example passes only when its printed output matches its `// Output:` block,
 - **A lookup error beats a default.** `${DB_PASSWORD:-}` still fails when the `Lookuper` returns an error. Return `ok=false`, not an error, for "not found".
 - **A runner error is silent.** A `CommandRunner` that returns an error yields `""` with a nil error from `GetExpanded`. If a refused command must fail the read, make the runner return a sentinel value and check for it, or validate in a `SaveGuard` or after `ExpandedMap`.
 - **The function options name every hook the same.** Two `WithLookup` calls both report as `lookup`, so an error does not tell you which one failed. Write a type with its own `Name()` when that matters.
-- **A guard is handed the live file.** `GuardSave` receives the `*File` being saved, not a copy. Calling `f.Set` inside a guard changes what is written, which breaks the firewall. Only read it.
-- **An entry observer is handed the live entry.** `ObserveEntry` receives a `*Entry`; changing `e.Raw` or `e.Value` changes what `Render` writes. Only read it.
+- **Editing what a guard or observer is handed does nothing.** `GuardSave` receives a copy of the file and `ObserveEntry` a copy of the entry, so a `Set` or a changed `e.Value` there is silently lost. To change a value before it is written, call `Set` on the file yourself before `Save`. Before the next release, both hooks were handed the live file and entry, and editing them changed the saved bytes.
 - **A typed-nil plugin panics.** `WithPlugin((*MyPlugin)(nil))` satisfies the interface and panics on first use. A plain `nil` is ignored, and so is a `nil` function passed to `WithLookup`, `WithValueTransform` or `WithSaveGuard`. `WithCommandRunner(nil)` installs nothing but still turns substitution on with the default `sh -c` runner.
 - **Plugins do not reach `os.Environ` by themselves.** The library never reads the process environment. Pass `WithLookup(os.LookupEnv)` when you want that.
 

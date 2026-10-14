@@ -15,9 +15,9 @@
   "priority": "high",
   "project_id": "prj_01a1397c42717315be667a3133d26336",
   "repo_id": null,
-  "started_at": null,
-  "status": "todo",
+  "started_at": "2026-10-14T09:37:31.320507073Z",
+  "status": "in_progress",
   "tasklist_id": "tlt_01a139822ae272658b34eda4f307b756",
   "title": "Fix expansion bugs 1-4 (self-reference, cycles, single-quote literal, ExpandedMap duplicates)",
-  "updated_at": "2026-10-14T09:30:06.687526321Z"
+  "updated_at": "2026-10-14T09:37:31.320508446Z"
 }

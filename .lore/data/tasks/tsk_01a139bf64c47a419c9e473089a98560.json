@@ -15,9 +15,9 @@
   "priority": "high",
   "project_id": "prj_01a1397c42717315be667a3133d26336",
   "repo_id": null,
-  "started_at": null,
-  "status": "todo",
+  "started_at": "2026-10-14T09:38:06.514845066Z",
+  "status": "in_progress",
   "tasklist_id": "tlt_01a139822ae272658b34eda4f307b756",
   "title": "Fix plugin firewall bugs 9-10 (SaveGuard / EntryObserver read-only views)",
-  "updated_at": "2026-10-14T09:30:06.916670537Z"
+  "updated_at": "2026-10-14T09:38:06.514846559Z"
 }

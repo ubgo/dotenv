@@ -15,9 +15,9 @@
   "priority": "high",
   "project_id": "prj_01a1397c42717315be667a3133d26336",
   "repo_id": null,
-  "started_at": null,
-  "status": "todo",
+  "started_at": "2026-10-14T09:37:57.823450603Z",
+  "status": "in_progress",
   "tasklist_id": "tlt_01a139822ae272658b34eda4f307b756",
   "title": "Fix CLI bugs 11-18 (stderr, one JSON envelope, plugin hint, version, Fail prefix, gh api user, contract blank line)",
-  "updated_at": "2026-10-14T09:30:06.987109116Z"
+  "updated_at": "2026-10-14T09:37:57.823451897Z"
 }

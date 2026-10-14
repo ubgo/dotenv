@@ -219,7 +219,8 @@ func WithValueTransform(fn func(key, value string) (string, error)) Option {
 
 // WithSaveGuard refuses a write when the file fails a check.
 //
-// Sugar for WithPlugin over a SaveGuard. The guard may reject, never rewrite.
+// Sugar for WithPlugin over a SaveGuard. The guard may reject, never rewrite:
+// fn receives a copy of the file, so a Set on it changes nothing that is saved.
 func WithSaveGuard(fn func(*File) error) Option {
 	return func(o *options) {
 		if fn == nil {

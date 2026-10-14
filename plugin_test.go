@@ -36,6 +36,56 @@ func (m *multiCap) RunCommand(cmd string) (string, error) {
 	return "ran:" + cmd, nil
 }
 
+// vandal implements every hook that is handed structured state (SaveGuard and
+// EntryObserver) and tries to change what gets written through it. The
+// string-only hooks (Lookuper, ValueTransformer, CommandRunner, ExpandObserver)
+// receive Go strings, which are immutable, so they have nothing to vandalise.
+//
+// It also keeps the pointers it was given and mutates them AGAIN later, through
+// scribble, because a plugin that retains a reference is the same breach as one
+// that mutates during the call.
+type vandal struct {
+	kept     *[]*Entry
+	keptFile **File
+}
+
+func (vandal) Name() string { return "vandal" }
+
+func (v vandal) ObserveEntry(e *Entry) {
+	*v.kept = append(*v.kept, e)
+	e.Raw[0] = "VANDAL-RAW"
+	e.Raw = append(e.Raw, "VANDAL-EXTRA")
+	e.Key = "VANDAL"
+	e.Value = "vandal-value"
+	e.Kind = KindOther
+}
+
+func (v vandal) GuardSave(f *File) error {
+	*v.keptFile = f
+	f.Set("HOST", "vandal-host")
+	f.Append(NewPair("INJECTED", "1"))
+	for _, e := range f.Entries() {
+		e.Raw[0] = "VANDAL-RAW"
+	}
+	return nil
+}
+
+// scribble mutates everything the vandal retained, after the hook returned.
+func (v vandal) scribble() {
+	for _, e := range *v.kept {
+		e.Raw[0] = "LATE-VANDAL"
+		e.Value = "late"
+	}
+	if f := *v.keptFile; f != nil {
+		f.Set("HOST", "late-vandal")
+	}
+}
+
+var (
+	_ SaveGuard     = vandal{}
+	_ EntryObserver = vandal{}
+)
+
 // noCap implements only Name — legal, but usually a signature typo, which is
 // what Plugins exists to reveal.
 type noCap struct{}
@@ -329,6 +379,66 @@ func TestPlugins_NeverAffectBytes(t *testing.T) {
 	}
 	if len(entries) == 0 {
 		t.Error("the entry observer never fired")
+	}
+
+	t.Run("SaveGuard and EntryObserver get copies", testPluginsMutableHooks)
+}
+
+// testPluginsMutableHooks closes the gap the test above left
+// open: SaveGuard and EntryObserver are the two hooks handed structured state
+// (a *File and an *Entry) rather than strings, so they are the two that could
+// write through it. Each must receive a copy, so neither a mutation during the
+// call nor one made later through a retained pointer reaches the parsed file or
+// the saved bytes.
+func testPluginsMutableHooks(t *testing.T) {
+	const src = "# banner\nHOST=local\nURL=https://${HOST}/api\n# OLD=x\n\ntrailing junk\n"
+
+	var kept []*Entry
+	var keptFile *File
+	v := vandal{kept: &kept, keptFile: &keptFile}
+
+	plain := Parse(src)
+	hooked := Parse(src, WithPlugin(v), WithSaveGuard(func(f *File) error {
+		// The function-option form of the same breach.
+		f.Set("URL", "fn-guard-was-here")
+		return nil
+	}))
+
+	if len(kept) == 0 {
+		t.Fatal("the entry observer never fired")
+	}
+	if got := hooked.Render(); got != src {
+		t.Errorf("an EntryObserver changed the parsed file:\n got %q\nwant %q", got, src)
+	}
+	if got, _ := hooked.Get("HOST"); got != "local" {
+		t.Errorf("Get(HOST) = %q after an EntryObserver mutated its entry, want %q", got, "local")
+	}
+
+	dir := t.TempDir()
+	plainPath, hookedPath := filepath.Join(dir, "plain.env"), filepath.Join(dir, "hooked.env")
+	if err := plain.SaveAs(plainPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := hooked.SaveAs(hookedPath); err != nil {
+		t.Fatal(err)
+	}
+	if keptFile == nil {
+		t.Fatal("the save guard never fired")
+	}
+	wantBytes, _ := os.ReadFile(plainPath)
+	gotBytes, _ := os.ReadFile(hookedPath)
+	if string(gotBytes) != string(wantBytes) {
+		t.Errorf("a SaveGuard changed the saved bytes:\n plain: %q\nhooked: %q", wantBytes, gotBytes)
+	}
+	if got := hooked.Render(); got != src {
+		t.Errorf("a SaveGuard changed the live file:\n got %q\nwant %q", got, src)
+	}
+
+	// A plugin that kept the pointers it was handed must not be able to reach
+	// the file later either.
+	v.scribble()
+	if got := hooked.Render(); got != src {
+		t.Errorf("a retained hook pointer changed the file after the hook returned:\n got %q\nwant %q", got, src)
 	}
 }
 

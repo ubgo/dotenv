@@ -1,0 +1,34 @@
+func (f *File) writeTo(path string, mode fs.FileMode) error {
+	// Guards run before anything is written, so a rejected file leaves the
+	// destination exactly as it was — not half-replaced by a temp file.
+	//
+	// Each guard is handed its OWN Clone, never f. A SaveGuard may veto only;
+	// given the live *File it could call Set or rewrite an entry's Raw and so
+	// change the bytes written below, or keep the pointer and change f later.
+	// A fresh clone per guard also stops one guard's scribbling from changing
+	// what the next guard sees. The cost is one O(entries) copy per guard per
+	// save, which the render below pays anyway.
+	for i, g := range f.opts.guards {
+		if err := g.GuardSave(f.Clone()); err != nil {
+			return pluginError(f.opts.pluginNameFor(CapSaveGuard, i), "guard save "+path, err)
+		}
+	}
+
+	tmp := path + tempSuffix
+	if err := os.WriteFile(tmp, []byte(f.Render()), defaultFileMode); err != nil {
+		return fmt.Errorf("dotenv: write temp file: %w", err)
+	}
+	// Best-effort cleanup on every failure path; the error is deliberately
+	// dropped because after a successful rename the temp name no longer exists
+	// and Remove ALWAYS fails — surfacing that would turn every successful
+	// save into a spurious error.
+	defer func() { _ = os.Remove(tmp) }()
+
+	if err := chmod(tmp, mode); err != nil {
+		return fmt.Errorf("dotenv: set mode on temp file: %w", err)
+	}
+	if err := rename(tmp, path); err != nil {
+		return fmt.Errorf("dotenv: rename temp file into place: %w", err)
+	}
+	return nil
+}

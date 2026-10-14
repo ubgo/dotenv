@@ -342,8 +342,8 @@ type plugRequireKeys struct {
 
 func (plugRequireKeys) Name() string { return "require-keys" }
 
-// GuardSave only reads the file. It must not edit it: see the Pitfalls in
-// docs/library/plugins.md.
+// GuardSave only reads the file. It is handed a copy, so an edit here would
+// change nothing that is saved; see the firewall in docs/library/plugins.md.
 func (g plugRequireKeys) GuardSave(f *dotenv.File) error {
 	var missing []string
 	for _, k := range g.keys {

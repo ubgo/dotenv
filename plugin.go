@@ -69,6 +69,11 @@ type ValueTransformer interface {
 //
 // Every guard runs and the first error aborts the write, leaving the destination
 // untouched.
+//
+// The *File a guard receives is a copy made for that call (a Clone), not the
+// file being saved. Calling Set on it, or editing its entries, changes only the
+// copy: the bytes written and the caller's file stay as they were, so the
+// veto-only rule holds by construction rather than by trust.
 type SaveGuard interface {
 	GuardSave(f *File) error
 }
@@ -82,6 +87,10 @@ type SaveGuard interface {
 // Observers see EVERY entry, including KindDisabledPair and KindOther. A
 // commented-out setting is a finding for an auditor, not noise, and filtering it
 // out would hide the most interesting case.
+//
+// The *Entry an observer receives is a copy made for that call. Changing it, or
+// keeping it and changing it later, does not reach the parsed File, so an
+// observer can never alter what Render or Save produce.
 type EntryObserver interface {
 	ObserveEntry(e *Entry)
 }

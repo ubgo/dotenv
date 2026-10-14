@@ -15,9 +15,9 @@
   "priority": "high",
   "project_id": "prj_01a1397c42717315be667a3133d26336",
   "repo_id": null,
-  "started_at": null,
-  "status": "todo",
+  "started_at": "2026-10-14T09:37:31.392278778Z",
+  "status": "in_progress",
   "tasklist_id": "tlt_01a139822ae272658b34eda4f307b756",
   "title": "Fix Set bugs 6-8 (round-trip, literal $, spacing)",
-  "updated_at": "2026-10-14T09:30:06.769452080Z"
+  "updated_at": "2026-10-14T09:37:31.392280064Z"
 }

@@ -85,9 +85,15 @@ func (f *File) parse(content string) {
 
 	// observe fires EntryObserver for one finished entry. Hoisted so every
 	// append site reports, rather than three of them remembering to.
+	//
+	// Each observer gets its own copy of the entry, never the parsed one: an
+	// observer handed the live *Entry could rewrite Raw or Value and so change
+	// what Render and Save produce, or keep the pointer and do it later. The
+	// copy is only made when observers are installed, so a parse without them
+	// pays nothing.
 	observe := func(e *Entry) {
 		for _, o := range f.opts.entryObs {
-			o.ObserveEntry(e)
+			o.ObserveEntry(e.clone())
 		}
 	}
 
