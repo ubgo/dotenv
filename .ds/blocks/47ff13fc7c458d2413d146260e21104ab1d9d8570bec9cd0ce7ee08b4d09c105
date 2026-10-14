@@ -1,0 +1,19 @@
+func (s *ghStore) lookupTarget(ctx context.Context) (string, error) {
+	switch {
+	case s.org != "":
+		return "org:" + s.org, nil
+	case s.repo != "" && s.environment != "":
+		return s.repo + " (environment " + s.environment + ")", nil
+	case s.repo != "":
+		return s.repo, nil
+	}
+	out, err := s.deps.Runner.Run(ctx, "", ghBinary, "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
+	if err != nil {
+		return "", err
+	}
+	target := strings.TrimSpace(string(out)) + " (from cwd git remote)"
+	if s.environment != "" {
+		target += " (environment " + s.environment + ")"
+	}
+	return target, nil
+}

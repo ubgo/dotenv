@@ -4,7 +4,7 @@
   "assigned_to_actor_id": null,
   "body": "NEXT-BRIEF decisions. Agent: core-fixes.",
   "commitment": "accepted",
-  "completed_at": null,
+  "completed_at": "2026-10-14T09:49:57.901933357Z",
   "created_at": "2026-10-14T09:30:06.769451919Z",
   "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
   "deferred_until": null,
@@ -16,8 +16,8 @@
   "project_id": "prj_01a1397c42717315be667a3133d26336",
   "repo_id": null,
   "started_at": "2026-10-14T09:37:31.392278778Z",
-  "status": "in_progress",
+  "status": "done",
   "tasklist_id": "tlt_01a139822ae272658b34eda4f307b756",
   "title": "Fix Set bugs 6-8 (round-trip, literal $, spacing)",
-  "updated_at": "2026-10-14T09:37:31.392280064Z"
+  "updated_at": "2026-10-14T09:49:57.901934250Z"
 }

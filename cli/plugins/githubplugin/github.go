@@ -313,8 +313,6 @@ func (s *ghStore) meta(ctx context.Context) (map[string]string, error) {
 	return map[string]string{"target": target, "account": account}, nil
 }
 
-// ds:def id=ghresolvetarget-4a2bqvwq owner=@maintainers stability=stable
-
 // resolveTarget names where writes will land: the explicit flag, or the
 // cwd's repo exactly as gh itself resolves it — the display half of the
 // "never write to an inferred target silently" rule.
@@ -329,6 +327,8 @@ func (s *ghStore) resolveTarget(ctx context.Context) (string, error) {
 	s.target = target
 	return target, nil
 }
+
+// ds:def id=ghresolvetarget-4a2bqvwq owner=@maintainers stability=stable
 
 // lookupTarget is resolveTarget without the per-run cache.
 func (s *ghStore) lookupTarget(ctx context.Context) (string, error) {

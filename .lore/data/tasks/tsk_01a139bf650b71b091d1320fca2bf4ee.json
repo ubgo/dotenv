@@ -4,7 +4,7 @@
   "assigned_to_actor_id": null,
   "body": "Agent: cli-fixes.",
   "commitment": "accepted",
-  "completed_at": null,
+  "completed_at": "2026-10-14T09:50:01.313176895Z",
   "created_at": "2026-10-14T09:30:06.987108959Z",
   "created_by_actor_id": "act_afbe7ed1d969752697eebecaac20e9dc",
   "deferred_until": null,
@@ -16,8 +16,8 @@
   "project_id": "prj_01a1397c42717315be667a3133d26336",
   "repo_id": null,
   "started_at": "2026-10-14T09:37:57.823450603Z",
-  "status": "in_progress",
+  "status": "done",
   "tasklist_id": "tlt_01a139822ae272658b34eda4f307b756",
   "title": "Fix CLI bugs 11-18 (stderr, one JSON envelope, plugin hint, version, Fail prefix, gh api user, contract blank line)",
-  "updated_at": "2026-10-14T09:37:57.823451897Z"
+  "updated_at": "2026-10-14T09:50:01.313177838Z"
 }
