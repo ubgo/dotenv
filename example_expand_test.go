@@ -198,16 +198,18 @@ func ExampleFile_GetExpanded_selfReference() {
 
 // ExampleFile_GetExpanded_literal shows that quoting decides whether a value
 // is expanded at all. Bare and double-quoted values are; single-quoted and
-// backtick values are returned exactly as written, $$ and all.
+// backtick values are returned exactly as written, $$ and all, and stay
+// literal when another key refers to them (REF).
 func ExampleFile_GetExpanded_literal() {
 	src := "USER_NAME=ada\n" +
 		"BARE=${USER_NAME} $$\n" +
 		"DOUBLE=\"${USER_NAME} $$\"\n" +
 		"SINGLE='${USER_NAME} $$'\n" +
-		"BACKTICK=`${USER_NAME} $$`\n"
+		"BACKTICK=`${USER_NAME} $$`\n" +
+		"REF=${SINGLE}\n"
 
 	f := dotenv.Parse(src)
-	for _, key := range []string{"BARE", "DOUBLE", "SINGLE", "BACKTICK"} {
+	for _, key := range []string{"BARE", "DOUBLE", "SINGLE", "BACKTICK", "REF"} {
 		got, _, err := f.GetExpanded(key)
 		if err != nil {
 			fmt.Println(key, "error:", err)
@@ -220,6 +222,7 @@ func ExampleFile_GetExpanded_literal() {
 	// DOUBLE="ada $"
 	// SINGLE="${USER_NAME} $$"
 	// BACKTICK="${USER_NAME} $$"
+	// REF="${USER_NAME} $$"
 }
 
 // snippet:end exp_Literal

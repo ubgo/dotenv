@@ -248,6 +248,11 @@ type varSource struct {
 	set bool
 	// at is the entry index the value came from, or atLookup.
 	at int
+	// literal is true for a single-quoted or backtick entry. Its text is
+	// final: a reference to it inserts the text as written, exactly as a
+	// direct read returns it. Compose behaves the same way, because it stores
+	// '${B}' as the text ${B} and never expands a stored value a second time.
+	literal bool
 }
 
 // resolve evaluates one reference token against the file's own entries.
@@ -306,6 +311,9 @@ func (f *File) expandSource(key string, src varSource, depth int, seen visiting)
 	if !src.set {
 		return "", nil
 	}
+	if src.literal {
+		return src.value, nil
+	}
 	leave := seen.enter(src.name, src.at)
 	defer leave()
 	return f.expand(key, src.value, depth+1, seen)
@@ -338,7 +346,7 @@ func (f *File) source(name string, seen visiting) (varSource, error) {
 	}
 	for i := below - 1; i >= 0; i-- {
 		if e := f.entries[i]; e.Kind == KindPair && e.Key == name {
-			return varSource{name: name, value: e.Value, set: true, at: i}, nil
+			return varSource{name: name, value: e.Value, set: true, at: i, literal: !e.quote.interpolates()}, nil
 		}
 	}
 

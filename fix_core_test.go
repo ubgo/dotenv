@@ -91,3 +91,21 @@ func TestExpand_Cycle(t *testing.T) {
 		{name: "two separate references are not a cycle", src: "D=x\nT=${D}|${D}\n", key: "T", want: "x|x"},
 	})
 }
+
+// TestExpand_LiteralThroughReference pins that a single-quoted or backtick
+// value is literal everywhere, including when another key refers to it. That
+// is Compose's reading: compose-go stores '${B}' as the text ${B} and never
+// expands a stored value again (TestExpanding, "does not expand variables in
+// single quoted strings").
+func TestExpand_LiteralThroughReference(t *testing.T) {
+	runExpandCases(t, []expandCase{
+		{name: "single-quoted reference text", src: "A='${B}'\nB=x\nC=${A}\n", key: "C", want: "${B}"},
+		{name: "single-quoted double dollar", src: "A='$$'\nC=${A}\n", key: "C", want: "$$"},
+		{name: "backtick reference text", src: "A=`${B}`\nB=x\nC=${A}\n", key: "C", want: "${B}"},
+		{name: "literal reached through a chain", src: "A='$x'\nB=${A}\nC=${B}\n", key: "C", want: "$x"},
+		{name: "literal as an alternate's variable is still tested for emptiness", src: "A=''\nC=${A:-d}\n", key: "C", want: "d"},
+		{name: "a default is still expanded", src: "B=x\nC=${NOPE:-${B}}\n", key: "C", want: "x"},
+		{name: "self-reference to a literal earlier line", src: "A='$1'\nA=${A}2\n", key: "A", want: "$12"},
+		{name: "double-quoted value is still expanded", src: "A=\"${B}\"\nB=x\nC=${A}\n", key: "C", want: "x"},
+	})
+}

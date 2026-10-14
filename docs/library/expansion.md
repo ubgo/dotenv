@@ -310,16 +310,18 @@ Bare and double-quoted values are expanded. Single-quoted and backtick values ne
 ```go
 // ExampleFile_GetExpanded_literal shows that quoting decides whether a value
 // is expanded at all. Bare and double-quoted values are; single-quoted and
-// backtick values are returned exactly as written, $$ and all.
+// backtick values are returned exactly as written, $$ and all, and stay
+// literal when another key refers to them (REF).
 func ExampleFile_GetExpanded_literal() {
 	src := "USER_NAME=ada\n" +
 		"BARE=${USER_NAME} $$\n" +
 		"DOUBLE=\"${USER_NAME} $$\"\n" +
 		"SINGLE='${USER_NAME} $$'\n" +
-		"BACKTICK=`${USER_NAME} $$`\n"
+		"BACKTICK=`${USER_NAME} $$`\n" +
+		"REF=${SINGLE}\n"
 
 	f := dotenv.Parse(src)
-	for _, key := range []string{"BARE", "DOUBLE", "SINGLE", "BACKTICK"} {
+	for _, key := range []string{"BARE", "DOUBLE", "SINGLE", "BACKTICK", "REF"} {
 		got, _, err := f.GetExpanded(key)
 		if err != nil {
 			fmt.Println(key, "error:", err)
@@ -332,10 +334,11 @@ func ExampleFile_GetExpanded_literal() {
 	// DOUBLE="ada $"
 	// SINGLE="${USER_NAME} $$"
 	// BACKTICK="${USER_NAME} $$"
+	// REF="${USER_NAME} $$"
 }
 ```
 
-This protects the value when you read **that** key. It does not protect it when another key refers to it: see the first item under [Pitfalls](#pitfalls).
+This holds everywhere, including when another key refers to the literal one: `REF=${SINGLE}` above inserts the text exactly as written, without expanding it a second time. Docker Compose reads it the same way (compose-go stores `'${B}'` as the text `${B}` and never expands a stored value again; its `TestExpanding` case "does not expand variables in single quoted strings").
 
 ## Step 7 — Expand the whole file with `ExpandedMap`
 
@@ -514,7 +517,7 @@ A pass means each example printed exactly its `// Output:` block above. Edit `sr
 
 ## Pitfalls
 
-- **A single-quoted value is expanded again when another key refers to it.** Reading `A` directly keeps it literal, but a reference to `A` expands its text. With `A='${B}'`, `B=x`, `C=${A}`, `GetExpanded("C")` returns `x`, not `${B}`; with `A='$$'`, `C=${A}` gives `$`. Until this changes, do not point references at literal values that contain `$`.
+- **Before v0.1.3, a single-quoted value was expanded when another key referred to it.** With `A='${B}'`, `B=x`, `C=${A}`, `GetExpanded("C")` returned `x`; it now returns `${B}`, as described in [Step 6](#step-6--quotes-that-turn-expansion-off).
 - **Before v0.1.3, a key could not extend itself and cycles went round once more.** `A=1` then `A=${A}2` gave `22`, `A=${A:-x}` gave `""` without asking the Lookuper, and the two-key cycle above gave `aba`. See [Step 4](#step-4--nesting-chains-and-cycles) for the current rule.
 - **`ExpandedMap` also expands overridden duplicates.** If an earlier `B=${NOPE:?x}` is overridden by a later `B=ok`, `GetExpanded("B")` returns `ok`, but `ExpandedMap` (and `Read`) still fail on the earlier line. Remove dead duplicates (`Count` finds them).
 - **Dashed keys cannot be referenced.** `${MY-KEY}` is the `-` default operator. See [Step 5](#step-5--which-names-a-reference-can-reach).
