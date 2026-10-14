@@ -102,13 +102,15 @@ tasks:
     cmds:
       # Look in PATH first, then GOPATH/bin — `go install` puts binaries there
       # but shells often omit it from PATH, which made this task silently skip
-      # a linter that was actually installed.
+      # a linter that was actually installed. if/else, not `&& … ||`: with
+      # `||` a linter that FOUND issues fell through to the skip message and
+      # the task exited 0.
       - |
         bin=$(command -v golangci-lint || echo "$(go env GOPATH)/bin/golangci-lint")
-        [ -x "$bin" ] && "$bin" run ./... || echo "golangci-lint not installed; skipping"
+        if [ -x "$bin" ]; then "$bin" run ./...; else echo "golangci-lint not installed; skipping"; fi
       - |
         bin=$(command -v staticcheck || echo "$(go env GOPATH)/bin/staticcheck")
-        [ -x "$bin" ] && "$bin" ./... || echo "staticcheck not installed; skipping"
+        if [ -x "$bin" ]; then "$bin" ./...; else echo "staticcheck not installed; skipping"; fi
 
   fmt:
     desc: Format the source
