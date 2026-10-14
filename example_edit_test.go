@@ -182,9 +182,9 @@ func ExampleFile_Set_duplicates() {
 
 // snippet:start edit_Set_dollar
 
-// Set never quotes a value because of '$', so text that looks like a
-// reference is written bare and expands when read. Here a password
-// containing "$b" comes back as "a" from GetExpanded.
+// Set stores a value containing '$' literally, in single quotes, so a
+// password such as "a$b" comes back unchanged from GetExpanded, in this
+// session and after the file is read again.
 func ExampleFile_Set_dollar() {
 	f := dotenv.Parse("")
 	f.Set("PASSWORD", "a$b")
@@ -198,8 +198,8 @@ func ExampleFile_Set_dollar() {
 	fmt.Print(f.Render())
 	fmt.Printf("Get=%q GetExpanded=%q\n", raw, expanded)
 	// Output:
-	// PASSWORD=a$b
-	// Get="a$b" GetExpanded="a"
+	// PASSWORD='a$b'
+	// Get="a$b" GetExpanded="a$b"
 }
 
 // snippet:end edit_Set_dollar
@@ -425,14 +425,15 @@ func ExampleFile_Append_vsSet() {
 
 // An entry taken from another file's Entries is copied verbatim: its quotes,
 // spacing, comment and even its own line ending come along unchanged. This is
-// also the way to write a literal '$' value, since Set never single-quotes.
+// also the way to write a reference such as ${HOST} into a file, since Set
+// stores a value containing '$' literally.
 func ExampleFile_Append_verbatim() {
-	src := dotenv.Parse("PASSWORD = 'a$b'   # literal on purpose\n")
-	dst := dotenv.Parse("A=1\n")
+	src := dotenv.Parse("API_URL = https://${HOST}/v1   # follows HOST\n")
+	dst := dotenv.Parse("HOST=api.example.com\n")
 
 	dst.Append(src.Entries()[0])
 
-	v, _, err := dst.GetExpanded("PASSWORD")
+	v, _, err := dst.GetExpanded("API_URL")
 	if err != nil {
 		fmt.Println("expand:", err)
 		return
@@ -440,9 +441,9 @@ func ExampleFile_Append_verbatim() {
 	fmt.Print(dst.Render())
 	fmt.Printf("GetExpanded=%q\n", v)
 	// Output:
-	// A=1
-	// PASSWORD = 'a$b'   # literal on purpose
-	// GetExpanded="a$b"
+	// HOST=api.example.com
+	// API_URL = https://${HOST}/v1   # follows HOST
+	// GetExpanded="https://api.example.com/v1"
 }
 
 // snippet:end edit_Append_verbatim

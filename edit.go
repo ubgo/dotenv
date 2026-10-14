@@ -225,8 +225,12 @@ func (f *File) ExpandedMap() (map[string]string, error) {
 //   - everything left of the value (export prefix, spacing, and the `=` or
 //     `:` delimiter the author chose) and the inline comment after it are
 //     preserved exactly — a colon-delimited pair is never rewritten to `=`
-//   - a changed value is re-rendered with canonical quoting, and a value
-//     containing newlines becomes a double-quoted multi-line block
+//   - a changed value is re-rendered with canonical quoting (see
+//     renderStyle): bare when that reads back the same, double-quoted
+//     otherwise, a double-quoted block when it contains newlines, and
+//     single- or backtick-quoted when it contains '$', so the value is stored
+//     literally. The entry's quote style is updated with it, so GetExpanded
+//     agrees before and after the file is saved and read again.
 func (f *File) Set(key, value string) (created bool) {
 	for i := len(f.entries) - 1; i >= 0; i-- {
 		e := f.entries[i]
@@ -237,7 +241,7 @@ func (f *File) Set(key, value string) (created bool) {
 			return false // no-op: byte-identical output guaranteed
 		}
 		e.Value = value
-		e.Raw = renderPair(e.prefix, value, e.inlineComment, f.eol())
+		e.Raw, e.quote = renderPair(e.prefix, value, e.inlineComment, f.eol())
 		return false
 	}
 
@@ -357,7 +361,7 @@ func (f *File) attach(e *Entry) *Entry {
 	out.attached = true
 	switch e.Kind {
 	case KindPair:
-		out.Raw = renderPair(e.prefix, e.Value, e.inlineComment, f.eol())
+		out.Raw, out.quote = renderPair(e.prefix, e.Value, e.inlineComment, f.eol())
 	default:
 		out.Raw = make([]string, len(e.Raw))
 		for i, l := range e.Raw {

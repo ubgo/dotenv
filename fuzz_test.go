@@ -45,7 +45,8 @@ func FuzzParseIsIdempotent(f *testing.F) {
 }
 
 // FuzzSetRoundTrip is the editor's guarantee: whatever value Set writes, the
-// parser reads back identically, for ANY value.
+// parser reads back identically, for ANY value — both the raw value and its
+// expanded meaning.
 //
 // This is the property that caught the backtick-quoting bug — the renderer had
 // not learned about a delimiter the parser had.
@@ -65,16 +66,29 @@ func FuzzSetRoundTrip(f *testing.F) {
 			t.Skip("carriage returns are line terminators, not value content")
 		}
 
-		file := Parse("K=placeholder\n")
-		file.Set("K", value)
-		rendered := file.Render()
+		// Each source style the edited entry may start from: bare, a literal
+		// quote with a spaced comment, and a double quote with a tight one.
+		for _, src := range []string{"K=placeholder\n", "A=x\nK='p' # c\n", "A=x\nK=\"p\"#c\n"} {
+			file := Parse(src)
+			file.Set("K", value)
+			rendered := file.Render()
 
-		back, ok := Parse(rendered).Get("K")
-		if !ok {
-			t.Fatalf("Set(%q) produced output with no K:\n%q", value, rendered)
-		}
-		if back != value {
-			t.Errorf("Set(%q) → Get = %q\nrendered: %q", value, back, rendered)
+			reread := Parse(rendered)
+			back, ok := reread.Get("K")
+			if !ok {
+				t.Fatalf("Set(%q) produced output with no K:\n%q", value, rendered)
+			}
+			if back != value {
+				t.Errorf("Set(%q) → Get = %q\nrendered: %q", value, back, rendered)
+			}
+
+			// The meaning must survive too: what GetExpanded reports in this
+			// session is what it reports after the file is read again.
+			mem, _, memErr := file.GetExpanded("K")
+			disk, _, diskErr := reread.GetExpanded("K")
+			if mem != disk || (memErr == nil) != (diskErr == nil) {
+				t.Errorf("Set(%q): GetExpanded in memory = %q (%v), re-read = %q (%v)\nrendered: %q", value, mem, memErr, disk, diskErr, rendered)
+			}
 		}
 	})
 }

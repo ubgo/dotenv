@@ -113,7 +113,7 @@ func ExampleFile_Set_noop() {
 }
 ```
 
-`Set` chooses the quoting of a changed value for you. The value is bare when it reads back the same; [it is double-quoted when it contains a space, a tab, `#`, any of the three quote characters, or a backslash](ds:block?id=quotingtriggers-xsur5zum); and it becomes a double-quoted block across several lines when it contains a newline. Inside double quotes only `\"` and `\\` are escaped.
+`Set` chooses the quoting of a changed value for you. The value is bare when it reads back the same; it is double-quoted when it contains a space, a tab, `#`, any of the three quote characters, or a backslash; and it becomes a double-quoted block across several lines when it contains a newline. Inside double quotes only `\"` and `\\` are escaped.
 
 <!-- snippet: example_edit_test.go#edit_Set_quoting -->
 ```go
@@ -137,6 +137,31 @@ func ExampleFile_Set_quoting() {
 	// EMPTY=
 	// PEM="line one
 	// line two"
+}
+```
+
+A value containing `$` is [stored literally](ds:block?id=quotingtriggers-xsur5zum): in single quotes, or in backticks when it contains a single quote. Written bare or in double quotes, `a$b` would read back as `a` followed by a reference to `b`, so a password with a `$` could not be stored. The one value that cannot be stored literally holds `$`, a single quote and a backtick together; it is double-quoted and its `$` stays a reference. Whichever quoting `Set` picks, `GetExpanded` gives the same answer before and after the file is saved and read again.
+
+<!-- snippet: example_edit_test.go#edit_Set_dollar -->
+```go
+// Set stores a value containing '$' literally, in single quotes, so a
+// password such as "a$b" comes back unchanged from GetExpanded, in this
+// session and after the file is read again.
+func ExampleFile_Set_dollar() {
+	f := dotenv.Parse("")
+	f.Set("PASSWORD", "a$b")
+
+	raw, _ := f.Get("PASSWORD")
+	expanded, _, err := f.GetExpanded("PASSWORD")
+	if err != nil {
+		fmt.Println("expand:", err)
+		return
+	}
+	fmt.Print(f.Render())
+	fmt.Printf("Get=%q GetExpanded=%q\n", raw, expanded)
+	// Output:
+	// PASSWORD='a$b'
+	// Get="a$b" GetExpanded="a$b"
 }
 ```
 
@@ -491,20 +516,21 @@ func ExampleFile_InsertBefore() {
 }
 ```
 
-An entry taken from another file's `Entries()` is already attached to a file, so it is copied verbatim: quotes, spacing, inline comment and its own line ending all come along. This is also the way to write a value with a literal `$` in it, since `Set` never uses single quotes (see [Pitfalls](#pitfalls)):
+An entry taken from another file's `Entries()` is already attached to a file, so it is copied verbatim: quotes, spacing, inline comment and its own line ending all come along. This is also the way to write a reference such as `${HOST}` into a file, since `Set` stores a value containing `$` literally (see [Step 1](#step-1--change-or-add-a-value-with-set)):
 
 <!-- snippet: example_edit_test.go#edit_Append_verbatim -->
 ```go
 // An entry taken from another file's Entries is copied verbatim: its quotes,
 // spacing, comment and even its own line ending come along unchanged. This is
-// also the way to write a literal '$' value, since Set never single-quotes.
+// also the way to write a reference such as ${HOST} into a file, since Set
+// stores a value containing '$' literally.
 func ExampleFile_Append_verbatim() {
-	src := dotenv.Parse("PASSWORD = 'a$b'   # literal on purpose\n")
-	dst := dotenv.Parse("A=1\n")
+	src := dotenv.Parse("API_URL = https://${HOST}/v1   # follows HOST\n")
+	dst := dotenv.Parse("HOST=api.example.com\n")
 
 	dst.Append(src.Entries()[0])
 
-	v, _, err := dst.GetExpanded("PASSWORD")
+	v, _, err := dst.GetExpanded("API_URL")
 	if err != nil {
 		fmt.Println("expand:", err)
 		return
@@ -512,9 +538,9 @@ func ExampleFile_Append_verbatim() {
 	fmt.Print(dst.Render())
 	fmt.Printf("GetExpanded=%q\n", v)
 	// Output:
-	// A=1
-	// PASSWORD = 'a$b'   # literal on purpose
-	// GetExpanded="a$b"
+	// HOST=api.example.com
+	// API_URL = https://${HOST}/v1   # follows HOST
+	// GetExpanded="https://api.example.com/v1"
 }
 ```
 
@@ -632,32 +658,8 @@ The text each example prints is the `// Output:` block at the end of its snippet
 
 ## Pitfalls
 
-- **`Set` never quotes a value because of `$`.** A value like `a$b` is written bare, so it is read as a reference: `GetExpanded` returns `a`, in this session and after a reload. To store a literal `$`, place a single-quoted entry with `Append` or `InsertAfter` from a parsed line, as in [Step 8](#step-8--place-blocks-with-append-insertafter-and-insertbefore). Proven by [`ExampleFile_Set_dollar`](../../example_edit_test.go).
-
-<!-- snippet: example_edit_test.go#edit_Set_dollar -->
-```go
-// Set never quotes a value because of '$', so text that looks like a
-// reference is written bare and expands when read. Here a password
-// containing "$b" comes back as "a" from GetExpanded.
-func ExampleFile_Set_dollar() {
-	f := dotenv.Parse("")
-	f.Set("PASSWORD", "a$b")
-
-	raw, _ := f.Get("PASSWORD")
-	expanded, _, err := f.GetExpanded("PASSWORD")
-	if err != nil {
-		fmt.Println("expand:", err)
-		return
-	}
-	fmt.Print(f.Render())
-	fmt.Printf("Get=%q GetExpanded=%q\n", raw, expanded)
-	// Output:
-	// PASSWORD=a$b
-	// Get="a$b" GetExpanded="a"
-}
-```
-
-- **Changing a single-quoted or backtick-quoted value drops its quotes.** `Set` re-renders a changed value with the canonical quoting above, which never uses `'` or `` ` ``. So `S='${A}'` set to `${A}y` is written as `S=${A}y`, which expands when the file is read again. Within the same session `GetExpanded` still treats the value as literal, so the in-memory answer and the on-disk answer differ until you re-open the file.
+- **`Set` cannot write a reference.** A changed value containing `$` is stored literally, so `Set("URL", "${HOST}/v1")` writes `URL='${HOST}/v1'`, and `GetExpanded` returns that text. To write a reference, place a parsed line with `Append` or `InsertAfter`, as in [Step 8](#step-8--place-blocks-with-append-insertafter-and-insertbefore). Setting the value an entry already has is still a no-op, so an existing reference stays a reference.
+- **Before v0.1.3, `Set` wrote `$` bare and dropped literal quotes.** `Set("P", "a$b")` wrote `P=a$b`, which reads back as `a`, and `S='${A}'` set to `${A}y` was written `S=${A}y`, so `GetExpanded` gave one answer in memory and another after a reload.
 - **Spacing after the delimiter is not kept on edit.** `KEY = old` becomes `KEY =new` and `KEY: old` becomes `KEY:new`. Spacing before the delimiter, `export`, and the inline comment are kept.
 - **Appending after an unterminated quote.** If the last value in a file opens a quote and never closes it, everything you append is read back as part of that value, because the open quote keeps consuming lines. The source was already broken, and guessing where the quote should have closed would corrupt real multi-line values. Check files you did not write before appending to them. Pinned by `TestAppend_UnterminatedQuoteSwallowsWhatFollows`:
 
