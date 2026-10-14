@@ -355,17 +355,22 @@ GITHUB_SECRET_GHCR_PAT     ✓     —
 
 Cell legend: `✓` an active pair with a real value · `!` set but to a `__PLACEHOLDER__` (pattern configurable via `--placeholder REGEX`) · `∅` set to empty · `#` only a commented-out setting exists · `→` a name-only declaration (value comes from the environment) · `—` no entry at all. The distinctions matter: *disabled*, *missing*, and *placeholder* are different problems with different fixes, and parse-to-map tools collapse all three into "absent".
 
-The contract gate, with gaps named and exit `1`:
+The contract gate, with gaps named and exit `1`, run on the file family from [multi-env tools](multi-env.md):
 
-```
+```console
 $ dotenvctl matrix --contract .env.example; echo "exit=$?"
 KEY         default  stag  prod
+API_URL     ✓        —     —
 DB_HOST     ✓        ✓     ✓
 DB_PASS     —        ✓     !
-SENTRY_DSN  —        —     —
-…
+DB_PORT     ✓        —     —
+DOMAIN      ✓        ✓     ✓
+FEATURE_X   —        ✓     #
+SENTRY_DSN  —        —     ✓
+
+✓ present · ∅ empty · ! placeholder · # disabled · → inherited · — missing
+contract: default is missing 2 key(s): [DB_PASS SENTRY_DSN]
 contract: stag is missing 1 key(s): [SENTRY_DSN]
-contract: prod is missing 1 key(s): [SENTRY_DSN]
 exit=1
 ```
 

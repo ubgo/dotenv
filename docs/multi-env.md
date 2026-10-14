@@ -104,7 +104,6 @@ FEATURE_X   ✓     #
 SENTRY_DSN  —     ✓
 
 ✓ present · ∅ empty · ! placeholder · # disabled · → inherited · — missing
-
 contract: stag is missing 1 key(s): [SENTRY_DSN]
 exit=1
 ```

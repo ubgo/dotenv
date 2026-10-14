@@ -148,7 +148,7 @@ func (a *app) renderMatrixHuman(m *envkit.Matrix, showValues, reveal bool) {
 	if m.ContractMissing != nil {
 		for _, env := range m.Envs {
 			if keys := m.ContractMissing[env]; len(keys) > 0 {
-				a.printer.Humanf("\ncontract: %s is missing %d key(s): %v", env, len(keys), keys)
+				a.printer.Humanf("contract: %s is missing %d key(s): %v", env, len(keys), keys)
 			}
 		}
 	}
