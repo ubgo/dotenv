@@ -228,9 +228,10 @@ func TestRootPrintsNonQuietCmdError(t *testing.T) {
 	t.Parallel()
 	var errBuf bytes.Buffer
 	a := &app{
-		// Out is broken, so the envelope write inside Fail fails and the
+		// The printer's failure stream is broken (human mode writes the
+		// failure line to Err), so the write inside Fail fails and the
 		// resulting CmdError carries Err with Quiet unset.
-		printer:       &outfmt.Printer{Out: errWriter{}},
+		printer:       &outfmt.Printer{Out: errWriter{}, Err: errWriter{}},
 		errOut:        &errBuf,
 		runner:        boomRunner{},
 		interactiveFn: func() bool { return false },

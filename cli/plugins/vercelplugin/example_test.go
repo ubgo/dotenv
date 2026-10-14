@@ -71,7 +71,7 @@ func apiVercelRun(root *cobra.Command, out *bytes.Buffer, args ...string) {
 // apiVercelDeps wires a non-interactive host over a fixed selection.
 func apiVercelDeps(out *bytes.Buffer, runner providerkit.Runner, src *envkit.Selection) providerkit.Deps {
 	return providerkit.Deps{
-		Printer:     &outfmt.Printer{Out: out},
+		Printer:     &outfmt.Printer{Out: out, Err: out},
 		File:        ".env.prod",
 		Source:      func(providerkit.SelectOpts) (providerkit.Source, error) { return src, nil },
 		Runner:      runner, // providerkit.ExecRunner{} in production

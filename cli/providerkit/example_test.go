@@ -61,7 +61,7 @@ func (s *apiKitStore) Delete(_ context.Context, name string) error {
 // non-interactive session (like CI), printing to stdout.
 func apiKitDeps(src *envkit.Selection) providerkit.Deps {
 	return providerkit.Deps{
-		Printer:     &outfmt.Printer{Out: os.Stdout},
+		Printer:     &outfmt.Printer{Out: os.Stdout, Err: os.Stdout},
 		File:        ".env.prod",
 		Source:      func(providerkit.SelectOpts) (providerkit.Source, error) { return src, nil },
 		Runner:      providerkit.ExecRunner{},
@@ -243,7 +243,7 @@ func ExampleConfirm() {
 // carrying the exit code: CodeUsage maps to 2, every other code to 1. Quiet
 // is true because the message is already printed.
 func ExampleFail() {
-	human := &outfmt.Printer{Out: os.Stdout}
+	human := &outfmt.Printer{Out: os.Stdout, Err: os.Stdout} // Err: os.Stdout only so the Example shows the line
 	err := providerkit.Fail(human, outfmt.CodeExec, "push %s: %s", "DB_URL", "HTTP 403")
 	if ce, ok := errors.AsType[*providerkit.CmdError](err); ok {
 		fmt.Println("code:", ce.Code, "quiet:", ce.Quiet, "error:", ce)

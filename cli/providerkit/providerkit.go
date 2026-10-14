@@ -199,8 +199,8 @@ const (
 	exitUsage   = 2
 )
 
-// Fail emits the standard failure (envelope in JSON mode, dotenvctl: line in
-// human mode) and returns the quiet operation-failure error — one line to
+// Fail emits the standard failure (envelope on Out in JSON mode, a
+// "<program>: message" line on the Printer's Err in human mode) and returns the quiet operation-failure error — one line to
 // fail correctly, impossible to forget the envelope.
 func Fail(p *outfmt.Printer, code outfmt.ErrCode, format string, args ...any) error {
 	msg := fmt.Sprintf(format, args...)

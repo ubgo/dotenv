@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 )
 
 // ErrCode classifies a failure in the JSON envelope. Closed set — scripts
@@ -56,15 +57,53 @@ const (
 // root-command parse time.
 //
 // Invariant: verbs never write to their cobra command's writers directly —
-// everything flows through Out so tests can capture it and so the JSON mode
-// cannot be polluted by stray human-form prints.
+// everything flows through the Printer so tests can capture it and so the
+// JSON mode cannot be polluted by stray human-form prints.
+//
+// Stream split: in human mode, success output goes to Out and failures go to
+// Err, so `v=$(dotenvctl get KEY)` captures a value or nothing — never an
+// error message. In JSON mode both halves of the envelope go to Out, because
+// the envelope IS the output a script parses.
 type Printer struct {
-	// Out receives ALL success output (human or JSON envelope alike).
+	// Out receives all success output, and the failure envelope under --json.
 	Out io.Writer
+
+	// Err receives human-mode failure lines. Nil means os.Stderr: the safe
+	// default, since an error printed on Out would be captured by a caller's
+	// command substitution as if it were a value.
+	Err io.Writer
+
+	// Program prefixes human-mode failure lines ("<Program>: <message>").
+	// Empty means DefaultProgram. A host that embeds the verbs under its own
+	// binary name sets it so users see which program failed.
+	Program string
 
 	// JSON selects the machine envelope. When false, verbs print their
 	// human-readable form via Human/Humanf and OK emits nothing.
 	JSON bool
+}
+
+// DefaultProgram is the failure-line prefix when Printer.Program is empty:
+// the name of the binary this module ships.
+const DefaultProgram = "dotenvctl"
+
+// ProgramName is the prefix Fail uses in human mode: Program, or
+// DefaultProgram when Program is empty. Exported so code that prints its own
+// failure lines outside the Printer (usage errors, plugin dispatch) uses the
+// same prefix.
+func (p *Printer) ProgramName() string {
+	if p.Program != "" {
+		return p.Program
+	}
+	return DefaultProgram
+}
+
+// errWriter is Err, or os.Stderr when Err is nil.
+func (p *Printer) errWriter() io.Writer {
+	if p.Err != nil {
+		return p.Err
+	}
+	return os.Stderr
 }
 
 // ds:def id=envelope-44255rwu owner=@maintainers stability=stable
@@ -97,11 +136,12 @@ func (p *Printer) OK(data any) error {
 	return p.emit(envelope{OK: true, Data: data})
 }
 
-// Fail emits the failure envelope in JSON mode. In human mode it prints
-// "dotenvctl: <message>" so failures are never silent in either mode.
+// Fail emits the failure envelope on Out in JSON mode. In human mode it
+// prints "<ProgramName>: <message>" on Err (os.Stderr when nil), so failures
+// are never silent in either mode and never mixed into captured values.
 func (p *Printer) Fail(code ErrCode, message string) error {
 	if !p.JSON {
-		_, err := fmt.Fprintf(p.Out, "dotenvctl: %s\n", message)
+		_, err := fmt.Fprintf(p.errWriter(), "%s: %s\n", p.ProgramName(), message)
 		return err
 	}
 	return p.emit(envelope{OK: false, Error: &wireError{Code: code, Message: message}})

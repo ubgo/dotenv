@@ -59,12 +59,18 @@ func TestPrinter_HumanMode(t *testing.T) {
 		t.Errorf("human output = %q, want %q", got, want)
 	}
 
-	// Failures must never be silent in either mode.
+	// Failures must never be silent in either mode — and in human mode they
+	// go to Err, never Out.
 	buf.Reset()
+	var errBuf bytes.Buffer
+	p.Err = &errBuf
 	if err := p.Fail(CodeIO, "boom"); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := buf.String(), "dotenvctl: boom\n"; got != want {
+	if got, want := errBuf.String(), "dotenvctl: boom\n"; got != want {
 		t.Errorf("human failure = %q, want %q", got, want)
+	}
+	if buf.Len() != 0 {
+		t.Errorf("human failure leaked to Out: %q", buf.String())
 	}
 }

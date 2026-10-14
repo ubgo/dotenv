@@ -123,7 +123,7 @@ exit=2
 
 ## Pitfalls
 
-- **Failure messages go to stdout.** In human mode a failing verb writes `dotenvctl: …` to stdout, so `VALUE=$(dotenvctl get KEY)` captures the error text when the key is missing. Check the exit code: `if VALUE=$(dotenvctl get KEY); then …; fi`. Usage errors (exit `2`) go to stderr.
+- **Check the exit code, not the output.** A failing verb prints `dotenvctl: …` on stderr and nothing on stdout, so `VALUE=$(dotenvctl get KEY)` leaves `VALUE` empty when the key is missing, and an empty value is also a valid value. Test the status: `if VALUE=$(dotenvctl get KEY); then …; fi`. Before cli v0.1.3, human-mode failures were printed on stdout and ended up inside `VALUE`.
 - **A typo in `-f` is not an error for reads.** A missing file reads as empty: `get` says `not found`, `keys` and `list` print nothing and exit `0`.
 - **Reads are raw unless you ask.** `get` and `list` print `${HOST}` literally; add `--expand` when you want what a program would see. `run` and the plugin pushes expand by default.
 - **Commented-out and name-only lines are not active.** `# KEY=value` and a bare `KEY` are invisible to `get`, `keys` and plain `list`; `list --disabled` and `list --inherited` show them.

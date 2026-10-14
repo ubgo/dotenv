@@ -73,7 +73,7 @@ func (a *app) execDispatch(root *cobra.Command, args []string, stdout, stderr io
 			// as `run`.
 			return xerr.ExitCode(), true
 		}
-		_, _ = stderr.Write([]byte("dotenvctl: exec plugin " + path + ": " + err.Error() + "\n"))
+		_, _ = stderr.Write([]byte(a.printer.ProgramName() + ": exec plugin " + path + ": " + err.Error() + "\n"))
 		return ExitFailure, true
 	}
 	return ExitOK, true

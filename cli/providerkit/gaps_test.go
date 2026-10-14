@@ -16,7 +16,7 @@ func TestPrune_SourceError(t *testing.T) {
 	t.Parallel()
 	var out bytes.Buffer
 	deps := Deps{
-		Printer:     &outfmt.Printer{Out: &out},
+		Printer:     &outfmt.Printer{Out: &out, Err: &out},
 		File:        ".env.test",
 		Source:      func(SelectOpts) (Source, error) { return nil, errors.New("selection exploded") },
 		Runner:      ExecRunner{},

@@ -137,7 +137,7 @@ type app struct {
 // code. It never calls os.Exit itself — main does — so tests drive the full
 // CLI in-process with buffers for both streams.
 func Execute(args []string, stdout, stderr io.Writer) int {
-	a := &app{printer: &outfmt.Printer{Out: stdout}, errOut: stderr}
+	a := &app{printer: &outfmt.Printer{Out: stdout, Err: stderr}, errOut: stderr}
 	return executeApp(a, args, stdout, stderr)
 }
 
@@ -176,7 +176,7 @@ func executeApp(a *app, args []string, stdout, stderr io.Writer) int {
 			if !xe.quiet && xe.err != nil {
 				// Terminal stderr — a failed print of the failure message has
 				// no further fallback; the exit code still tells the story.
-				_, _ = fmt.Fprintf(stderr, "dotenvctl: %v\n", xe.err)
+				_, _ = fmt.Fprintf(stderr, "%s: %v\n", a.printer.ProgramName(), xe.err)
 			}
 			return xe.code
 		}
@@ -184,7 +184,7 @@ func executeApp(a *app, args []string, stdout, stderr io.Writer) int {
 		// the same 0/1/2 contract, produced on the other side of the seam.
 		if pe, ok := errors.AsType[*providerkit.CmdError](err); ok {
 			if !pe.Quiet && pe.Err != nil {
-				_, _ = fmt.Fprintf(stderr, "dotenvctl: %v\n", pe.Err)
+				_, _ = fmt.Fprintf(stderr, "%s: %v\n", a.printer.ProgramName(), pe.Err)
 			}
 			return pe.Code
 		}
@@ -193,7 +193,8 @@ func executeApp(a *app, args []string, stdout, stderr io.Writer) int {
 		// anything yet. Silent exit-2 was a real failure mode: `list --env x`
 		// before the alias existed produced no output at all, reading exactly
 		// like "no secrets". Errors must be loud.
-		_, _ = fmt.Fprintf(stderr, "dotenvctl: %v\nRun 'dotenvctl --help' for usage.\n", err)
+		prog := a.printer.ProgramName()
+		_, _ = fmt.Fprintf(stderr, "%s: %v\nRun '%s --help' for usage.\n", prog, err, prog)
 		return ExitUsage
 	}
 	return ExitOK

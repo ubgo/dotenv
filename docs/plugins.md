@@ -118,9 +118,8 @@ if [ -z "${DOTENVCTL_BIN:-}" ]; then
 fi
 
 # Ask the host for the names, so selection flags work exactly as in `keys`.
-# On failure dotenvctl prints its message on stdout, so pass it to stderr.
+# On failure dotenvctl has already printed its message on stderr.
 if ! names=$("$DOTENVCTL_BIN" -f "$DOTENVCTL_FILE" keys "$@"); then
-  echo "$names" >&2
   exit 1
 fi
 
@@ -128,7 +127,6 @@ while IFS= read -r key; do
   [ -n "$key" ] || continue
   # Ask the host for each value, expanded with dotenvctl's own rules.
   if ! value=$("$DOTENVCTL_BIN" -f "$DOTENVCTL_FILE" get "$key" --expand); then
-    echo "$value" >&2
     exit 1
   fi
   if [[ $value =~ $DOTENVCTL_PLACEHOLDER ]]; then
@@ -192,7 +190,7 @@ To push to a real backend instead of printing, replace the `printf` with your st
 
 **Pitfalls**
 
-- **The host prints failures on stdout.** In human mode, `dotenvctl get NOPE` writes `dotenvctl: key "NOPE" not found …` to stdout and exits `1`. Captured with `$(…)`, that text becomes your "value". Always test the exit status, as the script does with `if ! value=$(…)`, and never pipe the host's output straight into a loop: the loop would read the error message as a key name.
+- **Test the host's exit status, not its output.** `dotenvctl get NOPE` prints `dotenvctl: key "NOPE" not found …` on stderr and exits `1`; captured with `$(…)`, the value is empty, which a real empty value also is. Test the exit status, as the script does with `if ! value=$(…)`. Before cli v0.1.3 the host printed human-mode failures on stdout, where `$(…)` captured them as the "value".
 - **Only flags before the plugin name are the host's.** `dotenvctl -f .env.prod export` sets `DOTENVCTL_FILE`; `dotenvctl export -f .env.prod` passes `-f .env.prod` to your script, and `DOTENVCTL_FILE` stays `.env`. The same goes for `--json` and `DOTENVCTL_JSON`.
 - **`DOTENVCTL_PLACEHOLDER` is always the default pattern**, so a team that uses `matrix --placeholder` must pass its own pattern to the plugin some other way.
 - **A built-in name can never be a plugin name.** `dotenvctl-github`, `dotenvctl-keys`, `dotenvctl-help` and `dotenvctl-completion` are never run; `dotenvctl plugins` shows them as `shadowed by built-in`.

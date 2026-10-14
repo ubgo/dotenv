@@ -64,9 +64,13 @@ func TestGet(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			path := writeFixture(t, fixture)
-			code, out, _ := runCLI(t, append([]string{"-f", path}, tt.args[0:]...)...)
+			code, out, errOut := runCLI(t, append([]string{"-f", path}, tt.args[0:]...)...)
 			if code != tt.wantCode {
 				t.Fatalf("exit = %d, want %d (out %q)", code, tt.wantCode, out)
+			}
+			// Values go to stdout, human-mode failures to stderr.
+			if code != ExitOK {
+				out = errOut
 			}
 			if !strings.Contains(out, tt.wantOut) {
 				t.Errorf("out = %q, want containing %q", out, tt.wantOut)

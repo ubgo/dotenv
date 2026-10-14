@@ -193,14 +193,15 @@ dotenvctl restore OLD_KEY                   # byte-identical undo
 
 Two properties you get for free: re-setting a key to its current value is a true no-op (same bytes, same mtime — file watchers see nothing), and a `set` on a missing file creates it `0600`, because env files hold credentials.
 
-One trap when scripting reads: a failing verb prints its `dotenvctl: …` message on **stdout** in human mode, so capture and check the exit code together:
+One trap when scripting reads: a missing key and an empty value both leave the variable empty. A failing verb prints its `dotenvctl: …` message on stderr, so capture the value and check the exit code together:
 
 ```sh
 if ! DB_HOST=$(dotenvctl -f .env.prod get DB_HOST); then
-  echo "$DB_HOST" >&2      # the error text, not a value
-  exit 1
+  exit 1                   # the reason is already on stderr
 fi
 ```
+
+Before cli v0.1.3, human-mode failures went to stdout, so the error text ended up in the captured variable.
 
 ## Related
 

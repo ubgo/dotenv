@@ -26,7 +26,7 @@ func runGithubQuiet(t *testing.T, runner *fakeRunner, src providerkit.Source, js
 	t.Helper()
 	var out bytes.Buffer
 	deps := providerkit.Deps{
-		Printer:     &outfmt.Printer{Out: &out, JSON: jsonOut},
+		Printer:     &outfmt.Printer{Out: &out, Err: &out, JSON: jsonOut},
 		File:        ".env.test",
 		Source:      func(providerkit.SelectOpts) (providerkit.Source, error) { return src, nil },
 		Runner:      runner,

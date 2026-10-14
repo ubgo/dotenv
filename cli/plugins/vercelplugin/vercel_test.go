@@ -57,7 +57,7 @@ func runVercel(t *testing.T, runner *fakeRunner, src providerkit.Source, args ..
 	t.Helper()
 	var out bytes.Buffer
 	deps := providerkit.Deps{
-		Printer:     &outfmt.Printer{Out: &out},
+		Printer:     &outfmt.Printer{Out: &out, Err: &out},
 		File:        ".env.test",
 		Source:      func(providerkit.SelectOpts) (providerkit.Source, error) { return src, nil },
 		Runner:      runner,

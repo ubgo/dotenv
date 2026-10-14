@@ -49,7 +49,7 @@ func selection(pairs []dotenv.Pair, skips ...Skip) *envkit.Selection {
 func testDeps(src *envkit.Selection, interactive, answer bool) (Deps, *bytes.Buffer) {
 	var out bytes.Buffer
 	return Deps{
-		Printer:     &outfmt.Printer{Out: &out},
+		Printer:     &outfmt.Printer{Out: &out, Err: &out},
 		File:        ".env.test",
 		Source:      func(SelectOpts) (Source, error) { return src, nil },
 		Runner:      ExecRunner{},
@@ -312,7 +312,7 @@ func TestPush_SourceFailureAborts(t *testing.T) {
 	t.Parallel()
 	var out bytes.Buffer
 	deps := Deps{
-		Printer:     &outfmt.Printer{Out: &out},
+		Printer:     &outfmt.Printer{Out: &out, Err: &out},
 		Source:      func(SelectOpts) (Source, error) { return nil, errors.New("required var missing") },
 		Interactive: func() bool { return false },
 		Ask:         func(string) bool { return false },
@@ -354,7 +354,7 @@ func TestEmitResults_MetaErrorDowngradesToOmission(t *testing.T) {
 
 func TestFail_BrokenPrinterStillCarriesExitCode(t *testing.T) {
 	t.Parallel()
-	err := Fail(&outfmt.Printer{Out: brokenWriter{}}, outfmt.CodeExec, "boom")
+	err := Fail(&outfmt.Printer{Out: brokenWriter{}, Err: brokenWriter{}}, outfmt.CodeExec, "boom")
 	var ce *CmdError
 	if !errors.As(err, &ce) || ce.Code != exitFailure {
 		t.Fatalf("err = %#v", err)

@@ -77,7 +77,7 @@ func ExampleNew() {
 	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "DB_URL", Value: "postgres://db/app"}}}
 
 	deps := providerkit.Deps{
-		Printer:     &outfmt.Printer{Out: &out},
+		Printer:     &outfmt.Printer{Out: &out, Err: &out},
 		File:        ".env.prod",
 		Source:      func(providerkit.SelectOpts) (providerkit.Source, error) { return src, nil },
 		Runner:      runner, // providerkit.ExecRunner{} in production
@@ -120,7 +120,7 @@ func ExamplePlugin_Command() {
 	}}
 
 	cmd := githubplugin.New().Command(providerkit.Deps{
-		Printer:     &outfmt.Printer{Out: &out},
+		Printer:     &outfmt.Printer{Out: &out, Err: &out},
 		File:        ".env.prod",
 		Source:      func(providerkit.SelectOpts) (providerkit.Source, error) { return src, nil },
 		Runner:      runner,

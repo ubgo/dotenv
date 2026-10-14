@@ -37,19 +37,23 @@ func ExamplePrinter() {
 
 // snippet:start api_outfmt_Printer_Fail
 
-// ExamplePrinter_Fail reports a failure. Human mode prints "dotenvctl: <msg>"
-// to Out (not stderr); JSON mode prints the error envelope. Fail only prints:
-// the exit code is yours to return.
+// ExamplePrinter_Fail reports a failure. Human mode prints
+// "<Program>: <msg>" to Err (os.Stderr when Err is nil, so a captured value
+// never contains an error); JSON mode prints the error envelope on Out.
+// Program defaults to "dotenvctl". Fail only prints: the exit code is yours
+// to return. Err is os.Stdout here only so the Example can show the line.
 func ExamplePrinter_Fail() {
-	human := &outfmt.Printer{Out: os.Stdout}
+	human := &outfmt.Printer{Out: os.Stdout, Err: os.Stdout}
+	hosted := &outfmt.Printer{Out: os.Stdout, Err: os.Stdout, Program: "myapp env"}
 	machine := &outfmt.Printer{Out: os.Stdout, JSON: true}
-	for _, p := range []*outfmt.Printer{human, machine} {
+	for _, p := range []*outfmt.Printer{human, hosted, machine} {
 		if err := p.Fail(outfmt.CodeNotFound, `key "DB_URL" not found`); err != nil {
 			fmt.Println("write:", err)
 		}
 	}
 	// Output:
 	// dotenvctl: key "DB_URL" not found
+	// myapp env: key "DB_URL" not found
 	// {"ok":false,"error":{"code":"not_found","message":"key \"DB_URL\" not found"}}
 }
 

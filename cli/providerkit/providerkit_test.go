@@ -60,14 +60,17 @@ func TestFail(t *testing.T) {
 
 	t.Run("operation failure is exit 1, human line printed", func(t *testing.T) {
 		t.Parallel()
-		var buf bytes.Buffer
-		err := Fail(&outfmt.Printer{Out: &buf}, outfmt.CodeExec, "push %s: boom", "KEY")
+		var buf, errBuf bytes.Buffer
+		err := Fail(&outfmt.Printer{Out: &buf, Err: &errBuf}, outfmt.CodeExec, "push %s: boom", "KEY")
 		var ce *CmdError
 		if !errors.As(err, &ce) || ce.Code != exitFailure || !ce.Quiet {
 			t.Fatalf("err = %#v, want quiet exit-1 CmdError", err)
 		}
-		if got := buf.String(); got != "dotenvctl: push KEY: boom\n" {
-			t.Errorf("human output = %q", got)
+		if got := errBuf.String(); got != "dotenvctl: push KEY: boom\n" {
+			t.Errorf("human failure line = %q", got)
+		}
+		if buf.Len() != 0 {
+			t.Errorf("human failure leaked to Out: %q", buf.String())
 		}
 	})
 

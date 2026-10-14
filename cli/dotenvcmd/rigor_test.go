@@ -32,7 +32,7 @@ func TestListExpand(t *testing.T) {
 	t.Run("required-var error exits 1", func(t *testing.T) {
 		t.Parallel()
 		path := writeFixture(t, "A=${NOPE:?set me}\n")
-		code, out, _ := runCLI(t, "-f", path, "list", "--expand")
+		code, _, out := runCLI(t, "-f", path, "list", "--expand")
 		if code != ExitFailure || !strings.Contains(out, "set me") {
 			t.Errorf("exit %d out %q", code, out)
 		}
@@ -42,7 +42,7 @@ func TestListExpand(t *testing.T) {
 func TestGetExpandRequiredError(t *testing.T) {
 	t.Parallel()
 	path := writeFixture(t, "A=${NOPE:?fill in NOPE}\n")
-	code, out, _ := runCLI(t, "-f", path, "get", "A", "--expand")
+	code, _, out := runCLI(t, "-f", path, "get", "A", "--expand")
 	if code != ExitFailure || !strings.Contains(out, "fill in NOPE") {
 		t.Errorf("exit %d out %q", code, out)
 	}
@@ -68,7 +68,7 @@ func TestDiffExpand(t *testing.T) {
 		t.Parallel()
 		a := writeFixture(t, "A=${NOPE:?msg}\n")
 		b := writeFixture(t, "A=1\n")
-		code, out, _ := runCLI(t, "diff", a, b, "--expand")
+		code, _, out := runCLI(t, "diff", a, b, "--expand")
 		if code != ExitFailure || !strings.Contains(out, "msg") {
 			t.Errorf("exit %d out %q", code, out)
 		}
@@ -191,9 +191,9 @@ func TestOpenUnreadableFile(t *testing.T) {
 	if err := os.Chmod(path, 0o000); err != nil {
 		t.Fatal(err)
 	}
-	code, out, _ := runCLI(t, "-f", path, "get", "A")
+	code, _, out := runCLI(t, "-f", path, "get", "A")
 	if code != ExitFailure || !strings.Contains(out, "dotenvctl:") {
-		t.Errorf("exit %d out %q — unreadable file must fail loudly", code, out)
+		t.Errorf("exit %d stderr %q — unreadable file must fail loudly", code, out)
 	}
 }
 

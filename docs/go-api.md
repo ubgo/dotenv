@@ -1082,7 +1082,7 @@ func ExampleRunner() {
 // carrying the exit code: CodeUsage maps to 2, every other code to 1. Quiet
 // is true because the message is already printed.
 func ExampleFail() {
-	human := &outfmt.Printer{Out: os.Stdout}
+	human := &outfmt.Printer{Out: os.Stdout, Err: os.Stdout} // Err: os.Stdout only so the Example shows the line
 	err := providerkit.Fail(human, outfmt.CodeExec, "push %s: %s", "DB_URL", "HTTP 403")
 	if ce, ok := errors.AsType[*providerkit.CmdError](err); ok {
 		fmt.Println("code:", ce.Code, "quiet:", ce.Quiet, "error:", ce)
@@ -1201,7 +1201,7 @@ func ExampleNew() {
 	src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "DB_URL", Value: "postgres://db/app"}}}
 
 	deps := providerkit.Deps{
-		Printer:     &outfmt.Printer{Out: &out},
+		Printer:     &outfmt.Printer{Out: &out, Err: &out},
 		File:        ".env.prod",
 		Source:      func(providerkit.SelectOpts) (providerkit.Source, error) { return src, nil },
 		Runner:      runner, // providerkit.ExecRunner{} in production
@@ -1245,7 +1245,7 @@ func ExamplePlugin_Command() {
 	}}
 
 	cmd := githubplugin.New().Command(providerkit.Deps{
-		Printer:     &outfmt.Printer{Out: &out},
+		Printer:     &outfmt.Printer{Out: &out, Err: &out},
 		File:        ".env.prod",
 		Source:      func(providerkit.SelectOpts) (providerkit.Source, error) { return src, nil },
 		Runner:      runner,
@@ -1666,19 +1666,23 @@ func ExamplePrinter() {
 
 <!-- snippet: cli/outfmt/example_test.go#api_outfmt_Printer_Fail -->
 ```go
-// ExamplePrinter_Fail reports a failure. Human mode prints "dotenvctl: <msg>"
-// to Out (not stderr); JSON mode prints the error envelope. Fail only prints:
-// the exit code is yours to return.
+// ExamplePrinter_Fail reports a failure. Human mode prints
+// "<Program>: <msg>" to Err (os.Stderr when Err is nil, so a captured value
+// never contains an error); JSON mode prints the error envelope on Out.
+// Program defaults to "dotenvctl". Fail only prints: the exit code is yours
+// to return. Err is os.Stdout here only so the Example can show the line.
 func ExamplePrinter_Fail() {
-	human := &outfmt.Printer{Out: os.Stdout}
+	human := &outfmt.Printer{Out: os.Stdout, Err: os.Stdout}
+	hosted := &outfmt.Printer{Out: os.Stdout, Err: os.Stdout, Program: "myapp env"}
 	machine := &outfmt.Printer{Out: os.Stdout, JSON: true}
-	for _, p := range []*outfmt.Printer{human, machine} {
+	for _, p := range []*outfmt.Printer{human, hosted, machine} {
 		if err := p.Fail(outfmt.CodeNotFound, `key "DB_URL" not found`); err != nil {
 			fmt.Println("write:", err)
 		}
 	}
 	// Output:
 	// dotenvctl: key "DB_URL" not found
+	// myapp env: key "DB_URL" not found
 	// {"ok":false,"error":{"code":"not_found","message":"key \"DB_URL\" not found"}}
 }
 ```
@@ -1704,7 +1708,7 @@ func ExampleErrCode() {
 
 **Pitfalls**
 
-- `Fail` writes to `Out`, not to stderr, in both modes, and the human line always starts with `dotenvctl:`.
+- In human mode `Fail` writes to `Err`, and a nil `Err` means `os.Stderr`, so a test that only sets `Out` sees no failure line; set `Err` too. Under `--json` the failure envelope goes to `Out`. The human line starts with `Program` (default `dotenvctl`, see `ProgramName`). Before cli v0.1.3, `Fail` wrote to `Out` in both modes and the prefix was fixed.
 - `Fail` only prints. Return an exit code yourself, or use `providerkit.Fail`, which also builds the `*CmdError`.
 - Pass a named struct to `OK`, not a map, so the JSON shape is visible where it is produced.
 - `Human` / `Humanf` drop write errors on purpose; `OK` and `Fail` return them.
@@ -1773,7 +1777,7 @@ Methods worth knowing: `Selection.Names()` / `SkippedNames()` / `Map()`, `Matrix
 | `discover` | `Scan(dir)`, `Classify(filename)`, `EnvFile`, `EnvDefault` |
 | `report` | `MatrixHTML(Matrix)`, `DiffHTML(Diff)`, types `Matrix`/`MatrixRow`/`MatrixCell`/`Diff`/`DiffPair`/`DiffChange`, `MaskGlyph` |
 | `textdiff` | `Lines(before, after)` |
-| `outfmt` | `Printer` with `OK`/`Fail`/`Human`/`Humanf`, `ErrCode` and its constants (`CodeNotFound`, `CodeIO`, `CodeRequired`, `CodeUsage`, `CodeExec`, `CodeDiff`) |
+| `outfmt` | `Printer` (fields `Out`, `Err`, `Program`, `JSON`) with `OK`/`Fail`/`Human`/`Humanf`/`ProgramName`, `DefaultProgram`, `ErrCode` and its constants (`CodeNotFound`, `CodeIO`, `CodeRequired`, `CodeUsage`, `CodeExec`, `CodeDiff`) |
 
 ## CLI ↔ Go equivalence
 

@@ -60,7 +60,7 @@ func TestPush_RealProcess_ValueOnStdinNoBodyFlag(t *testing.T) {
 			var out bytes.Buffer
 			src := &envkit.Selection{Pairs: []dotenv.Pair{{Key: "K", Value: value}}}
 			c := New().Command(providerkit.Deps{
-				Printer:     &outfmt.Printer{Out: &out},
+				Printer:     &outfmt.Printer{Out: &out, Err: &out},
 				File:        ".env.test",
 				Source:      func(providerkit.SelectOpts) (providerkit.Source, error) { return src, nil },
 				Runner:      providerkit.ExecRunner{},
