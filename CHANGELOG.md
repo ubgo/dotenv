@@ -6,7 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-Release prerequisite: `cli/go.mod` still requires `github.com/ubgo/dotenv v0.1.1`. The library fixes in [0.1.2] reach the CLI only through `go.work` in this repository, so the CLI release that ships them bumps `cli/go.mod` to `v0.1.2`.
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [cli 0.1.3] - 2026-10-14
+
+CLI release, tagged `cli/v0.1.3`. `cli/go.mod` now requires `github.com/ubgo/dotenv v0.1.2`, so `dotenvctl set`, `get --expand` and every other verb get the library changes in [0.1.2]; the documentation for both modules shipped with that tag.
 
 ### Added
 
@@ -27,13 +36,9 @@ Release prerequisite: `cli/go.mod` still requires `github.com/ubgo/dotenv v0.1.1
 - **A push or prune looks up the account and target once.** `gh api user` (and Vercel's `whoami`) ran twice per run; the metadata lookup now runs only under `--json` and reuses the banner's answer.
 - **`matrix --contract` prints its contract lines without blank lines between them.**
 
-### Deprecated
-### Removed
-### Security
-
 ## [0.1.2] - 2026-10-14
 
-Library release, tagged `v0.1.2`. The CLI picks these changes up in its next release, which requires this tag. The documentation below covers both modules.
+Library release, tagged `v0.1.2`. The CLI picks these changes up in [cli 0.1.3], which requires this tag. The documentation below covers both modules.
 
 ### Changed
 
@@ -98,7 +103,8 @@ Release process:
   3. Tag the release (e.g. v1.2.0) and update the link refs at the bottom.
 -->
 
-[Unreleased]: https://github.com/ubgo/dotenv/compare/v0.1.2...main
+[Unreleased]: https://github.com/ubgo/dotenv/compare/cli/v0.1.3...main
+[cli 0.1.3]: https://github.com/ubgo/dotenv/releases/tag/cli/v0.1.3
 [0.1.2]: https://github.com/ubgo/dotenv/releases/tag/v0.1.2
 [cli 0.1.2]: https://github.com/ubgo/dotenv/releases/tag/cli/v0.1.2
 [0.1.1]: https://github.com/ubgo/dotenv/releases/tag/v0.1.1
