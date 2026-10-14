@@ -1179,8 +1179,8 @@ func ExampleAddSelectionFlags() {
 - JSON mode never prompts. `--json` without `--yes` is always refused, even at a terminal, so the envelope cannot be mixed with a prompt.
 - A nil `Gate` still runs `Confirm`. No mutating kit verb runs ungated.
 - `Meta` runs at the end of every push and prune, in human mode too, so a backend lookup inside it costs one extra call per run. A `Meta` error drops the metadata and keeps the results.
-- When a write fails half-way, the kit prints the results so far, then fails with exit 1. Re-running is safe as long as your `Set` is an upsert.
-- `NewListCmd` with an empty store prints `no secrets found for this scope (repo/environment/org secrets are listed separately — try --environment or --org)`. That hint names GitHub's scopes for every plugin, including yours.
+- When a write fails half-way, the kit fails with exit 1 and keeps the results so far: in human mode as lines on stdout before the failure line on stderr, under `--json` as the `data` of the one `ok:false` envelope. Re-running is safe as long as your `Set` is an upsert.
+- `NewListCmd` with an empty store prints `DefaultEmptyListHint` (`no secrets found for this scope`) in human mode. If your backend splits names across scopes, implement `EmptyListHint() string` (the optional `EmptyListHinter` interface) on the lister to name your own scope flag; the GitHub and Vercel plugins do. Under `--json` an empty store is `{"names":[]}`. Before cli v0.1.3 the hint named GitHub's `--environment` and `--org` for every plugin, and a lister that returned nil printed `"names":null` in JSON.
 - `AddSelectionFlags` adds only the five selection flags. `--expand`, `--include-placeholders` and `--include-empty` exist only on the kit's store verbs, where they default to expand-on and guards-on.
 - Cobra keeps flag values between `Execute` calls on the same tree. Build a fresh tree with `Plugin.Command` for each invocation in a long-running process.
 
@@ -1756,7 +1756,7 @@ Methods worth knowing: `Selection.Names()` / `SkippedNames()` / `Map()`, `Matrix
 | type | `Plugin` | the one mandatory contract: `Command(Deps) *cobra.Command` |
 | type | `Deps` | everything a plugin receives from the host: `Printer`, `File`, `Source`, `Runner`, `Interactive`, `Ask` |
 | type | `SelectOpts` = `envkit.SelectOptions`, `Source` = `*envkit.Selection`, `Skip` = `envkit.Skip` | aliases — one grammar, no translation |
-| type | `SecretWriter`, `SecretLister`, `SecretDeleter` | capability interfaces; implement what your backend truly supports |
+| type | `SecretWriter`, `SecretLister`, `SecretDeleter`, `EmptyListHinter` | capability interfaces; implement what your backend truly supports (`EmptyListHinter` is optional: the empty-`list` hint, default `DefaultEmptyListHint`) |
 | type | `Runner`, `ExecRunner` | the injectable exec seam and its production implementation |
 | type | `VerbConfig`, `Gate`, `GateInfo` | per-verb customization: gate (banner + confirm) and `--json` metadata |
 | type | `Action`, `Result`, `CmdError` | the outcome vocabulary and the exit-code carrier |

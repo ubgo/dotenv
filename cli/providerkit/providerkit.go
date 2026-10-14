@@ -140,6 +140,21 @@ type SecretLister interface {
 	Names(ctx context.Context) ([]string, error)
 }
 
+// DefaultEmptyListHint is what `list` prints in human mode when the store
+// returned no names and the lister does not implement EmptyListHinter. It is
+// neutral on purpose: scope flags differ per backend, so only the plugin can
+// say which one the user probably forgot.
+const DefaultEmptyListHint = "no secrets found for this scope"
+
+// EmptyListHinter is an optional upgrade for a SecretLister: a backend whose
+// names are split across scopes (GitHub's repo, environment and org secrets;
+// Vercel's targets) returns the nudge `list` prints when the scope it asked
+// is empty. An empty string falls back to DefaultEmptyListHint. Human mode
+// only; --json prints an empty names array.
+type EmptyListHinter interface {
+	EmptyListHint() string
+}
+
 // SecretDeleter can remove one named secret.
 type SecretDeleter interface {
 	Delete(ctx context.Context, name string) error

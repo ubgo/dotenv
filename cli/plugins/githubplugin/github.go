@@ -221,6 +221,13 @@ func (s *ghStore) Set(ctx context.Context, name, value string) error {
 	return err
 }
 
+// EmptyListHint implements providerkit.EmptyListHinter: GitHub keeps
+// repository, environment and organization secrets in separate stores, so an
+// empty list most often means the wrong scope.
+func (s *ghStore) EmptyListHint() string {
+	return "no secrets found for this scope (repo/environment/org secrets are listed separately — try --environment or --org)"
+}
+
 // Names implements providerkit.SecretLister via gh's JSON output.
 func (s *ghStore) Names(ctx context.Context) ([]string, error) {
 	args := append([]string{"secret", "list", "--json", "name"}, s.scopeArgs()...)

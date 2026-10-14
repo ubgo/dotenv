@@ -155,11 +155,16 @@ func NewListCmd(deps Deps, store SecretLister) *cobra.Command {
 				return Fail(deps.Printer, outfmt.CodeExec, "list: %v", err)
 			}
 			slices.Sort(names)
+			if names == nil {
+				// An empty store is an empty array in --json, never null:
+				// `jq '.data.names[]'` cannot iterate over null.
+				names = []string{}
+			}
 			if len(names) == 0 {
 				// An empty store must say so — bare silence reads like a
-				// broken command, and users scoping the wrong target (repo
-				// secrets vs --environment secrets) need the nudge.
-				deps.Printer.Human("no secrets found for this scope (repo/environment/org secrets are listed separately — try --environment or --org)")
+				// broken command, and users scoping the wrong target need
+				// the nudge, which only the plugin can phrase.
+				deps.Printer.Human(emptyListHint(store))
 			}
 			for _, n := range names {
 				deps.Printer.Human(n)
@@ -167,6 +172,17 @@ func NewListCmd(deps Deps, store SecretLister) *cobra.Command {
 			return deps.Printer.OK(listPayload{Names: names})
 		},
 	}
+}
+
+// emptyListHint is the lister's own hint when it has one, else the neutral
+// default.
+func emptyListHint(store SecretLister) string {
+	if h, ok := store.(EmptyListHinter); ok {
+		if hint := h.EmptyListHint(); hint != "" {
+			return hint
+		}
+	}
+	return DefaultEmptyListHint
 }
 
 // NewPruneCmd builds the standard `prune` verb: delete remote names absent

@@ -115,6 +115,13 @@ func (s *vercelStore) Set(ctx context.Context, name, value string) error {
 	return nil
 }
 
+// EmptyListHint implements providerkit.EmptyListHinter: each Vercel target
+// holds its own variables and `list` reads only the selected ones (default
+// development), so an empty list most often means the wrong target.
+func (s *vercelStore) EmptyListHint() string {
+	return fmt.Sprintf("no environment variables found for target(s) %s (each target is listed separately — try another --target: production, preview or development)", strings.Join(s.targets, ", "))
+}
+
 // Names implements providerkit.SecretLister as the union across the selected
 // targets, parsed from `vercel env ls TARGET` table output.
 //

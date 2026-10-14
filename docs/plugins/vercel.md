@@ -154,6 +154,13 @@ API_KEY: kept-skipped
 OLD_FLAG: kept-keep-flag
 ```
 
+An empty target says which target it read, since each one is listed separately:
+
+```console
+$ dotenvctl vercel list --target preview
+no environment variables found for target(s) preview (each target is listed separately — try another --target: production, preview or development)
+```
+
 `prune` computes *remote names minus the local keep-set* and deletes only those. The keep-set is wider than what `push` would push, on purpose: `API_KEY` is `__YOU__` locally, so push skips it and prune spares the real remote value (`kept-skipped`); `--keep NAME` (repeat or comma-separate) spares variables that another tool manages (`kept-keep-flag`). `DB_URL` is in the selection, so it is kept silently. Every other spare is reported with its reason.
 
 ## CI usage
