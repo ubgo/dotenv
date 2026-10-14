@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from repo import ROOT, read_text, repo_files
 
 # Local filesystem prefixes that only exist on a maintainer's machine.
-LOCAL_PATHS = ["/Users/", "/Volumes/", "/khanakia/", "/home/", "/tmp/claude"]
+LOCAL_PATHS = ["/Users/", "/Volumes/", "/khanakia/", "/space/", "/home/", "/tmp/claude"]
 # Attribution words that must never appear (case-sensitive where a common
 # lowercase word would collide, e.g. "ai" inside other words).
 FORBIDDEN = [
