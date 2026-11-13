@@ -1,3 +1,5 @@
+> **Moved to [github.com/ubgo/textdata/dotenv](https://github.com/ubgo/textdata/tree/main/dotenv).** This repository is archived. Import `github.com/ubgo/textdata/dotenv` instead of `github.com/ubgo/dotenv`, and `github.com/ubgo/textdata/dotenv/cli` instead of `github.com/ubgo/dotenv/cli`. The API is the same; existing tags stay downloadable.
+
 <h1 align="center">dotenv</h1>
 <p align="center"><strong>The comment-preserving .env toolkit for Go.</strong></p>
 <p align="center">Parse, edit, compare, and sync .env files — every byte you don't touch survives verbatim.</p>

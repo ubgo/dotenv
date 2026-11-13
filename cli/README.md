@@ -1,3 +1,5 @@
+> **Moved to [github.com/ubgo/textdata/dotenv/cli](https://github.com/ubgo/textdata/tree/main/dotenv/cli).** Import `github.com/ubgo/textdata/dotenv/cli` instead of `github.com/ubgo/dotenv/cli`; the same verbs ship as `textdatactl dotenv`.
+
 # dotenvctl
 
 A comment-preserving `.env` control tool — the command-line companion to [`github.com/ubgo/dotenv`](../README.md). Read, edit, compare, and sync env files from the shell without ever destroying the formatting a human wrote: every byte outside the entry you touch survives verbatim — comments, blank lines, ordering, quoting style, even the author's `=` vs `:` delimiter. It never modifies its own process environment.

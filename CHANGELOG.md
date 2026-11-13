@@ -13,6 +13,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 ### Security
 
+## [0.1.3] and [cli 0.1.4] - 2026-11-13
+
+Final release: both modules are deprecated and the repository is archived.
+
+### Deprecated
+
+- `github.com/ubgo/dotenv` moved to `github.com/ubgo/textdata/dotenv`, and `github.com/ubgo/dotenv/cli` to `github.com/ubgo/textdata/dotenv/cli`. Both go.mod files carry a `// Deprecated:` notice, so `go get` and `go list -u` point at the new paths.
+
 ## [cli 0.1.3] - 2026-10-14
 
 CLI release, tagged `cli/v0.1.3`. `cli/go.mod` now requires `github.com/ubgo/dotenv v0.1.2`, so `dotenvctl set`, `get --expand` and every other verb get the library changes in [0.1.2]; the documentation for both modules shipped with that tag.
@@ -103,7 +111,9 @@ Release process:
   3. Tag the release (e.g. v1.2.0) and update the link refs at the bottom.
 -->
 
-[Unreleased]: https://github.com/ubgo/dotenv/compare/cli/v0.1.3...main
+[Unreleased]: https://github.com/ubgo/dotenv/compare/v0.1.3...main
+[0.1.3]: https://github.com/ubgo/dotenv/releases/tag/v0.1.3
+[cli 0.1.4]: https://github.com/ubgo/dotenv/releases/tag/cli/v0.1.4
 [cli 0.1.3]: https://github.com/ubgo/dotenv/releases/tag/cli/v0.1.3
 [0.1.2]: https://github.com/ubgo/dotenv/releases/tag/v0.1.2
 [cli 0.1.2]: https://github.com/ubgo/dotenv/releases/tag/cli/v0.1.2

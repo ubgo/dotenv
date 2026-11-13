@@ -1,3 +1,4 @@
+// Deprecated: use github.com/ubgo/textdata/dotenv/cli
 module github.com/ubgo/dotenv/cli
 
 go 1.26.4
